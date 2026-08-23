@@ -237,4 +237,4 @@ The business considers these problems adequately addressed when, restated from S
 
 ## 6. Next Step
 
-For each business problem catalogued above, the [Solution Architecture](../PM-docs/SOLUTION-ARCHITECTURE.md) document defines the corresponding architectural decision, the technology selected to implement it, and the reasoning that connects the two.
+For each business problem catalogued above, the [Solution Architecture](../SA-docs/SOLUTION-ARCHITECTURE.md) document defines the corresponding architectural decision, the technology selected to implement it, and the reasoning that connects the two.

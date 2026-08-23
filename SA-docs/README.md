@@ -1,4 +1,4 @@
-# Product Manager
+# Solution Architecture
 
 - [`SOLUTION-ARCHITECTURE.md`](./SOLUTION-ARCHITECTURE.md) — maps each business problem from [Business Problem Analysis](../BA-docs/BUSINESS-PROBLEM-ANALYSIS.md) to the architecture decision and technology that addresses it.
 
@@ -21,3 +21,5 @@
 - Database Indexing
 - Configured Annotation meeting context's demand
 - Apache Kafka
+- Load Balancing
+- Benchmark performance
