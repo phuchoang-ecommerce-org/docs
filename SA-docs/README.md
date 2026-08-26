@@ -14,12 +14,11 @@
 - Lombok
 - MapStruct
 - JMolecules
-- MongoDB/PostgreSQL
+- MongoDB/PostgreSQL (Using both of Spring Data JPA and Spring Data JDBC)
 - ElasticSearch
-- Event-Driven Architecture (Eventual Consistency)
+- Event-Driven Architecture
 - Trasactional Outbox pattern
 - Database Indexing
-- Configured Annotation meeting context's demand
+- Expand Annotation's name meeting context's demand (Avoid using only @Service, @Repository as simple WebMVC which is not flexible for review code).
 - Apache Kafka
-- Load Balancing
 - Benchmark performance
