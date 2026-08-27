@@ -1,0 +1,34 @@
+@startuml uc-audit-access-control
+!include _common.iuml
+title Audit & Access Control — Use Cases (AUD)
+left to right direction
+
+actor Administrator as A
+actor "Customer\nSupport Agent" as SU
+actor "Any Authenticated\nActor" as AN
+actor "Any Caller" as C
+
+rectangle "Audit & Access Control" {
+  usecase "UC-AUD-01\nRecord Audit Entry" as U01
+  usecase "UC-AUD-02\nSearch Audit Trail" as U02
+  usecase "UC-AUD-03\nAuthorise Request via RBAC" as U03
+  usecase "UC-AUD-04\nEnforce API Rate Limit" as U04
+}
+
+AN --> U03
+C --> U04
+A --> U02
+SU --> U02
+
+U02 ..> U03 : <<include>>
+
+note bottom of U01
+  BR-AUD-01: audit records are append-only —
+  never updated, never deleted (P17).
+end note
+
+note bottom of U03
+  BR-AUD-02: the same authorisation decision
+  applies regardless of entry point (P5, P16).
+end note
+@enduml

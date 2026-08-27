@@ -1,0 +1,32 @@
+@startuml uc-inventory
+!include _common.iuml
+title Inventory — Use Cases (INV)
+left to right direction
+
+actor "Warehouse\nOperator" as W
+actor Staff as S
+actor Administrator as A
+actor "Checkout & Order\n(internal)" as O
+
+rectangle "Inventory" {
+  usecase "UC-INV-01\nReserve Stock for an Order" as U01
+  usecase "UC-INV-02\nRelease Reserved Stock" as U02
+  usecase "UC-INV-03\nCommit Reserved Stock\non Fulfilment" as U03
+  usecase "UC-INV-04\nAdjust Inventory" as U04
+  usecase "UC-INV-05\nView Inventory Levels" as U05
+}
+
+O --> U01
+O --> U02
+W --> U03
+W --> U04
+W --> U05
+S --> U05
+A --> U04
+A --> U05
+
+note bottom of U01
+  BR-INV-01: available stock may never
+  go negative, under any concurrency (P8).
+end note
+@enduml

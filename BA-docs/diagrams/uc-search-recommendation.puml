@@ -1,0 +1,33 @@
+@startuml uc-search-recommendation
+!include _common.iuml
+title Search & Recommendation — Use Cases (SCH)
+left to right direction
+
+actor Guest as G
+actor Customer as C
+
+rectangle "Search & Recommendation" {
+  usecase "UC-SCH-01\nSearch Products by Keyword" as U01
+  usecase "UC-SCH-02\nReceive Search Suggestions\nand Auto-complete" as U02
+  usecase "UC-SCH-03\nFilter and Sort\nSearch Results" as U03
+  usecase "UC-SCH-04\nView Popular and\nRecent Keywords" as U04
+  usecase "UC-SCH-05\nView Related and Frequently\nBought Together Products" as U05
+  usecase "UC-SCH-06\nView Trending Products\nand New Arrivals" as U06
+  usecase "UC-SCH-07\nReceive Personalised\nRecommendations" as U07
+}
+
+G --> U01
+G --> U02
+G --> U04
+G --> U05
+G --> U06
+C --> U01
+C --> U03
+C --> U04
+C --> U05
+C --> U07
+
+U03 .> U01 : <<extend>>
+U02 .> U01 : <<extend>>
+U07 ..> U04 : <<include>>
+@enduml

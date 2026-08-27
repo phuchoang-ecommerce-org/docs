@@ -1,0 +1,63 @@
+' Shared look-and-feel for every ECP business-analysis diagram.
+' Included via !include _common.iuml -- the .iuml extension keeps util/toSvg.js
+' from trying to compile this fragment as a standalone diagram.
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam defaultFontName "Helvetica, Arial, sans-serif"
+skinparam defaultFontSize 13
+skinparam ArrowColor #4A4A5A
+skinparam ArrowFontSize 11
+skinparam ArrowFontColor #55556A
+
+skinparam actor {
+  BackgroundColor #F4F1FF
+  BorderColor #7C5CFF
+  FontColor #1B1B2B
+}
+
+skinparam usecase {
+  BackgroundColor #FFFFFF
+  BorderColor #7C5CFF
+  FontColor #1B1B2B
+  BorderThickness 1
+}
+
+skinparam rectangle {
+  BackgroundColor #FBFAFF
+  BorderColor #B9AEE8
+  FontColor #3A3A55
+  FontSize 13
+  FontStyle bold
+}
+
+skinparam package {
+  BackgroundColor #FBFAFF
+  BorderColor #B9AEE8
+  FontColor #3A3A55
+}
+
+skinparam state {
+  BackgroundColor #FFFFFF
+  BorderColor #7C5CFF
+  FontColor #1B1B2B
+  StartColor #2E9E5B
+  EndColor #3A3A55
+}
+
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #7C5CFF
+  FontColor #1B1B2B
+  DiamondBackgroundColor #F4F1FF
+  DiamondBorderColor #7C5CFF
+  StartColor #2E9E5B
+  EndColor #3A3A55
+}
+
+skinparam note {
+  BackgroundColor #FFF9E6
+  BorderColor #D9C68A
+  FontColor #4A4030
+  FontSize 11
+}

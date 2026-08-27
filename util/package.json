@@ -8,7 +8,9 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "docs:html": "node util/toHtml.js"
+    "docs:diagrams": "node toSvg.js",
+    "docs:html": "node toHtml.js",
+    "docs:build": "npm run docs:diagrams && npm run docs:html"
   },
   "repository": {
     "type": "git",

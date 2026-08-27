@@ -1,0 +1,41 @@
+@startuml uc-administration
+!include _common.iuml
+title Administration — Use Cases (ADM)
+left to right direction
+
+actor Staff as S
+actor "Warehouse\nOperator" as W
+actor "Customer\nSupport Agent" as SU
+actor Administrator as A
+
+rectangle "Administration" {
+  usecase "UC-ADM-01\nManage Products" as U01
+  usecase "UC-ADM-02\nManage Categories" as U02
+  usecase "UC-ADM-03\nManage Customer Accounts" as U03
+  usecase "UC-ADM-04\nManage Orders" as U04
+  usecase "UC-ADM-05\nManage Inventory Adjustments" as U05
+  usecase "UC-ADM-06\nManage User Roles" as U06
+}
+
+usecase "UC-AUD-01\nRecord Audit Entry" as UA #F4F1FF
+
+S --> U01
+S --> U02
+S --> U04
+W --> U05
+SU --> U03
+SU --> U04
+A --> U01
+A --> U02
+A --> U03
+A --> U04
+A --> U05
+A --> U06
+
+U01 ..> UA : <<include>>
+U02 ..> UA : <<include>>
+U03 ..> UA : <<include>>
+U04 ..> UA : <<include>>
+U05 ..> UA : <<include>>
+U06 ..> UA : <<include>>
+@enduml

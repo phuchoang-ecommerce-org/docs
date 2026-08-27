@@ -1,16 +1,16 @@
 # Business Problem Analysis — Enterprise Commerce Platform (ECP)
 
 **Document type:** Business Analysis
-**Related document:** [`requirement.md`](./requirement.md) (Software Requirements Specification)
+**Related documents:** [`requirement.md`](./requirement.md) (Product Owner Requirements) · [`srs.md`](./srs.md) (Software Requirements Specification) · [`use-cases/`](./use-cases/README.md) (Use Case Specification) · [`traceability-matrix.md`](./traceability-matrix.md)
 **Audience:** Business stakeholders, Product Management, Solution Architecture
 
 ---
 
 ## 1. Purpose of This Document
 
-The SRS (`requirement.md`) defines *what the platform must do*. This document defines *why it must do it* — the underlying business problems the Enterprise Commerce Platform (ECP) exists to solve, the impact of leaving each problem unaddressed, and the stakeholders affected.
+The Product Owner Requirements (`requirement.md`) state *what the platform must do*, and [`srs.md`](./srs.md) specifies those requirements formally. This document defines *why it must do it* — the underlying business problems the Enterprise Commerce Platform (ECP) exists to solve, the impact of leaving each problem unaddressed, and the stakeholders affected.
 
-This document deliberately makes no reference to technology, frameworks, or implementation. Its purpose is to establish a shared, technology-neutral understanding of the business problem space before any architectural decision is made. The companion document, [Solution Architecture](../PM-docs/SOLUTION-ARCHITECTURE.md), takes each problem identified here and maps it to a concrete technical decision.
+This document deliberately makes no reference to technology, frameworks, or implementation. Its purpose is to establish a shared, technology-neutral understanding of the business problem space before any architectural decision is made. The companion document, [Solution Architecture](../SA-docs/general-approach.md), takes each problem identified here and maps it to a concrete technical decision.
 
 ---
 
@@ -24,7 +24,7 @@ This framing matters: many of the problems below are not about today's feature s
 
 ## 3. Business Problem Catalog
 
-Each problem below follows the same structure: the problem itself, the business impact if it is left unresolved, the stakeholders who feel that impact, and the SRS section that grounds the requirement.
+Each problem below follows the same structure: the problem itself, the business impact if it is left unresolved, the stakeholders who feel that impact, and the traceability that grounds it. Traceability cites the originating clause of [`requirement.md`](./requirement.md) (as *PO Requirements §n*) and, after the dash, the stable identifiers in [`srs.md`](./srs.md) that address the problem. [`traceability-matrix.md`](./traceability-matrix.md) carries the same mapping in table form, together with the use cases that exercise it.
 
 ### Theme A — Growth & Extensibility of Business Capability
 
@@ -34,7 +34,7 @@ As the platform grows, it must support an increasing number of distinct business
 
 - **Business impact:** Each new feature becomes slower and riskier to deliver; the cost of adding capability rises over time instead of staying flat; teams become afraid to change shared code.
 - **Stakeholders affected:** Product Management (slower roadmap delivery), Engineering leadership (rising delivery cost), Leadership (reduced ability to react to market opportunities).
-- **Traceability:** SRS §1 Business Goals ("easy to extend with new business capabilities"); SRS §11 ("clear separation of business domains," "high cohesion and low coupling").
+- **Traceability:** PO Requirements §1 Business Goals ("easy to extend with new business capabilities"); §11 ("clear separation of business domains," "high cohesion and low coupling"). — SRS: `NFR-MAINT-01`, `NFR-MAINT-02`, `CON-01`, `CON-02`.
 
 #### P2. New capabilities need to plug into existing business events without destabilizing the core
 
@@ -42,7 +42,7 @@ The business will continuously want to react to key moments — an order being p
 
 - **Business impact:** Without a clean way to extend behavior around key business moments, every new initiative (loyalty program, CRM integration, analytics) becomes a modification to core revenue-generating code, increasing risk and slowing time-to-market for new initiatives.
 - **Stakeholders affected:** Marketing/Growth (loyalty, CRM, personalization initiatives), Engineering (regression risk on core checkout), Leadership (speed of launching new revenue initiatives).
-- **Traceability:** SRS §10 Future Expansion (Loyalty Program, CRM Integration, AI Recommendation); SRS §11 ("internal module communication should favor events where appropriate").
+- **Traceability:** PO Requirements §10 Future Expansion (Loyalty Program, CRM Integration, AI Recommendation); §11 ("internal module communication should favor events where appropriate"). — SRS: `NFR-MAINT-04`, `NFR-REL-06`, `CON-07`, `FR-NTF-03`.
 
 ---
 
@@ -54,7 +54,7 @@ The business anticipates working with multiple and changing external partners �
 
 - **Business impact:** Reduced negotiating leverage with vendors, slower response to better pricing or service elsewhere, higher project cost and risk every time a provider relationship changes.
 - **Stakeholders affected:** Finance/Procurement (vendor negotiation leverage), Operations (provider reliability and continuity), Leadership (strategic flexibility).
-- **Traceability:** SRS §7 Payment ("should allow future integration with external payment providers"); SRS §10 Future Expansion (External ERP/CRM Integration, multiple shipping providers).
+- **Traceability:** PO Requirements §2 Payment ("payment processing should allow future integration with external payment providers"); §10 Future Expansion (External ERP/CRM Integration); §2 Shipping (multiple shipping providers). — SRS: `FR-PAY-09`, `FR-SHP-01`, `NFR-MAINT-03`, `NFR-AVAIL-03`, `CON-03`.
 
 #### P4. Not all business data needs to be equally up-to-the-millisecond
 
@@ -62,7 +62,7 @@ Some information (an order's payment status) must always be perfectly current. O
 
 - **Business impact:** Over-engineering freshness everywhere raises infrastructure cost and slows the system down for no business benefit; under-engineering it where it truly matters (money, stock) causes real financial harm. The business needs this distinction made deliberately, not by accident.
 - **Stakeholders affected:** Finance (cost of infrastructure), Engineering leadership (scalability headroom), Customers (perceived speed of the platform).
-- **Traceability:** SRS §11 ("read and write workloads should scale independently"; "transactional data and analytical data should not compete for the same storage resources").
+- **Traceability:** PO Requirements §11 ("read and write workloads should scale independently"; "transactional data and analytical data should not compete for the same storage resources"). — SRS: `NFR-PERF-06`, `NFR-SCAL-05`, `CON-04`, `CON-06`, assumption `A-11`.
 
 ---
 
@@ -74,7 +74,7 @@ Rules such as "only a verified buyer may review a product," "stock can never go 
 
 - **Business impact:** Inconsistent enforcement opens the door to fraud, invalid orders, data corruption, and promotion abuse — each of which has a direct financial or reputational cost.
 - **Stakeholders affected:** Finance (fraud losses), Customer Support (disputes caused by invalid states), Trust & Safety, Customers (fairness of promotions and reviews).
-- **Traceability:** SRS §2 Order Management ("every state transition must follow business rules"); SRS §2 Review System ("only verified buyers can review products"); SRS §2 Inventory Management ("stock must never become negative").
+- **Traceability:** PO Requirements §2 Order Management ("every state transition must follow business rules"); §2 Review System ("only verified buyers can review products"); §2 Inventory Management ("stock must never become negative"). — SRS: **all of §4 Business Rules**, in particular `BR-ORD-01`, `BR-REV-01`, `BR-INV-01`, `BR-AUD-02`; `FR-ORD-11`, `FR-REV-06`, `FR-AUD-06`, `NFR-SEC-01`.
 
 #### P6. Business-critical events must never silently disappear between systems
 
@@ -82,7 +82,7 @@ When something important happens — an order is created, a payment succeeds —
 
 - **Business impact:** Customers who don't receive order confirmations, analytics and reporting that silently under-count real transactions, and reconciliation work to find and fix the gaps after the fact.
 - **Stakeholders affected:** Customer Support (complaints from confused customers), Finance/Analytics (inaccurate reporting), Operations (manual reconciliation cost).
-- **Traceability:** SRS §11 ("internal module communication should favor events where appropriate"); SRS §2 Notification Center (Order Created, Payment Success, Shipment Updates, Refund).
+- **Traceability:** PO Requirements §11 ("internal module communication should favor events where appropriate"); §2 Notification Center (Order Created, Payment Success, Shipment Updates, Refund). — SRS: `BR-NTF-01`, `NFR-REL-05`, `NFR-REL-06`, `FR-NTF-06`, `FR-PAY-05`.
 
 ---
 
@@ -94,7 +94,7 @@ An order that is charged but never recorded, or recorded but never charged, or t
 
 - **Business impact:** Direct financial loss, incorrect inventory counts that cascade into further overselling or stockouts, and costly manual reconciliation.
 - **Stakeholders affected:** Finance (revenue accuracy), Operations/Warehouse (inventory accuracy), Customer Support (order disputes).
-- **Traceability:** SRS §8 Reliability ("prevent duplicate orders," "ensure transactional consistency," "recover gracefully from infrastructure failures").
+- **Traceability:** PO Requirements §8 Reliability ("prevent duplicate orders," "ensure transactional consistency," "recover gracefully from infrastructure failures"). — SRS: `BR-ORD-02`, `BR-ORD-03`, `BR-INV-02`, `BR-PAY-01`, `BR-PAY-02`; `FR-ORD-08`, `FR-ORD-09`; `NFR-REL-01`, `NFR-REL-02`, `NFR-REL-04`.
 
 #### P8. Sudden concentrated demand must never allow the platform to sell what it does not have
 
@@ -102,7 +102,7 @@ During flash sales, promotions, or seasonal peaks, thousands of customers may at
 
 - **Business impact:** Cancelled orders and refunds directly erode customer trust and generate support costs; the failure is highly visible and disproportionately damages the brand precisely during the events meant to generate the most goodwill and revenue.
 - **Stakeholders affected:** Customers (broken purchase promise), Customer Support (cancellation/refund volume), Marketing/Brand (reputational damage), Finance (refund cost).
-- **Traceability:** SRS §8 Reliability ("prevent overselling inventory"); SRS §2 Inventory Management ("stock must never become negative").
+- **Traceability:** PO Requirements §8 Reliability ("prevent overselling inventory"); §2 Inventory Management ("stock must never become negative"). — SRS: `BR-INV-01`, `BR-CRT-02`; `FR-INV-02`, `FR-ORD-06`; `NFR-REL-03`, `NFR-SCAL-06`.
 
 ---
 
@@ -114,7 +114,7 @@ Flash sales, seasonal campaigns, and promotional events concentrate an unusually
 
 - **Business impact:** Every minute of degraded performance during a peak event has an outsized, measurable revenue cost compared to the same downtime on an ordinary day, plus lasting damage to customer confidence in future promotions.
 - **Stakeholders affected:** Leadership (revenue targets), Marketing (campaign ROI), Customers (experience during the events that matter most to them).
-- **Traceability:** SRS §1 Business Goals ("handle peak shopping events efficiently"); SRS §7 Performance Requirements ("continue operating under high traffic conditions").
+- **Traceability:** PO Requirements §1 Business Goals ("handle peak shopping events efficiently"); §7 Performance Requirements ("continue operating under high traffic conditions"). — SRS: `NFR-SCAL-04`, `NFR-SCAL-06`, `NFR-AVAIL-01`, `NFR-AVAIL-02`, `NFR-PERF-01`–`NFR-PERF-03`, assumption `A-04`.
 
 #### P10. Growth in customers, products, and orders must not translate into proportionally worse performance or cost
 
@@ -122,7 +122,7 @@ As the business succeeds and its catalog, customer base, and order volume grow, 
 
 - **Business impact:** If performance degrades faster than the business grows, customer experience suffers exactly as the business scales — the worst possible time — and infrastructure cost can grow faster than revenue, compressing margin.
 - **Stakeholders affected:** Finance (infrastructure cost vs. revenue growth), Customers (consistent experience at scale), Leadership (unit economics of growth).
-- **Traceability:** SRS §7 Performance Requirements ("support at least 10,000 products," "100,000 registered users," "respond... within acceptable latency").
+- **Traceability:** PO Requirements §7 Performance Requirements ("support at least 10,000 products," "100,000 registered users," "respond... within acceptable latency"). — SRS: `NFR-SCAL-01`, `NFR-SCAL-02`, `NFR-SCAL-03`, `NFR-SCAL-07`, `NFR-PERF-01`–`NFR-PERF-04`, assumption `A-03`.
 
 ---
 
@@ -134,7 +134,7 @@ Product discovery is the first step of every purchase. If search results are slo
 
 - **Business impact:** Directly reduced conversion rate and revenue; the cost is invisible in support tickets but visible in sales figures and, over time, customer retention.
 - **Stakeholders affected:** Marketing (conversion metrics), Leadership (revenue), Customers (shopping experience).
-- **Traceability:** SRS §4 Search (full-text search, filtering, ranking, suggestions); SRS §12 Acceptance Criteria.
+- **Traceability:** PO Requirements §4 Search (full-text search, filtering, ranking, suggestions); §2 Product Catalog (browse, filter, sort); §12 Acceptance Criteria. — SRS: `FR-SCH-01`–`FR-SCH-11`, `FR-CAT-03`–`FR-CAT-08`; `NFR-PERF-03`, `NFR-PERF-04`.
 
 #### P12. Precise transaction handling and fast, flexible browsing are two different jobs the platform must do equally well
 
@@ -142,7 +142,7 @@ Completing a purchase demands accuracy and consistency above all else. Browsing 
 
 - **Business impact:** Forcing a single approach to serve both needs caps how well either can perform, directly limiting both conversion (browsing speed) and trust (transaction accuracy).
 - **Stakeholders affected:** Customers (both browsing and checkout experience), Finance (transaction accuracy), Leadership (conversion and reliability targets).
-- **Traceability:** SRS §11 ("read and write workloads should scale independently").
+- **Traceability:** PO Requirements §11 ("read and write workloads should scale independently"; "frequently accessed data should be optimized for low latency"). — SRS: `NFR-SCAL-05`, `NFR-PERF-01`, `NFR-PERF-02`, `CON-04`, `CON-05`.
 
 ---
 
@@ -154,7 +154,7 @@ Reports on revenue, top products, customer growth, and inventory are essential f
 
 - **Business impact:** If reporting and transactions are not kept independent, either the business flies blind (reports are disabled or delayed to protect performance) or customers are made to wait so an admin dashboard can load — both are unacceptable trade-offs.
 - **Stakeholders affected:** Leadership and Finance (decision-making visibility), Customers (uninterrupted checkout), Operations (inventory and sales monitoring).
-- **Traceability:** SRS §3 Reporting & Analytics ("reports should remain responsive even during high transaction volume").
+- **Traceability:** PO Requirements §3 Reporting & Analytics ("reports should remain responsive even during high transaction volume"). — SRS: `NFR-PERF-05`, `NFR-PERF-06`, `CON-06`; `FR-RPT-01`–`FR-RPT-10`, `BR-RPT-01`.
 
 ---
 
@@ -166,7 +166,7 @@ As the organization grows, multiple teams will work on different business capabi
 
 - **Business impact:** Slower overall delivery velocity as headcount grows, increased scheduling and communication overhead, and a rising risk that one team's change unexpectedly breaks another team's work.
 - **Stakeholders affected:** Engineering leadership (team scaling), Product Management (roadmap predictability), Leadership (return on engineering headcount).
-- **Traceability:** SRS §1 Business Goals; SRS §12 Acceptance Criteria ("new business modules can be added with minimal modification to existing code").
+- **Traceability:** PO Requirements §1 Business Goals; §12 Acceptance Criteria ("new business modules can be added with minimal modification to existing code"). — SRS: `NFR-MAINT-01`, `NFR-MAINT-02`, `NFR-MAINT-06`, `CON-01`, `CON-08`.
 
 #### P15. Without ongoing discipline, the platform's structure will erode and every future feature will cost more than the last
 
@@ -174,7 +174,7 @@ Left to natural drift, even a well-designed system accumulates shortcuts and uni
 
 - **Business impact:** Feature delivery cost creeps upward year over year with no corresponding increase in feature complexity, silently eroding engineering ROI until a costly rewrite becomes the only remaining option.
 - **Stakeholders affected:** Engineering leadership (long-term maintenance cost), Finance (engineering budget trends), Leadership (long-term platform viability).
-- **Traceability:** SRS §12 Acceptance Criteria ("the system remains maintainable as complexity increases").
+- **Traceability:** PO Requirements §12 Acceptance Criteria ("the system remains maintainable as complexity increases"). — SRS: `NFR-MAINT-05`, `NFR-MAINT-01`, `NFR-MAINT-03`; `AC-04`.
 
 ---
 
@@ -186,7 +186,7 @@ Customers, warehouse staff, customer support, and administrators each need acces
 
 - **Business impact:** Unauthorized actions on pricing, inventory, promotions, or customer data represent direct financial exposure, regulatory risk, and loss of customer trust if discovered publicly.
 - **Stakeholders affected:** Finance (pricing/inventory integrity), Legal/Compliance (data access risk), Customers (data protection), Leadership (reputational risk).
-- **Traceability:** SRS §9 Security (Role-Based Access Control; roles: Customer, Staff, Warehouse, Customer Support, Administrator).
+- **Traceability:** PO Requirements §9 Security (Role-Based Access Control; roles: Customer, Staff, Warehouse, Customer Support, Administrator). — SRS: `FR-AUD-05`–`FR-AUD-08`, `NFR-SEC-01`–`NFR-SEC-07`, `BR-AUD-02`, `BR-AUD-03`, `BR-SCH-01`; role authority table at SRS §2.3.
 
 #### P17. The business must be able to answer "who did this, when, and why" for every significant action
 
@@ -194,7 +194,7 @@ Price changes, inventory adjustments, order cancellations, and refund approvals 
 
 - **Business impact:** Inability to resolve disputes credibly, slower and more expensive fraud/error investigation, and compliance exposure if the business cannot produce a reliable record of significant actions.
 - **Stakeholders affected:** Legal/Compliance, Finance (fraud investigation), Customer Support (dispute resolution), Leadership (audit readiness).
-- **Traceability:** SRS §6 Audit ("every important business action must be traceable"; "audit records should never be modified").
+- **Traceability:** PO Requirements §6 Audit ("every important business action must be traceable"; "audit records should never be modified"). — SRS: `FR-AUD-01`–`FR-AUD-04`, `BR-AUD-01`, `BR-INV-03`, `NFR-OBS-01`, `NFR-OBS-02`, `FR-DAT-05`.
 
 ---
 
@@ -237,4 +237,4 @@ The business considers these problems adequately addressed when, restated from S
 
 ## 6. Next Step
 
-For each business problem catalogued above, the [Solution Architecture](../SA-docs/SOLUTION-ARCHITECTURE.md) document defines the corresponding architectural decision, the technology selected to implement it, and the reasoning that connects the two.
+For each business problem catalogued above, the [Solution Architecture](../SA-docs/general-approach.md) document defines the corresponding architectural decision, the technology selected to implement it, and the reasoning that connects the two.

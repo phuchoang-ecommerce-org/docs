@@ -1,0 +1,32 @@
+@startuml uc-review
+!include _common.iuml
+title Review System — Use Cases (REV)
+left to right direction
+
+actor Guest as G
+actor Customer as C
+actor Staff as S
+actor "Customer\nSupport Agent" as SU
+
+rectangle "Review System" {
+  usecase "UC-REV-01\nSubmit Product Review" as U01
+  usecase "UC-REV-02\nEdit Own Review" as U02
+  usecase "UC-REV-03\nDelete Own Review" as U03
+  usecase "UC-REV-04\nView Product Reviews" as U04
+  usecase "UC-REV-05\nModerate Review" as U05
+}
+
+G --> U04
+C --> U01
+C --> U02
+C --> U03
+C --> U04
+S --> U05
+SU --> U05
+
+note bottom of U01
+  BR-REV-01: only a customer with a
+  Delivered or Completed order containing
+  the product may review it (P5).
+end note
+@enduml

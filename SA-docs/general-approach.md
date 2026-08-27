@@ -1,14 +1,14 @@
 # Solution Architecture — Enterprise Commerce Platform (ECP)
 
 **Document type:** Solution Architecture
-**Related document:** [Business Problem Analysis](../BA-docs/BUSINESS-PROBLEM-ANALYSIS.md)
+**Related document:** [Business Problem Analysis](../BA-docs/general-approach.md)
 **Audience:** Engineering, Product Management, Architecture Review
 
 ---
 
 ## 1. Purpose of This Document
 
-The [Business Problem Analysis](../BA-docs/BUSINESS-PROBLEM-ANALYSIS.md) catalogs seventeen business problems (P1–P17) the Enterprise Commerce Platform must solve, independent of any technology. This document takes each of those problems and answers: *what architectural decision addresses it, what technology implements that decision, and why*.
+The [Business Problem Analysis](../BA-docs/general-approach.md) catalogs seventeen business problems (P1–P17) the Enterprise Commerce Platform must solve, independent of any technology. This document takes each of those problems and answers: *what architectural decision addresses it, what technology implements that decision, and why*.
 
 No technology in this stack is included because it is popular or because the stack "should" have it. Every entry below traces back to a specific, named business problem.
 
@@ -334,7 +334,7 @@ Because module boundaries (P1) are enforced today rather than assumed, and cross
 
 ## 9. Summary
 
-No technology decision in this architecture stands on its own. Each one is the answer to a specific, named business problem from the [Business Problem Analysis](../BA-docs/BUSINESS-PROBLEM-ANALYSIS.md):
+No technology decision in this architecture stands on its own. Each one is the answer to a specific, named business problem from the [Business Problem Analysis](../BA-docs/general-approach.md):
 
 ```mermaid
 flowchart TB

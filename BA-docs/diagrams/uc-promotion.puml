@@ -1,0 +1,29 @@
+@startuml uc-promotion
+!include _common.iuml
+title Promotion — Use Cases (PRM)
+left to right direction
+
+actor Customer as C
+actor Staff as S
+actor Administrator as A
+actor "Scheduler\n(Time)" as T
+
+rectangle "Promotion" {
+  usecase "UC-PRM-01\nCreate Promotion" as U01
+  usecase "UC-PRM-02\nValidate Voucher Code" as U02
+  usecase "UC-PRM-03\nApply Promotion to Order" as U03
+  usecase "UC-PRM-04\nLaunch Flash Sale" as U04
+  usecase "UC-PRM-05\nDeactivate or\nExpire Promotion" as U05
+}
+
+S --> U01
+A --> U01
+A --> U04
+A --> U05
+C --> U02
+C --> U03
+T --> U04
+T --> U05
+
+U03 ..> U02 : <<include>>
+@enduml

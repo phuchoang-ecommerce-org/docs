@@ -1,0 +1,76 @@
+@startuml system-context
+!include _common.iuml
+title Enterprise Commerce Platform — Actors and System Boundary
+
+left to right direction
+
+actor "Guest\n(Visitor)" as Guest
+actor "Customer" as Customer
+actor "Staff" as Staff
+actor "Warehouse\nOperator" as Warehouse
+actor "Customer\nSupport Agent" as Support
+actor "Administrator" as Admin
+actor "Scheduler\n(Time)" as Scheduler
+
+rectangle "Enterprise Commerce Platform (ECP)" as ECP {
+  usecase "Customer & Identity" as D1
+  usecase "Catalog & Category" as D2
+  usecase "Search & Recommendation" as D3
+  usecase "Inventory" as D4
+  usecase "Cart & Wishlist" as D5
+  usecase "Checkout & Order" as D6
+  usecase "Payment" as D7
+  usecase "Shipping" as D8
+  usecase "Promotion" as D9
+  usecase "Review" as D10
+  usecase "Notification" as D11
+  usecase "Administration" as D12
+  usecase "Reporting & Analytics" as D13
+  usecase "Audit & Access Control" as D14
+}
+
+actor "Payment\nGateway" as Gateway
+actor "Shipping\nCarrier" as Carrier
+actor "Email Service\nProvider" as Email
+
+Guest --> D2
+Guest --> D3
+Guest --> D5
+Guest --> D1
+
+Customer --> D1
+Customer --> D5
+Customer --> D6
+Customer --> D7
+Customer --> D10
+Customer --> D11
+
+Staff --> D12
+Staff --> D9
+Staff --> D6
+
+Warehouse --> D4
+Warehouse --> D8
+
+Support --> D6
+Support --> D7
+Support --> D10
+
+Admin --> D12
+Admin --> D13
+Admin --> D14
+
+Scheduler --> D5
+Scheduler --> D9
+Scheduler --> D13
+
+D7 --> Gateway
+D8 --> Carrier
+D11 --> Email
+
+note bottom of ECP
+  Guest and Scheduler are actors implied by the
+  Product Owner Requirements but not named in §9.
+  See SRS §2.3 — pending stakeholder confirmation.
+end note
+@enduml

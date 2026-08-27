@@ -1,0 +1,33 @@
+@startuml uc-notification
+!include _common.iuml
+title Notification Center — Use Cases (NTF)
+left to right direction
+
+actor Customer as C
+actor Administrator as A
+actor "Email Service\nProvider" as E
+actor "Business Events\n(internal)" as EV
+
+rectangle "Notification Center" {
+  usecase "UC-NTF-01\nDeliver Email Notification" as U01
+  usecase "UC-NTF-02\nDeliver In-App Notification" as U02
+  usecase "UC-NTF-03\nView In-App Notifications" as U03
+  usecase "UC-NTF-04\nManage Notification\nPreferences" as U04
+}
+
+EV --> U01
+EV --> U02
+C --> U03
+C --> U04
+A --> U04
+U01 --> E
+
+U01 ..> U04 : <<include>>
+U02 ..> U04 : <<include>>
+
+note bottom of U01
+  BR-NTF-01: a notification triggered by a
+  business event must be delivered at least
+  once, or recorded as undeliverable (P6).
+end note
+@enduml

@@ -1,0 +1,68 @@
+@startuml checkout-activity
+!include _common.iuml
+title Place Order — Activity Flow (UC-ORD-05)
+
+start
+:Customer confirms order summary;
+:Validate cart is non-empty
+and every line item is still purchasable;
+
+if (Cart valid?) then (no)
+  :Show which lines are unavailable;
+  stop
+else (yes)
+endif
+
+:Re-price cart at current prices;
+
+if (Voucher applied?) then (yes)
+  :Re-validate voucher
+  (active, eligible, within usage limit);
+  if (Voucher still valid?) then (no)
+    :Remove voucher and
+    notify Customer of new total;
+  else (yes)
+    :Apply discount;
+  endif
+else (no)
+endif
+
+:Calculate shipping fee
+and delivery estimate;
+:Compute order total;
+
+partition "Atomic — must not partially complete (P7)" {
+  :Reserve stock for every line item;
+  if (Sufficient available stock?) then (no)
+    :Release any partial reservation;
+    :Report the out-of-stock lines;
+    stop
+  else (yes)
+  endif
+  :Create Order in state Draft;
+  :Transition Order to Pending Payment;
+}
+
+:Emit OrderCreated event;
+
+if (Payment method is Cash On Delivery?) then (yes)
+  :Leave Order in Pending Payment
+  for settlement on delivery;
+else (no)
+  :Request authorisation
+  from Payment Gateway;
+  if (Authorised?) then (no)
+    :Transition Order to Payment Failed;
+    :Keep reservation until
+    the retry window elapses;
+    stop
+  else (yes)
+    :Transition Order to Paid;
+    :Emit PaymentSucceeded event;
+  endif
+endif
+
+:Confirm the order to the Customer;
+:Queue order confirmation notification;
+stop
+@enduml

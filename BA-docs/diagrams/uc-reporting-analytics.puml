@@ -1,0 +1,41 @@
+@startuml uc-reporting-analytics
+!include _common.iuml
+title Reporting & Analytics — Use Cases (RPT)
+left to right direction
+
+actor Staff as S
+actor Administrator as A
+actor "Warehouse\nOperator" as W
+actor "Scheduler\n(Time)" as T
+
+rectangle "Reporting & Analytics" {
+  usecase "UC-RPT-01\nView Revenue Report" as U01
+  usecase "UC-RPT-02\nView Product\nPerformance Report" as U02
+  usecase "UC-RPT-03\nView Customer Report" as U03
+  usecase "UC-RPT-04\nView Inventory Report" as U04
+  usecase "UC-RPT-05\nView Order and\nConversion Statistics" as U05
+  usecase "UC-RPT-06\nExport Report" as U06
+}
+
+A --> U01
+A --> U02
+A --> U03
+A --> U04
+A --> U05
+A --> U06
+S --> U02
+S --> U05
+W --> U04
+T --> U01
+
+U06 .> U01 : <<extend>>
+U06 .> U02 : <<extend>>
+U06 .> U03 : <<extend>>
+U06 .> U04 : <<extend>>
+U06 .> U05 : <<extend>>
+
+note bottom of U01
+  NFR-PERF-05: reporting must not measurably
+  degrade transactional performance (P13).
+end note
+@enduml

@@ -1,0 +1,32 @@
+@startuml uc-shipping
+!include _common.iuml
+title Shipping — Use Cases (SHP)
+left to right direction
+
+actor Customer as C
+actor "Warehouse\nOperator" as W
+actor "Customer\nSupport Agent" as S
+actor "Shipping\nCarrier" as SC
+
+rectangle "Shipping" {
+  usecase "UC-SHP-01\nCalculate Shipping Fee" as U01
+  usecase "UC-SHP-02\nEstimate Delivery Date" as U02
+  usecase "UC-SHP-03\nCreate Shipment" as U03
+  usecase "UC-SHP-04\nRecord Carrier\nTracking Update" as U04
+  usecase "UC-SHP-05\nView Shipment Tracking" as U05
+  usecase "UC-SHP-06\nConfirm Delivery" as U06
+}
+
+C --> U01
+C --> U02
+C --> U05
+W --> U03
+S --> U05
+SC --> U04
+SC --> U06
+U03 --> SC
+
+U03 ..> U02 : <<include>>
+U01 ..> U02 : <<include>>
+U04 .> U06 : <<extend>>
+@enduml

@@ -1,0 +1,40 @@
+@startuml uc-customer-identity
+!include _common.iuml
+title Customer & Identity — Use Cases (CUS)
+left to right direction
+
+actor Guest as G
+actor Customer as C
+actor "Customer\nSupport Agent" as S
+actor "Email Service\nProvider" as E
+
+rectangle "Customer & Identity" {
+  usecase "UC-CUS-01\nRegister Customer Account" as U01
+  usecase "UC-CUS-02\nVerify Email Address" as U02
+  usecase "UC-CUS-03\nLog In" as U03
+  usecase "UC-CUS-04\nLog Out" as U04
+  usecase "UC-CUS-05\nRefresh Authenticated Session" as U05
+  usecase "UC-CUS-06\nChange Password" as U06
+  usecase "UC-CUS-07\nReset Forgotten Password" as U07
+  usecase "UC-CUS-08\nManage Profile" as U08
+  usecase "UC-CUS-09\nManage Shipping Addresses" as U09
+  usecase "UC-CUS-10\nView Purchase History" as U10
+}
+
+G --> U01
+G --> U02
+G --> U03
+G --> U07
+C --> U04
+C --> U05
+C --> U06
+C --> U08
+C --> U09
+C --> U10
+S --> U10
+
+U01 ..> U02 : <<include>>
+U07 ..> U02 : <<include>>
+U02 --> E
+U07 --> E
+@enduml

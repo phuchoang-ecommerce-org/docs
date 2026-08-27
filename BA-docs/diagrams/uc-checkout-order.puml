@@ -1,0 +1,49 @@
+@startuml uc-checkout-order
+!include _common.iuml
+title Checkout & Order — Use Cases (ORD)
+left to right direction
+
+actor Customer as C
+actor Staff as S
+actor "Customer\nSupport Agent" as SU
+actor "Warehouse\nOperator" as W
+
+rectangle "Checkout & Order" {
+  usecase "UC-ORD-01\nInitiate Checkout" as U01
+  usecase "UC-ORD-02\nProvide Shipping and\nBilling Information" as U02
+  usecase "UC-ORD-03\nApply Voucher at Checkout" as U03
+  usecase "UC-ORD-04\nReview Order Summary" as U04
+  usecase "UC-ORD-05\nPlace Order" as U05
+  usecase "UC-ORD-06\nView Order Details" as U06
+  usecase "UC-ORD-07\nTrack Order" as U07
+  usecase "UC-ORD-08\nCancel Order" as U08
+  usecase "UC-ORD-09\nRequest Return" as U09
+  usecase "UC-ORD-10\nAdvance Order Status" as U10
+}
+
+C --> U01
+C --> U02
+C --> U03
+C --> U04
+C --> U05
+C --> U06
+C --> U07
+C --> U08
+C --> U09
+S --> U10
+W --> U10
+SU --> U06
+SU --> U08
+SU --> U09
+
+U01 ..> U02 : <<include>>
+U02 ..> U04 : <<include>>
+U03 .> U04 : <<extend>>
+U05 ..> U04 : <<include>>
+
+note bottom of U05
+  BR-ORD-02: placing an order reserves stock and
+  creates the order atomically — never one without
+  the other (P7).
+end note
+@enduml

@@ -13,6 +13,7 @@
 - Event-Driven Architecture
 - Trasactional Outbox pattern
 - Database Indexing
-- Expand Annotation's name meeting context's demand (Avoid using only @Service, @Repository as simple WebMVC which is not flexible for review code).
+- Expand Annotation's name meeting context's demand (Avoid using only @Service, @Repository as simple WebMVC which is not flexible for review and maintain code).
 - Apache Kafka
 - Benchmark performance
+- NextJS, ChakraUI, Framer Motion

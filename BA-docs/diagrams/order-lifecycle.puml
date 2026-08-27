@@ -1,0 +1,49 @@
+@startuml order-lifecycle
+!include _common.iuml
+title Order Lifecycle — State Model (SRS §5.3)
+
+[*] --> Draft : customer initiates checkout
+
+Draft --> PendingPayment : order placed,\nstock reserved
+Draft --> Cancelled : customer abandons /\ncart expires
+
+PendingPayment --> Paid : payment authorised\nand captured
+PendingPayment --> PaymentFailed : gateway declines /\ntimeout
+PendingPayment --> Cancelled : customer cancels
+
+PaymentFailed --> PendingPayment : customer retries payment
+PaymentFailed --> Cancelled : retry window elapses
+
+Paid --> Processing : accepted by\nfulfilment
+Paid --> Cancelled : cancelled before\npicking starts
+
+Processing --> Packed : items picked and packed
+Processing --> Cancelled : stock shortfall confirmed
+
+Packed --> Shipping : handed to carrier
+Shipping --> Delivered : carrier confirms delivery
+Delivered --> Completed : return window closes
+Delivered --> Returned : customer returns\nwithin return window
+
+Cancelled --> Refunded : captured payment\nreversed
+Returned --> Refunded : returned goods\nreceived and accepted
+
+Completed --> [*]
+Refunded --> [*]
+
+state Draft #FBFAFF
+state PendingPayment as "Pending Payment"
+state PaymentFailed as "Payment Failed"
+
+note right of Cancelled
+  BR-ORD-01: only the transitions drawn here
+  are legal. Any other transition must be
+  rejected regardless of entry point (P5).
+end note
+
+note left of Paid
+  BR-INV-02: reserved stock is committed on
+  entry to Processing and released on entry
+  to Cancelled — never both, never neither (P7).
+end note
+@enduml

@@ -1,0 +1,33 @@
+@startuml uc-payment
+!include _common.iuml
+title Payment — Use Cases (PAY)
+left to right direction
+
+actor Customer as C
+actor "Customer\nSupport Agent" as S
+actor Administrator as A
+actor "Payment\nGateway" as PG
+actor "Warehouse\nOperator" as W
+
+rectangle "Payment" {
+  usecase "UC-PAY-01\nSelect Payment Method" as U01
+  usecase "UC-PAY-02\nAuthorise Online Payment" as U02
+  usecase "UC-PAY-03\nHandle Payment\nGateway Result" as U03
+  usecase "UC-PAY-04\nSettle Cash On\nDelivery Payment" as U04
+  usecase "UC-PAY-05\nRetry Failed Payment" as U05
+  usecase "UC-PAY-06\nProcess Refund" as U06
+}
+
+C --> U01
+C --> U02
+C --> U05
+W --> U04
+S --> U06
+A --> U06
+U02 --> PG
+U06 --> PG
+PG --> U03
+
+U02 ..> U03 : <<include>>
+U05 ..> U02 : <<include>>
+@enduml

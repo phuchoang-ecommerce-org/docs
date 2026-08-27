@@ -1,0 +1,31 @@
+@startuml uc-catalog-category
+!include _common.iuml
+title Product Catalog & Category — Use Cases (CAT)
+left to right direction
+
+actor Guest as G
+actor Customer as C
+actor Staff as S
+
+rectangle "Product Catalog & Category" {
+  usecase "UC-CAT-01\nBrowse Category Tree" as U01
+  usecase "UC-CAT-02\nBrowse Category\nProduct Listing" as U02
+  usecase "UC-CAT-03\nView Product Details" as U03
+  usecase "UC-CAT-04\nSelect Product Variant" as U04
+  usecase "UC-CAT-05\nView Featured Categories" as U05
+}
+
+G --> U01
+G --> U02
+G --> U03
+G --> U05
+C --> U01
+C --> U02
+C --> U03
+C --> U04
+C --> U05
+S --> U01
+
+U02 ..> U01 : <<include>>
+U04 .> U03 : <<extend>>
+@enduml

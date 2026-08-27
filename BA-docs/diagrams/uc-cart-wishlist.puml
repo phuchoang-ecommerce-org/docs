@@ -1,0 +1,36 @@
+@startuml uc-cart-wishlist
+!include _common.iuml
+title Shopping Cart & Wishlist — Use Cases (CRT)
+left to right direction
+
+actor Guest as G
+actor Customer as C
+actor "Scheduler\n(Time)" as T
+
+rectangle "Shopping Cart & Wishlist" {
+  usecase "UC-CRT-01\nAdd Item to Cart" as U01
+  usecase "UC-CRT-02\nUpdate Cart Item Quantity" as U02
+  usecase "UC-CRT-03\nRemove Item from Cart" as U03
+  usecase "UC-CRT-04\nView Cart" as U04
+  usecase "UC-CRT-05\nMerge Guest Cart on Login" as U05
+  usecase "UC-CRT-06\nExpire Inactive Cart" as U06
+  usecase "UC-CRT-07\nManage Wishlist" as U07
+  usecase "UC-CRT-08\nMove Wishlist Item to Cart" as U08
+}
+
+G --> U01
+G --> U02
+G --> U03
+G --> U04
+C --> U01
+C --> U02
+C --> U03
+C --> U04
+C --> U05
+C --> U07
+C --> U08
+T --> U06
+
+U08 ..> U01 : <<include>>
+U05 ..> U04 : <<include>>
+@enduml
