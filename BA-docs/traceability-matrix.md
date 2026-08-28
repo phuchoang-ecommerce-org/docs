@@ -268,6 +268,10 @@ Generated from the **UC** column of [`srs.md`](./srs.md) §3, so it cannot drift
 | `FR-DAT-04` | Deleting a product, category, or customer never invalidates a historic order | `UC-ORD-06`, `UC-CUS-10`, `UC-RPT-02` · P17 |
 | `FR-DAT-05` | Audit entries are retained for the period required to investigate or demonstrate compliance | `UC-AUD-01`, `UC-AUD-02` · P17 |
 
+### 3.1 Use Case → User Story
+
+Every use case in [`use-cases/`](./use-cases/README.md) has exactly one corresponding entry in [`user-stories/`](./user-stories/README.md), numbered identically: `US-<DOMAIN>-<nn>` realises `UC-<DOMAIN>-<nn>`, with no exceptions and no gaps across all 87. Because the numbering is the mapping, no separate `UC → US` table is carried here — one repeated for 87 rows would drift from the source the moment either document changed. A story's acceptance criteria derive from its use case's main scenario, alternate flows, and exception flows; where the two disagree, the use case is normative.
+
 ---
 
 ## 4. Business Rule → Use Case

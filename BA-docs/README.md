@@ -15,6 +15,7 @@ This folder holds the business analysis for the Enterprise Commerce Platform: wh
 | [`general-approach.md`](./general-approach.md) | *Why does the platform need to exist?* | Business Problem Analysis — seventeen problems, `P1`–`P17`, stated without reference to technology |
 | [`srs.md`](./srs.md) | *What must the platform do?* | Software Requirements Specification — identified, measurable, verifiable requirements |
 | [`use-cases/`](./use-cases/README.md) | *How does each actor reach it, and what happens when it fails?* | Use Case Specification — 87 use cases, each fully specified |
+| [`user-stories/`](./user-stories/README.md) | *How is this restated for a sprint backlog?* | User Story Specification — the same 87 use cases as stories with acceptance criteria |
 | [`traceability-matrix.md`](./traceability-matrix.md) | *Does every problem reach a requirement, and every requirement a test?* | Traceability and coverage check |
 
 `requirement.md` is deliberately never edited. It is the stakeholder's own words, and `srs.md` derives from it rather than replacing it — so that any later disagreement about what was asked for can be settled against the original rather than against an interpretation of it.
@@ -33,6 +34,8 @@ general-approach.md     why it matters  (P1–P17)
 srs.md                  what the platform must do  (FR / NFR / BR / CON / AC)
       ↓
 use-cases/              how each actor does it, and what happens when it fails  (UC)
+      ↓
+user-stories/           the same behaviour, restated as a backlog  (US)
       ↓
 ../SA-docs/             how it is built  (architecture and technology)
 ```
@@ -54,6 +57,7 @@ Identifiers are **stable**. A withdrawn requirement is marked withdrawn rather t
 | Constraint | `CON-<nn>` | `CON-04` | [`srs.md`](./srs.md) §7 |
 | Acceptance criterion | `AC-<nn>` | `AC-05` | [`srs.md`](./srs.md) §9 |
 | Use case | `UC-<DOMAIN>-<nn>` | `UC-ORD-05` | [`use-cases/`](./use-cases/README.md) |
+| User story | `US-<DOMAIN>-<nn>` | `US-ORD-05` | [`user-stories/`](./user-stories/README.md) |
 | Assumption | `A-<nn>` | `A-07` | [`srs.md`](./srs.md) §2.5 |
 
 **Domain codes:** `CUS` Customer & Identity · `CAT` Catalog & Category · `SCH` Search & Recommendation · `INV` Inventory · `CRT` Cart & Wishlist · `ORD` Checkout & Order · `PAY` Payment · `SHP` Shipping · `PRM` Promotion · `REV` Review · `NTF` Notification · `ADM` Administration · `RPT` Reporting & Analytics · `AUD` Audit & Access Control · `DAT` cross-domain data qualities
