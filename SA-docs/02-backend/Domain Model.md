@@ -1,4 +1,4 @@
-# Domain-Driven Design Planning
+# Domain Model
 
 - It should include:
   - Strategy Design

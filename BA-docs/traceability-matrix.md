@@ -1,7 +1,7 @@
 # Traceability Matrix — Enterprise Commerce Platform (ECP)
 
 **Document type:** Traceability Matrix
-**Related documents:** [`general-approach.md`](./general-approach.md) (business problems P1–P17) · [`srs.md`](./srs.md) (requirements) · [`use-cases/README.md`](./use-cases/README.md) (use cases) · [Solution Architecture](../SA-docs/general-approach.md)
+**Related documents:** [`general-approach.md`](./general-approach.md) (business problems P1–P17) · [`srs.md`](./srs.md) (requirements) · [`use-cases/README.md`](./use-cases/README.md) (use cases) · [Solution Architecture](../SA-docs/01-system/Solution%20Architecture.md)
 **Audience:** Product Management, Engineering, Quality Assurance, Solution Architecture
 **Version:** 1.0
 **Status:** Draft for stakeholder review
@@ -392,4 +392,4 @@ Two further items are **not** assumptions but genuine gaps in the source require
 
 ## 8. Next Step
 
-[Solution Architecture](../SA-docs/general-approach.md) completes the chain, taking each `P1`–`P17` to an architectural decision and a technology. That document is already written against the problem catalogue; the identifiers introduced here now let its decisions be traced to the specific requirements and use cases they satisfy, rather than to a problem number alone.
+[Solution Architecture](../SA-docs/01-system/Solution%20Architecture.md) completes the chain, taking each `P1`–`P17` to an architectural decision and a technology. That document is already written against the problem catalogue; the identifiers introduced here now let its decisions be traced to the specific requirements and use cases they satisfy, rather than to a problem number alone.

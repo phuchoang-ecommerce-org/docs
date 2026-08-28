@@ -1,14 +1,16 @@
 # Solution Architecture — Enterprise Commerce Platform (ECP)
 
 **Document type:** Solution Architecture
-**Related document:** [Business Problem Analysis](../BA-docs/general-approach.md)
+**Related documents:** [Business Problem Analysis](../../BA-docs/general-approach.md) · [Software Requirements Specification](../../BA-docs/srs.md) · [Traceability Matrix](../../BA-docs/traceability-matrix.md) · [Technology Stack](./Technology%20Stack.md)
 **Audience:** Engineering, Product Management, Architecture Review
 
 ---
 
 ## 1. Purpose of This Document
 
-The [Business Problem Analysis](../BA-docs/general-approach.md) catalogs seventeen business problems (P1–P17) the Enterprise Commerce Platform must solve, independent of any technology. This document takes each of those problems and answers: *what architectural decision addresses it, what technology implements that decision, and why*.
+The [Business Problem Analysis](../../BA-docs/general-approach.md) catalogs seventeen business problems (P1–P17) the Enterprise Commerce Platform must solve, independent of any technology. This document takes each of those problems and answers: *what architectural decision addresses it, what technology implements that decision, and why*.
+
+It also closes the loop the other business documents deliberately leave open. [`srs.md`](../../BA-docs/srs.md) §2 fixes the actors and external interfaces this system must serve without saying how; §6 states measurable non-functional targets without saying what meets them; §8 lists capabilities this release must not foreclose; §9 states the criteria the business will judge the platform against. Sections 4, 6, 10, and 12 below answer each of those in turn, so that nothing in the business analysis is left without an architectural answer.
 
 No technology in this stack is included because it is popular or because the stack "should" have it. Every entry below traces back to a specific, named business problem.
 
@@ -60,13 +62,51 @@ flowchart TB
     Query --> Analytics
 ```
 
-This is a **logical** architecture. The system is delivered today as a modular monolith — a single deployable unit with enforced internal module boundaries — not as a set of independently deployed microservices. Section 9 explains how this architecture enables that transition later, if and when the business needs it.
+This is a **logical** architecture. The system is delivered today as a modular monolith — a single deployable unit with enforced internal module boundaries — not as a set of independently deployed microservices. Section 11 explains how this architecture enables that transition later, if and when the business needs it. The full backend/frontend technology shortlist this architecture draws from is maintained separately in [Technology Stack](./Technology%20Stack.md).
 
 The governing architectural style is: **Modular Monolith + Domain-Driven Design + Clean Architecture + CQRS + Event-Driven Architecture**, with Kafka as the event backbone for interactions that genuinely require asynchronous, durable, multi-consumer delivery.
 
 ---
 
-## 4. Business Problem → Architecture Decision Mapping
+## 4. System Context — Actors & External Interfaces
+
+Architecture decisions are not sized against an abstract "the system" — they are sized against who and what actually calls it. This section fixes that context, drawn from SRS §2.3 and §2.6, before Section 5 maps problems to decisions.
+
+### Actors
+
+![Actors and system boundary](../../BA-docs/diagrams/system-context.svg)
+
+| Actor | Enters through | Architectural consequence |
+|---|---|---|
+| Guest | REST API, unauthenticated | Cart and browse state must be servable without a Customer aggregate; a guest cart merges into the customer's cart on login — a Cart module concern, not a Customer module concern (P1). |
+| Customer | REST API, JWT-authenticated | The primary caller of Catalog, Cart, Order, Payment, Review, Notification. |
+| Staff | REST API, JWT-authenticated, `Staff` role | Catalog, promotion, and commercial order-progression operations — same API, RBAC-scoped (P16). |
+| Warehouse Operator | REST API, JWT-authenticated, `Warehouse` role | Inventory and shipment operations — the actor whose concurrent actions the reservation model in P8 exists to serialize correctly. |
+| Customer Support Agent | REST API, JWT-authenticated, `Support` role | Order/shipment inspection, cancellation, refund initiation, review moderation. |
+| Administrator | REST API, JWT-authenticated, `Admin` role | Full operational authority, including role management and the audit trail (P16, P17). |
+| Scheduler (Time) | In-process scheduled job / Kafka delayed delivery | Drives cart expiry, flash-sale start/end, promotion expiry — not a human caller, but a first-class trigger the domain model must accept the same way it accepts an API call (P5: no rule may live only behind a human-initiated entry point). |
+| Payment Gateway | Outbound adapter call; inbound async webhook | See External Interfaces below. |
+| Shipping Carrier | Outbound adapter call; inbound async webhook | See External Interfaces below. |
+| Email Service Provider | Outbound adapter call | See External Interfaces below. |
+
+The role authority table in SRS §2.3 is normative for `FR-AUD-05` and is implemented directly as the RBAC policy referenced in P16 — every row of that table becomes an authorization rule enforced at the API/application boundary, never a client-side assumption.
+
+### External Interfaces
+
+Every external interface in SRS §2.6 is reached through a port defined in the domain/application layer and implemented by an adapter in infrastructure — the Clean Architecture boundary from P3 applied concretely:
+
+| Interface | Direction | Port (domain-facing) | Adapter (infrastructure) | Failure handling |
+|---|---|---|---|---|
+| Payment Gateway | Outbound authorize/capture/refund; inbound async settlement callback | `PaymentProcessor` port | Provider-specific adapter | Callback is idempotent and correlates to an order via a stable reference; provider unavailability fails the operation cleanly and is retryable (`NFR-AVAIL-03`), and never leaves an order in an ambiguous state (P7). |
+| Shipping Carrier | Outbound dispatch request; inbound tracking/delivery events | `ShippingProvider` port | Provider-specific adapter | Same idempotent-callback and clean-failure treatment as Payment Gateway. |
+| Email Service Provider | Outbound only | `NotificationSender` port | Provider-specific adapter, invoked as a Kafka consumer of business events (P2, P6) | Delivery failure does not block the business transaction that triggered it — email is a consumer of an already-committed event, not a step inside the transaction. |
+| Client Applications (web storefront, admin console, future mobile) | Inbound | REST API | Shared API layer, RBAC-scoped per Actors above | This is the entry point, not an integration — its only obligation is that no client is trusted to enforce a rule the platform doesn't also enforce (P5). |
+
+Because each provider sits behind a port, replacing a payment processor or adding a second shipping carrier (P3) is an adapter-level change — it does not touch Order, Payment, or Shipping domain logic, and it requires no change to the ports those modules already depend on.
+
+---
+
+## 5. Business Problem → Architecture Decision Mapping
 
 Each entry below corresponds to the identically-numbered problem in the Business Problem Analysis.
 
@@ -249,7 +289,48 @@ flowchart LR
 
 ---
 
-## 5. Technology Stack Summary
+## 6. Quality Attribute Targets
+
+Section 5 states which architecture decision answers each business problem. This section states the numbers those decisions are actually sized against, taken from SRS §6 — the same targets that turn "acceptable latency" or "handles high traffic" from an adjective into something a load test either passes or fails.
+
+### Performance & Scalability
+
+| Target | Requirement | Architecture mechanism |
+|---|---|---|
+| Catalog/category reads ≤ 300 ms p95 | `NFR-PERF-01` | Redis cache-aside (P9) + database indexing (P10) |
+| Search first results ≤ 500 ms p95 | `NFR-PERF-03` | Elasticsearch (P11) |
+| Autocomplete ≤ 150 ms p95 | `NFR-PERF-04` | Elasticsearch (P11) |
+| Transactional writes ≤ 800 ms p95 | `NFR-PERF-02` | PostgreSQL + optimistic locking / reservation model (P7, P8) |
+| Catalog ≥ 10,000 products, ≥ 100,000 customers, thousands of orders/day, thousands of concurrent customers — without breaching the targets above | `NFR-SCAL-01`–`NFR-SCAL-04` | Database indexing (P10) + CQRS read/write separation (P12) + Redis absorption of read volume (P9) |
+| Absorb 10× median throughput for the duration of a peak event | `NFR-SCAL-06` | Redis + reservation-based concurrency control (P8, P9) |
+| Report generation must not measurably degrade `NFR-PERF-01`/`NFR-PERF-02` under concurrent load | `NFR-PERF-05` | CQRS projection into a dedicated reporting store (P13) |
+| Reporting may lag transactional state by at most 5 minutes; inventory and payment state carry no permitted lag | `NFR-PERF-06` | Event-driven projection (P4, P13) — the concrete number behind the P4 consistency-classification decision |
+
+### Availability & Reliability
+
+| Target | Requirement | Architecture mechanism |
+|---|---|---|
+| Purchase path (browse, cart, checkout, payment) available 99.9% monthly | `NFR-AVAIL-01` | Read-path caching isolates the purchase path from non-essential-capability load (P9) |
+| Failure of search, recommendations, reviews, or reporting must not prevent browsing/checkout/payment | `NFR-AVAIL-02` | CQRS: each read model is a separate consumer; a downstream read model being down does not block the command side (P12) |
+| Provider unavailability fails cleanly and is retryable, and never corrupts platform state | `NFR-AVAIL-03` | Ports & adapters (P3) + PostgreSQL transaction boundary (P7) |
+| No order/payment/inventory operation ever completes partially | `NFR-REL-01`, `NFR-REL-02` | PostgreSQL ACID transactions (P7) |
+| Concurrent purchase attempts never confirm more orders than there is stock to fulfil | `NFR-REL-03` | Optimistic locking / reservation model (P8) |
+| An accepted business event is delivered to every dependent process at least once, even after infrastructure failure | `NFR-REL-05`, `NFR-REL-06` | Transactional Outbox + Kafka (P6) |
+
+### Security
+
+| Target | Requirement | Architecture mechanism |
+|---|---|---|
+| Every operation authorized server-side against the caller's role | `NFR-SEC-01` | RBAC at the API/application boundary (P16) |
+| Access tokens short-lived; refresh tokens rotate on use, reuse invalidates the session | `NFR-SEC-03` | JWT authentication with refresh-token rotation (P16) |
+| Request rates limited per caller; authentication endpoints carry a stricter limit | `NFR-SEC-05` | Redis-backed rate limiting (P9, P16) |
+| Credentials, payment details, and tokens never appear in logs or audit entries | `NFR-SEC-07` | Audit logging derived from domain events carries only business fields, never raw request payloads (P17) |
+
+These targets are what "sizing" means in practice: Redis is not introduced because caching is good practice — it is introduced because `NFR-PERF-01` and `NFR-SCAL-06` cannot both hold under `NFR-SCAL-04`'s concurrency without it. Where SRS §2.5 marks a figure as an assumption rather than a Product Owner-confirmed number — **[A-03]** the 300 ms / 800 ms latency split, **[A-04]** the 10× peak multiplier, **[A-12]** the 99.9% availability target — this architecture is sized against the assumption and should be re-validated if the assumption changes.
+
+---
+
+## 7. Technology Stack Summary
 
 | Technology | Business Problem(s) Addressed | Business Value |
 |---|---|---|
@@ -276,7 +357,7 @@ flowchart LR
 
 ---
 
-## 6. Architecture Governance
+## 8. Architecture Governance
 
 Architecture decisions are only as durable as the mechanism that enforces them. Three tools work together to keep the system's structure from drifting away from the decisions above over time:
 
@@ -288,7 +369,7 @@ Together, these convert P15 from an ongoing manual review burden into an automat
 
 ---
 
-## 7. Delivery Roadmap
+## 9. Delivery Roadmap
 
 The architecture is deliberately delivered in a sequence that builds each layer on top of a working prior layer, rather than attempting all capabilities simultaneously.
 
@@ -309,7 +390,26 @@ Security (P16) and audit (P17) are treated as cross-cutting concerns implemented
 
 ---
 
-## 8. Path to Microservices
+## 10. Future Expansion — Extensibility Roadmap
+
+SRS §8 lists ten capabilities explicitly deferred from this release — not because they're unimportant, but because R1 requires that each "can be added with minimal impact to existing modules." The obligation this places on the architecture is not to build these now; it is to not make them expensive later.
+
+| Deferred capability | How this architecture keeps the door open |
+|---|---|
+| Loyalty programme, membership levels, reward points | New module subscribing to `OrderPaid` / `PaymentSettled` via Kafka (P2) — no change to checkout or payment |
+| AI product recommendation | Recommendation is already a separable read concern; a new consumer projects off existing catalog/order events (P2, P11) |
+| Chat support, live shopping | New bounded module under Spring Modulith (P1) |
+| Multi-language | Catalog content is modeled so translatable text is a value, not a schema decision — extending it is additive |
+| Multi-currency | Monetary Value Objects already carry amount, currency, and precision explicitly (SRS **[A-10]**) rather than a bare number — a second currency is a new value, not a new type |
+| Multi-region | Independent read/write scaling (CQRS, P12) and enforced module boundaries (P1) mean a region is a deployment-topology decision, not a domain redesign |
+| Multi-vendor marketplace | Catalog, Inventory, and Order Aggregates can carry an explicit seller/ownership attribute without redesign, because ownership is already a first-class concept in the domain model (P5) |
+| Mobile application | Every rule is enforced server-side (P5) — a new client is a new caller of the same REST API and RBAC policy, not a new place rules must be re-implemented |
+| External ERP integration | New adapter behind a port (P3) |
+| External CRM integration | New adapter behind a port (P3); also a new Kafka consumer of the events already published for P2 |
+
+---
+
+## 11. Path to Microservices
 
 The platform is delivered today as a **modular monolith**, not a set of independently deployed services. This is a deliberate choice, not a limitation: at the current scale, a single deployable unit with enforced internal boundaries delivers the benefits described above (P1, P14) with lower operational overhead than a distributed system would require.
 
@@ -332,9 +432,26 @@ Because module boundaries (P1) are enforced today rather than assumed, and cross
 
 ---
 
-## 9. Summary
+## 12. Acceptance Criteria Traceability
 
-No technology decision in this architecture stands on its own. Each one is the answer to a specific, named business problem from the [Business Problem Analysis](../BA-docs/general-approach.md):
+SRS §9 states six conditions under which the business considers these problems solved. Each is an outcome, not a technology, so it is verified by the architecture as a whole rather than owned by a single decision:
+
+| ID | Criterion | Verified primarily by |
+|---|---|---|
+| `AC-01` | All core business workflows function correctly | Domain layer enforcing invariants regardless of entry point (P5); PostgreSQL ACID transactions (P7) |
+| `AC-02` | Business rules enforced consistently regardless of entry point | DDD Aggregates/Domain Services as the single enforcement point (P5); RBAC at the API boundary (P16) |
+| `AC-03` | New business modules addable with minimal modification to existing code | Spring Modulith module boundaries (P1) + domain events as the extension point (P2, Section 10) |
+| `AC-04` | The system remains maintainable as complexity increases | ArchUnit + JMolecules + Spring Modulith boundary verification as automated CI gates (P15) |
+| `AC-05` | Reporting does not significantly impact transactional operations | CQRS projection into a dedicated reporting store (P13) |
+| `AC-06` | Production-quality architecture suitable for an enterprise environment | The reliability, security, availability, and observability mechanisms in Section 6, taken together, not any single one |
+
+A criterion here is satisfied only when the architecture decisions that back it are actually implemented and tested against the targets in Section 6 — this table exists so that gap is visible at the architecture level, not discovered for the first time during acceptance testing.
+
+---
+
+## 13. Summary
+
+No technology decision in this architecture stands on its own. Each one is the answer to a specific, named business problem from the [Business Problem Analysis](../../BA-docs/general-approach.md):
 
 ```mermaid
 flowchart TB

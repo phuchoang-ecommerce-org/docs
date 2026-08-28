@@ -275,4 +275,4 @@ Three use cases are exercised by nearly every other one and are not repeated in 
 
 [`../traceability-matrix.md`](../traceability-matrix.md) maps these use cases back to the requirements they realise and the business problems they address, and reports any coverage gap in either direction.
 
-[Solution Architecture](../../SA-docs/general-approach.md) determines how the behaviour specified here is implemented.
+[Solution Architecture](../../SA-docs/01-system/Solution%20Architecture.md) determines how the behaviour specified here is implemented.

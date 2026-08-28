@@ -21,7 +21,7 @@ It sits between two documents that already exist:
 
 This SRS converts the Product Owner's requirements into individually identified, individually verifiable statements, and connects them in both directions: back to the business problems that justify them, and forward to the use cases that realise them and the architecture that implements them.
 
-Consistent with [`general-approach.md`](./general-approach.md), this document **specifies no technology**. It states what must be true of the system, never how the system is to be built. The *how* belongs to [Solution Architecture](../SA-docs/general-approach.md).
+Consistent with [`general-approach.md`](./general-approach.md), this document **specifies no technology**. It states what must be true of the system, never how the system is to be built. The *how* belongs to [Solution Architecture](../SA-docs/01-system/Solution%20Architecture.md).
 
 ### 1.2 Scope
 
@@ -59,7 +59,7 @@ Consistent with [`general-approach.md`](./general-approach.md), this document **
 | R2 | [`general-approach.md`](./general-approach.md) | Business Problem Analysis — problems P1–P17 |
 | R3 | [`use-cases/README.md`](./use-cases/README.md) | Use Case Specification — actor interactions realising these requirements |
 | R4 | [`traceability-matrix.md`](./traceability-matrix.md) | Traceability across P → FR/NFR/BR → UC → AC |
-| R5 | [Solution Architecture](../SA-docs/general-approach.md) | How each business problem is addressed technically |
+| R5 | [Solution Architecture](../SA-docs/01-system/Solution%20Architecture.md) | How each business problem is addressed technically |
 
 ### 1.5 Document Conventions
 
@@ -670,7 +670,7 @@ These requirements are not developer conveniences. **P14** and **P15** establish
 
 ## 7. Constraints and Architectural Qualities
 
-R1 §11 states architectural expectations that constrain the solution without dictating it. They are recorded here as binding constraints, in the same technology-neutral terms R1 uses. How each is satisfied is the subject of [Solution Architecture](../SA-docs/general-approach.md), and is deliberately not decided here.
+R1 §11 states architectural expectations that constrain the solution without dictating it. They are recorded here as binding constraints, in the same technology-neutral terms R1 uses. How each is satisfied is the subject of [Solution Architecture](../SA-docs/01-system/Solution%20Architecture.md), and is deliberately not decided here.
 
 | ID | Constraint | Source | Realised by |
 |---|---|---|---|
@@ -736,4 +736,4 @@ The matrix also serves as a coverage check. A business problem with no requireme
 
 [`use-cases/README.md`](./use-cases/README.md) specifies how each actor in §2.3 exercises the requirements in §3, with every use case set out in full — preconditions, main success scenario, alternate and exception flows, postconditions, and the business rules from §4 that apply at each step. The exception flows are where **P5** through **P8** become concrete and testable.
 
-[Solution Architecture](../SA-docs/general-approach.md) takes the constraints in §7 and the non-functional requirements in §6 and determines how they are met.
+[Solution Architecture](../SA-docs/01-system/Solution%20Architecture.md) takes the constraints in §7 and the non-functional requirements in §6 and determines how they are met.

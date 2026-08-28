@@ -66,7 +66,7 @@ Identifiers are **stable**. A withdrawn requirement is marked withdrawn rather t
 
 ## 4. Working Conventions
 
-**No technology in these documents.** [`general-approach.md`](./general-approach.md) states the rule and `srs.md` and the use cases follow it: they say what must be true, never how to build it. The *how* belongs to [Solution Architecture](../SA-docs/general-approach.md). This keeps the business analysis reviewable by stakeholders who do not read code, and keeps architectural decisions open to challenge on their own terms.
+**No technology in these documents.** [`general-approach.md`](./general-approach.md) states the rule and `srs.md` and the use cases follow it: they say what must be true, never how to build it. The *how* belongs to [Solution Architecture](../SA-docs/01-system/Solution%20Architecture.md). This keeps the business analysis reviewable by stakeholders who do not read code, and keeps architectural decisions open to challenge on their own terms.
 
 **Nothing is invented silently.** Where `requirement.md` leaves a value or policy undefined, an explicit **[ASSUMPTION]** is recorded in [`srs.md`](./srs.md) §2.5 rather than a decision being made quietly. Thirteen stand unconfirmed; several are load-bearing, and they are listed with their consequences in [`traceability-matrix.md`](./traceability-matrix.md) §7.
 
@@ -99,4 +99,4 @@ Diagram sources live in [`diagrams/`](./diagrams/): fourteen per-domain use case
 
 ## 6. Next Step
 
-[Solution Architecture](../SA-docs/general-approach.md) takes each business problem `P1`–`P17` and maps it to an architectural decision, the technology selected, and the reasoning connecting the two.
+[Solution Architecture](../SA-docs/01-system/Solution%20Architecture.md) takes each business problem `P1`–`P17` and maps it to an architectural decision, the technology selected, and the reasoning connecting the two.

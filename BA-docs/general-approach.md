@@ -10,7 +10,7 @@
 
 The Product Owner Requirements (`requirement.md`) state *what the platform must do*, and [`srs.md`](./srs.md) specifies those requirements formally. This document defines *why it must do it* — the underlying business problems the Enterprise Commerce Platform (ECP) exists to solve, the impact of leaving each problem unaddressed, and the stakeholders affected.
 
-This document deliberately makes no reference to technology, frameworks, or implementation. Its purpose is to establish a shared, technology-neutral understanding of the business problem space before any architectural decision is made. The companion document, [Solution Architecture](../SA-docs/general-approach.md), takes each problem identified here and maps it to a concrete technical decision.
+This document deliberately makes no reference to technology, frameworks, or implementation. Its purpose is to establish a shared, technology-neutral understanding of the business problem space before any architectural decision is made. The companion document, [Solution Architecture](../SA-docs/01-system/Solution%20Architecture.md), takes each problem identified here and maps it to a concrete technical decision.
 
 ---
 
@@ -237,4 +237,4 @@ The business considers these problems adequately addressed when, restated from S
 
 ## 6. Next Step
 
-For each business problem catalogued above, the [Solution Architecture](../SA-docs/general-approach.md) document defines the corresponding architectural decision, the technology selected to implement it, and the reasoning that connects the two.
+For each business problem catalogued above, the [Solution Architecture](../SA-docs/01-system/Solution%20Architecture.md) document defines the corresponding architectural decision, the technology selected to implement it, and the reasoning that connects the two.
