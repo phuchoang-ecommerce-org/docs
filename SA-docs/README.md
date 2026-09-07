@@ -19,6 +19,7 @@ This folder holds the solution architecture for the Enterprise Commerce Platform
 | [`02-backend/`](./02-backend) | [`Backend Architecture.md`](./02-backend/Backend%20Architecture.md) | Backend architecture plan *(stub)* |
 | [`02-backend/`](./02-backend) | [`Domain Model.md`](./02-backend/Domain%20Model.md) | Domain-Driven Design — strategic & tactical design: subdomain classification, bounded contexts, context map, aggregates, entities, value objects, domain events |
 | [`02-backend/`](./02-backend) | [`Module Dependency Diagram.md`](./02-backend/Module%20Dependency%20Diagram.md) | The module graph the build verifies — compile-time dependencies, runtime event flow, layer rules, forbidden edges, extraction readiness |
+| [`02-backend/`](./02-backend) | [`Database.md`](./02-backend/Database.md) | Data model and physical schema — conventions, per-context ER diagrams and PostgreSQL DDL, indexes and constraints, outbox tables, concurrency, the Elasticsearch/MongoDB/Redis read stores, and the Flyway migration map |
 | [`03-frontend/`](./03-frontend) | [`Frontend Architecture.md`](./03-frontend/Frontend%20Architecture.md) | Frontend architecture plan *(stub)* |
 | [`03-frontend/`](./03-frontend) | [`UI Design System.md`](./03-frontend/UI%20Design%20System.md) | *Ma (間)*-inspired UI design specification — philosophy, layout and spacing scale, typography, palette, components, motion, accessibility baseline, validation checklist |
 | [`04-shared/`](./04-shared) | [`Integration Contract.md`](./04-shared/Integration%20Contract.md) | Everything that crosses a boundary — REST conventions, pagination, error taxonomy, event envelope and catalogue, schema evolution, permission matrix |
@@ -39,6 +40,7 @@ Folders are organized by concern, following the target layout in [`example-folde
 01-system/ADR/                       why that decision and not another one  (ADR-0001–ADR-0028)
       ↓
 02-backend/                          how the backend implements it
+02-backend/Database.md               the tables, constraints, and indexes those decisions produce
 03-frontend/                         how the frontend implements it
       ↓
 01-system/Deployment Diagram.md      where it physically runs
