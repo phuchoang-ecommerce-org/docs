@@ -1,7 +1,7 @@
 # Solution Architecture — Enterprise Commerce Platform (ECP)
 
 **Document type:** Solution Architecture
-**Related documents:** [Business Problem Analysis](../../BA-docs/general-approach.md) · [Software Requirements Specification](../../BA-docs/srs.md) · [Traceability Matrix](../../BA-docs/traceability-matrix.md) · [Technology Stack](./Technology%20Stack.md)
+**Related documents:** [Business Problem Analysis](../../BA-docs/general-approach.md) · [Software Requirements Specification](../../BA-docs/srs.md) · [Traceability Matrix](../../BA-docs/traceability-matrix.md) · [Technology Stack](./Technology%20Stack.md) · [Architecture Decision Records](./ADR/README.md)
 **Audience:** Engineering, Product Management, Architecture Review
 
 ---
@@ -332,28 +332,30 @@ These targets are what "sizing" means in practice: Redis is not introduced becau
 
 ## 7. Technology Stack Summary
 
-| Technology | Business Problem(s) Addressed | Business Value |
-|---|---|---|
-| Domain-Driven Design (Strategic + Tactical) | P1, P5 | Clear business boundaries; rules enforced consistently everywhere |
-| Spring Modulith | P1, P14 | Verifiable module boundaries; supports team scaling |
-| Clean Architecture | P3 | Low switching cost for vendors/providers; framework-independent domain |
-| CQRS | P12, P13 | Transactions and reads scale and evolve independently |
-| PostgreSQL | P4, P7, P8 | ACID guarantees protect money, orders, and inventory |
-| Optimistic Locking / Reservation Model | P8 | Prevents overselling under concurrent demand |
-| Transactional Outbox | P6 | No business event is ever silently lost |
-| Apache Kafka | P2, P6, P9, P11, P13 | Reliable, decoupled distribution of business events |
-| Event-Driven Architecture | P2, P4 | New capabilities plug in without core coupling |
-| Elasticsearch | P11 | Fast, relevant product search drives conversion |
-| Redis | P9 | Absorbs traffic spikes; low-latency hot data |
-| MongoDB | P4 (scoped) | Flexible read models where relational structure isn't needed |
-| Database Indexing | P10 | Query performance and cost stay flat as data grows |
-| Reporting Read Model (CQRS projection) | P13 | Business intelligence without impacting checkout |
-| ArchUnit | P15 | Architecture rules enforced automatically in CI |
-| JMolecules | P5, P15 | DDD concepts made explicit and checkable in code |
-| RBAC + JWT Authentication | P16 | Access limited to what each role legitimately needs |
-| Audit Logging | P17 | Every significant action is traceable and immutable |
-| MapStruct | P3 | Clean mapping between domain, persistence, and API layers without leaking framework concerns into the domain |
-| Lombok | P15 | Reduces boilerplate, keeping the codebase easier to review and maintain |
+| Technology | Business Problem(s) Addressed | Business Value | ADR |
+|---|---|---|---|
+| Domain-Driven Design (Strategic + Tactical) | P1, P5 | Clear business boundaries; rules enforced consistently everywhere | [0006](./ADR/ADR-0006-spring-modulith-module-boundaries.md), [0007](./ADR/ADR-0007-jmolecules-tactical-ddd.md) |
+| Spring Modulith | P1, P14 | Verifiable module boundaries; supports team scaling | [0006](./ADR/ADR-0006-spring-modulith-module-boundaries.md) |
+| Clean Architecture | P3 | Low switching cost for vendors/providers; framework-independent domain | [0005](./ADR/ADR-0005-clean-architecture-ports-and-adapters.md) |
+| CQRS | P12, P13 | Transactions and reads scale and evolve independently | [0008](./ADR/ADR-0008-cqrs-command-query-separation.md) |
+| PostgreSQL | P4, P7, P8 | ACID guarantees protect money, orders, and inventory | [0009](./ADR/ADR-0009-postgresql-source-of-truth.md), [0010](./ADR/ADR-0010-jpa-write-model-jdbc-read-models.md) |
+| Optimistic Locking / Reservation Model | P8 | Prevents overselling under concurrent demand | [0011](./ADR/ADR-0011-optimistic-locking-reservation-model.md) |
+| Transactional Outbox | P6 | No business event is ever silently lost | [0012](./ADR/ADR-0012-transactional-outbox-and-kafka.md) |
+| Apache Kafka | P2, P6, P9, P11, P13 | Reliable, decoupled distribution of business events | [0012](./ADR/ADR-0012-transactional-outbox-and-kafka.md) |
+| Event-Driven Architecture | P2, P4 | New capabilities plug in without core coupling | [0012](./ADR/ADR-0012-transactional-outbox-and-kafka.md) |
+| Elasticsearch | P11 | Fast, relevant product search drives conversion | [0014](./ADR/ADR-0014-elasticsearch-search-read-model.md) |
+| Redis | P9 | Absorbs traffic spikes; low-latency hot data | [0015](./ADR/ADR-0015-redis-cache-and-rate-limiting.md) |
+| MongoDB | P4 (scoped) | Flexible read models where relational structure isn't needed | [0013](./ADR/ADR-0013-mongodb-scoped-to-read-models.md) |
+| Database Indexing | P10 | Query performance and cost stay flat as data grows | [0009](./ADR/ADR-0009-postgresql-source-of-truth.md) |
+| Reporting Read Model (CQRS projection) | P13 | Business intelligence without impacting checkout | [0008](./ADR/ADR-0008-cqrs-command-query-separation.md), [0013](./ADR/ADR-0013-mongodb-scoped-to-read-models.md) |
+| ArchUnit | P15 | Architecture rules enforced automatically in CI | [0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) |
+| JMolecules | P5, P15 | DDD concepts made explicit and checkable in code | [0007](./ADR/ADR-0007-jmolecules-tactical-ddd.md) |
+| RBAC + JWT Authentication | P16 | Access limited to what each role legitimately needs | [0016](./ADR/ADR-0016-jwt-refresh-rotation-rbac.md), [0025](./ADR/ADR-0025-httponly-cookie-session.md) |
+| Audit Logging | P17 | Every significant action is traceable and immutable | [0017](./ADR/ADR-0017-append-only-audit-log.md) |
+| MapStruct | P3 | Clean mapping between domain, persistence, and API layers without leaking framework concerns into the domain | [0005](./ADR/ADR-0005-clean-architecture-ports-and-adapters.md) |
+| Lombok | P15 | Reduces boilerplate, keeping the codebase easier to review and maintain | [0027](./ADR/ADR-0027-java-21-spring-boot-4-gradle.md) |
+
+The `ADR` column links each technology to the record that argues for it — including the alternatives that were weighed and rejected. Decisions with no row here because they are not a *technology* — the modular monolith itself, the REST API style, and the whole frontend stack — are recorded in the [ADR index](./ADR/README.md).
 
 ---
 

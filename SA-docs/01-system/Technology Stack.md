@@ -18,4 +18,4 @@
 - Expand Annotation's name meeting context's demand (Avoid using only @Service, @Repository as simple WebMVC which is not flexible for review and maintain code).
 - Apache Kafka
 - Benchmark performance
-- NextJS, ChakraUI, Framer Motion
+- NextJS, TypeScript, TailwindCSS, RadixUI, shadcn/ui, Framer Motion
