@@ -41,6 +41,7 @@ A `Proposed` record is never quietly promoted. Promotion is its own commit.
 | [0001](./ADR-0001-record-architecture-decisions.md) | Record architecture decisions in ADRs | Accepted | `NFR-MAINT-05` · `AC-04` |
 | [0002](./ADR-0002-modular-monolith-deployment-unit.md) | Modular monolith as the deployment unit | Accepted | `P1` · `P14` · `CON-08` · `CON-09` |
 | [0003](./ADR-0003-rest-api-style.md) | REST as the client-facing API style | Accepted · versioning **Proposed** | `P3` · `P5` · `NFR-SEC-01` · `NFR-REL-02` |
+| [0028](./ADR-0028-deployment-topology-containerisation.md) | Docker Compose on two VMs as the deployment topology | **Proposed** | `CON-08` · `CON-09` · `NFR-AVAIL-01` · `NFR-SCAL-06` |
 
 ### Backend
 
@@ -61,6 +62,7 @@ A `Proposed` record is never quietly promoted. Promotion is its own commit.
 | [0017](./ADR-0017-append-only-audit-log.md) | Append-only audit log projected from domain events | Accepted | `P17` · `BR-AUD-01` · `NFR-OBS-02` |
 | [0018](./ADR-0018-architecture-governance-ci-gate.md) | Architecture governance as a CI gate; test strategy | Accepted · test stack **Proposed** | `P15` · `NFR-MAINT-05` · `AC-04` |
 | [0027](./ADR-0027-java-21-spring-boot-4-gradle.md) | Java 21 (LTS) on Spring Boot 4.1.1, built with Gradle (multi-module) | **Proposed** | `P15` · `NFR-SCAL-04` · `NFR-MAINT-05` |
+| [0029](./ADR-0029-flyway-versioned-schema-migrations.md) | Flyway for versioned schema migrations; Hibernate restricted to `validate` | Accepted (Flyway) · rules **Proposed** | `P15` · `NFR-MAINT-05` · `NFR-REL-01` · `NFR-OBS-02` |
 
 ### Frontend
 
@@ -69,7 +71,7 @@ A `Proposed` record is never quietly promoted. Promotion is its own commit.
 | [0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) | Next.js App Router, RSC, rendering strategy per route class | Accepted (Next.js) · **Proposed** (the rest) | `P11` · `NFR-PERF-01` · `NFR-AVAIL-02` |
 | [0020](./ADR-0020-typescript-strict-mode.md) | TypeScript strict mode, API types generated from OpenAPI | **Proposed** | `P15` · `CON-02` |
 | [0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) | Tailwind + shadcn/ui on Radix as the single styling system | Accepted | UI Design System §5, §10, §14 |
-| [0022](./ADR-0022-zen-design-tokens.md) | The Zen design system expressed as tokens | Accepted | UI Design System §2–§14 |
+| [0022](./ADR-0022-ma-design-tokens.md) | The Ma design system expressed as tokens | Accepted | UI Design System §2–§14 |
 | [0023](./ADR-0023-server-first-data-fetching.md) | Server-first data fetching; client cache only where the browser owns state | **Proposed** | `NFR-PERF-01` · `NFR-AVAIL-02` · `NFR-PERF-06` |
 | [0024](./ADR-0024-frontend-state-management.md) | State management: server cache, URL state, minimal client store | **Proposed** | `CON-02` · `P11` · `NFR-SEC-01` |
 | [0025](./ADR-0025-httponly-cookie-session.md) | Browser session in an httpOnly cookie, never `localStorage` | **Proposed** | `P16` · `NFR-SEC-03` · `BR-CUS-03` |
@@ -85,7 +87,9 @@ A `Proposed` record is never quietly promoted. Promotion is its own commit.
 0002 · 0003              the two decisions everything else assumes:
                          one deployable, one REST API
   ↓
-0027, 0005 → 0018        backend — runtime, structure, data, events, security, governance
+0028                     where that one deployable physically runs
+  ↓
+0027, 0005 → 0018, 0029  backend — runtime, structure, data, events, security, governance
 0019 → 0026              frontend — rendering, language, design system, data, session, motion
 ```
 
@@ -97,7 +101,7 @@ Two records carry more weight than the rest and are worth reading first if time 
 
 ## 5. Adding a Record
 
-1. Take the next number in the sequence — currently **`ADR-0028`**. Numbers are never reused, including for superseded records.
+1. Take the next number in the sequence — currently **`ADR-0030`**. Numbers are never reused, including for superseded records.
 2. Name the file `ADR-00NN-<kebab-case-title>.md`.
 3. Copy the structure from any existing record: metadata block, then the six numbered sections.
 4. Give `Considered Options` at least one option that was genuinely rejected, with real trade-offs. If there isn't one, the decision probably didn't need a record.

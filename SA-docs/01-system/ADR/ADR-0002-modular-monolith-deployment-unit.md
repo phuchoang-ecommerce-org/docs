@@ -92,4 +92,4 @@ Extraction is kept cheap by three commitments made in other records, not by inte
 
 ## 6. Related Decisions
 
-[ADR-0006](./ADR-0006-spring-modulith-module-boundaries.md) · [ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md) · [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md) · [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md)
+[ADR-0006](./ADR-0006-spring-modulith-module-boundaries.md) · [ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md) · [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md) · [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md) · [ADR-0028](./ADR-0028-deployment-topology-containerisation.md)

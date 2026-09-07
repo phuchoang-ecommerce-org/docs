@@ -11,6 +11,7 @@
 - MapStruct
 - JMolecules
 - MongoDB/PostgreSQL (Using both of Spring Data JPA and Spring Data JDBC)
+- Flyway
 - ElasticSearch
 - Event-Driven Architecture
 - Trasactional Outbox pattern

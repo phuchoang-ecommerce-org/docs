@@ -5,7 +5,7 @@
 **Date:** 2026-09-06
 **Deciders:** Solution Architecture
 **Traces to:** `P15` · `NFR-MAINT-05` · UI Design System §5, §6, §10, §14
-**Related documents:** [UI Design System](../../03-frontend/UI%20Design%20System.md) · [Technology Stack](../Technology%20Stack.md) · [ADR-0022](./ADR-0022-zen-design-tokens.md)
+**Related documents:** [UI Design System](../../03-frontend/UI%20Design%20System.md) · [Technology Stack](../Technology%20Stack.md) · [ADR-0022](./ADR-0022-ma-design-tokens.md)
 
 ---
 
@@ -33,7 +33,7 @@ This record picks one and records the other as rejected.
 
 **Option 1 — Tailwind CSS + shadcn/ui + Radix as one system; Kuma UI dropped.** *(chosen)*
 
-- **Pros:** One styling engine and one token source — the Tailwind theme — so the §5 palette and §11 spacing scale are defined once. Tailwind's constrained utility set is itself the enforcement mechanism §11 asks for: a developer reaches for `p-6` rather than inventing `padding: 25px`, and off-scale values require deliberate escape. shadcn/ui components are **copied into the repository rather than imported**, so they are project-owned source that can be shaped to the Zen specification rather than themed around. Radix supplies focus management, keyboard navigation, and ARIA semantics for exactly the primitives §14 requires — accessibility comes from the primitive layer rather than from remembering to add it. Excellent Server Component compatibility: Tailwind is build-time CSS with no runtime, which suits [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md).
+- **Pros:** One styling engine and one token source — the Tailwind theme — so the §5 palette and §11 spacing scale are defined once. Tailwind's constrained utility set is itself the enforcement mechanism §11 asks for: a developer reaches for `p-6` rather than inventing `padding: 25px`, and off-scale values require deliberate escape. shadcn/ui components are **copied into the repository rather than imported**, so they are project-owned source that can be shaped to the Ma specification rather than themed around. Radix supplies focus management, keyboard navigation, and ARIA semantics for exactly the primitives §14 requires — accessibility comes from the primitive layer rather than from remembering to add it. Excellent Server Component compatibility: Tailwind is build-time CSS with no runtime, which suits [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md).
 - **Cons:** Utility classes make JSX verbose and can obscure structure. Copied components are owned — upstream fixes are not automatic. Tailwind's own scale must be overridden to match §11 exactly, or the design system inherits a scale it did not choose.
 
 **Option 2 — Kuma UI as the styling engine, with Radix for behaviour; shadcn/ui dropped.**
@@ -67,9 +67,9 @@ This record picks one and records the other as rejected.
 |---|---|
 | One styling engine | Tailwind. No CSS-in-JS, no second theme object, no parallel token source. |
 | One component implementation | Per `UI Design System.md` §10, for Button, Card, Input, Table, Modal, Badge, and Tooltip. A new variant requires a functional justification, per §10's closing rule. |
-| Components are owned source | shadcn/ui components are copied in and edited to match the Zen specification directly — §6's 12px card radius, 10px button radius, 40–44px button height, 1px borders, minimal shadow — rather than themed from outside. |
+| Components are owned source | shadcn/ui components are copied in and edited to match the Ma specification directly — §6's 12px card radius, 10px button radius, 40–44px button height, 1px borders, minimal shadow — rather than themed from outside. |
 | Accessibility comes from Radix | Focus management, keyboard navigation, and ARIA semantics are inherited from the primitive, so §14 is a baseline property rather than a per-component checklist. |
-| Tailwind's default theme is replaced, not extended | The default spacing, colour, and radius scales are overridden by the tokens of [ADR-0022](./ADR-0022-zen-design-tokens.md), so an off-system value is not merely discouraged but absent. |
+| Tailwind's default theme is replaced, not extended | The default spacing, colour, and radius scales are overridden by the tokens of [ADR-0022](./ADR-0022-ma-design-tokens.md), so an off-system value is not merely discouraged but absent. |
 | Arbitrary values are lint-flagged | `p-[25px]` and `text-[#123456]` fail lint. This is the mechanical support §11 needs to hold. |
 
 **Why Radix survives while Kuma UI does not:** the stack line names both, but they answer different questions. Radix answers *behaviour and accessibility*; Kuma UI answers *styling*. Styling has two candidate answers and can only have one. Radix has no competitor in the list and is a dependency of the chosen component layer, so it stays.
@@ -86,16 +86,16 @@ This record picks one and records the other as rejected.
 ### Negative
 
 - **`Technology Stack.md` had to change.** Its frontend line named Kuma UI and omitted Tailwind; leaving it would have contradicted this record. It now reads *"NextJS, TypeScript, TailwindCSS, RadixUI, shadcn/ui, Framer Motion"* — updated as part of adopting this ADR and [ADR-0020](./ADR-0020-typescript-strict-mode.md).
-- **Copied components are owned components.** Upstream shadcn/ui improvements and accessibility fixes are not automatic; adopting them is a deliberate, manual merge. This is the price of being able to shape them to the Zen specification.
+- **Copied components are owned components.** Upstream shadcn/ui improvements and accessibility fixes are not automatic; adopting them is a deliberate, manual merge. This is the price of being able to shape them to the Ma specification.
 - **Utility-class verbosity is real.** Long `className` strings make JSX harder to scan, and the mitigation — extracting variants into the component rather than repeating utilities at call sites — is a discipline, not a tool.
 - **Radix and Framer Motion are client-side**, so most components in §10's list will be Client Components ([ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md)). The Server Component benefit accrues to page composition and data fetching, not to the component library.
 
 ### Neutral / follow-on
 
-- The concrete token values are [ADR-0022](./ADR-0022-zen-design-tokens.md); this record decides the engine, that one decides the contents.
+- The concrete token values are [ADR-0022](./ADR-0022-ma-design-tokens.md); this record decides the engine, that one decides the contents.
 - Motion is bound to §8's vocabulary by [ADR-0026](./ADR-0026-motion-and-accessibility-baseline.md).
-- Icon library selection is made in [ADR-0022](./ADR-0022-zen-design-tokens.md) alongside the typeface, since §7 requires a single consistent set.
+- Icon library selection is made in [ADR-0022](./ADR-0022-ma-design-tokens.md) alongside the typeface, since §7 requires a single consistent set.
 
 ## 6. Related Decisions
 
-[ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) · [ADR-0020](./ADR-0020-typescript-strict-mode.md) · [ADR-0022](./ADR-0022-zen-design-tokens.md) · [ADR-0026](./ADR-0026-motion-and-accessibility-baseline.md)
+[ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) · [ADR-0020](./ADR-0020-typescript-strict-mode.md) · [ADR-0022](./ADR-0022-ma-design-tokens.md) · [ADR-0026](./ADR-0026-motion-and-accessibility-baseline.md)

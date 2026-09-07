@@ -5,7 +5,7 @@
 **Date:** 2026-09-06
 **Deciders:** Solution Architecture
 **Traces to:** UI Design System §8, §13, §14, §15 · `P15` · `NFR-MAINT-05`
-**Related documents:** [UI Design System](../../03-frontend/UI%20Design%20System.md) · [ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) · [ADR-0022](./ADR-0022-zen-design-tokens.md)
+**Related documents:** [UI Design System](../../03-frontend/UI%20Design%20System.md) · [ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) · [ADR-0022](./ADR-0022-ma-design-tokens.md)
 
 ---
 
@@ -71,7 +71,7 @@ Rules: **no spring physics** — every transition is duration-based; nothing out
 
 | Requirement | How it holds | Verified by |
 |---|---|---|
-| WCAG AA contrast | Token-level pairs with measured ratios ([ADR-0022](./ADR-0022-zen-design-tokens.md)) | Contrast assertions in the token test |
+| WCAG AA contrast | Token-level pairs with measured ratios ([ADR-0022](./ADR-0022-ma-design-tokens.md)) | Contrast assertions in the token test |
 | Visible keyboard focus | A focus-ring token applied by every interactive component; **focus outlines are never removed** | Lint rule against `outline: none`; component tests |
 | Keyboard navigability | Inherited from Radix primitives ([ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md)) | Keyboard interaction tests on composite components |
 | Semantic HTML | Radix renders correct elements and roles; application markup uses landmarks and headings in order | Automated accessibility linting in CI |
@@ -106,4 +106,4 @@ Rules: **no spring physics** — every transition is duration-based; nothing out
 
 ## 6. Related Decisions
 
-[ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) · [ADR-0022](./ADR-0022-zen-design-tokens.md) · [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) · [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md)
+[ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) · [ADR-0022](./ADR-0022-ma-design-tokens.md) · [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) · [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md)

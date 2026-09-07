@@ -84,4 +84,4 @@ That places a hard requirement on the transactional store: it must give real ACI
 
 ## 6. Related Decisions
 
-[ADR-0002](./ADR-0002-modular-monolith-deployment-unit.md) · [ADR-0008](./ADR-0008-cqrs-command-query-separation.md) · [ADR-0010](./ADR-0010-jpa-write-model-jdbc-read-models.md) · [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md) · [ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md) · [ADR-0013](./ADR-0013-mongodb-scoped-to-read-models.md)
+[ADR-0002](./ADR-0002-modular-monolith-deployment-unit.md) · [ADR-0008](./ADR-0008-cqrs-command-query-separation.md) · [ADR-0010](./ADR-0010-jpa-write-model-jdbc-read-models.md) · [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md) · [ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md) · [ADR-0013](./ADR-0013-mongodb-scoped-to-read-models.md) · [ADR-0029](./ADR-0029-flyway-versioned-schema-migrations.md)

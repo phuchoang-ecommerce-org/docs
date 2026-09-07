@@ -1,0 +1,75 @@
+@startuml deployment
+!include _common.iuml
+title Enterprise Commerce Platform — Production Deployment (Docker Compose on two VMs)
+
+actor "Customer · Guest\n(browser)" as Shopper
+actor "Staff · Warehouse\nSupport · Admin" as Operator
+
+node "VM  app-01\nDocker Compose" as APP {
+  component "nginx\nTLS · reverse proxy · static\nrate-limit backstop" as NGINX
+  node "ecp-web   {1..N}" as WEB {
+    artifact "Next.js standalone\nApp Router · RSC" as WEBART
+  }
+  node "ecp-api   {1..N}" as API {
+    artifact "ecp-app.jar\nSpring Boot 4.1.1 · Java 21\n13 Modulith modules" as APIART
+    component "Outbox relay\n(in-process)" as RELAY
+    component "Scheduler\n(profile: scheduler)" as SCHED
+  }
+}
+
+node "VM  data-01\nDocker Compose" as DATA {
+  database "PostgreSQL\ntransactional source of truth\n+ outbox table" as PG
+  database "Redis\ncache-aside · hot data\nrate limit · flash-sale pre-filter" as REDIS
+  queue "Kafka  (KRaft)\nevent backbone" as KAFKA
+  database "Elasticsearch\nCatalog search read model" as ES
+  database "MongoDB\nreporting · flexible read models" as MONGO
+}
+
+cloud "External providers" as EXT {
+  component "Payment\nGateway" as PAYGW
+  component "Shipping\nCarrier" as CARRIER
+  component "Email Service\nProvider" as ESP
+}
+
+Shopper --> NGINX : HTTPS 443
+Operator --> NGINX : HTTPS 443
+
+NGINX --> WEB : HTTP 3000\nnetwork: app
+NGINX --> API : HTTP 8080  /api/v1\nnetwork: app
+WEB --> NGINX : server-side fetch\n/api/v1
+
+API --> PG : JDBC 5432
+API --> REDIS : RESP 6379
+API --> ES : HTTP 9200
+API --> MONGO : 27017
+API --> KAFKA : consume 9092
+RELAY --> PG : poll unpublished
+RELAY --> KAFKA : publish 9092
+
+API --> PAYGW : authorise · capture · refund
+API --> CARRIER : dispatch · track
+API --> ESP : send
+
+PAYGW ..> NGINX : async settlement webhook
+CARRIER ..> NGINX : async tracking webhook
+
+note bottom of DATA
+  Single failure domain. data-01 has no replica, so
+  NFR-AVAIL-01 (99.9% monthly) rests on backup/restore
+  and VM-level recovery, not on redundancy.
+  Recorded as a Negative consequence in ADR-0028.
+end note
+
+note bottom of API
+  The Scheduler is a first-class trigger, not a human
+  caller (P5) -- but it must fire once, not once per
+  replica. Only one ecp-api runs the `scheduler` profile.
+  See ADR-0028 and Deployment Diagram section 6.
+end note
+
+note right of NGINX
+  All six roles enter through one REST API.
+  Authorisation is applied server-side at the
+  application boundary, never by a client. (P16)
+end note
+@enduml

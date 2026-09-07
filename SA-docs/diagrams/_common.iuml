@@ -1,0 +1,60 @@
+' Shared look-and-feel for every ECP solution-architecture diagram.
+'
+' Inherits the palette from the business-analysis diagrams so both document sets
+' render as one system, then adds the deployment/component element styles that
+' BA-docs never needed (node, database, artifact, component, cloud, queue).
+'
+' Included via !include _common.iuml -- the .iuml extension keeps util/toSvg.js
+' from trying to compile this fragment as a standalone diagram.
+
+!include ../../BA-docs/diagrams/_common.iuml
+
+skinparam node {
+  BackgroundColor #FBFAFF
+  BorderColor #7C5CFF
+  FontColor #1B1B2B
+  FontSize 13
+  FontStyle bold
+  BorderThickness 1
+}
+
+skinparam database {
+  BackgroundColor #F4F1FF
+  BorderColor #7C5CFF
+  FontColor #1B1B2B
+  FontSize 12
+}
+
+skinparam queue {
+  BackgroundColor #F4F1FF
+  BorderColor #7C5CFF
+  FontColor #1B1B2B
+  FontSize 12
+}
+
+skinparam artifact {
+  BackgroundColor #FFFFFF
+  BorderColor #B9AEE8
+  FontColor #3A3A55
+  FontSize 12
+}
+
+skinparam component {
+  BackgroundColor #FFFFFF
+  BorderColor #7C5CFF
+  FontColor #1B1B2B
+  FontSize 12
+}
+
+skinparam cloud {
+  BackgroundColor #FBFAFF
+  BorderColor #B9AEE8
+  FontColor #3A3A55
+  FontSize 12
+}
+
+skinparam frame {
+  BackgroundColor #FBFAFF
+  BorderColor #B9AEE8
+  FontColor #3A3A55
+}

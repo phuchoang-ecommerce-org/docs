@@ -1,4 +1,4 @@
-# ADR-0022 — The Zen Design System Expressed as Tokens
+# ADR-0022 — The Ma Design System Expressed as Tokens
 
 **Document type:** Architecture Decision Record
 **Status:** Accepted
@@ -11,9 +11,9 @@
 
 ## 1. Context and Problem Statement
 
-[`UI Design System.md`](../../03-frontend/UI%20Design%20System.md) is a complete and unusually specific design specification: a 12-column grid on an 8-point scale, a maximum content width of 1200–1440px, exact spacing values, a five-role palette with hex codes, three permitted font weights, precise radii and control heights, and a WCAG AA accessibility baseline. It also closes with a validation checklist (§16) intended to be applied before any UI element is introduced.
+[`UI Design System.md`](../../03-frontend/UI%20Design%20System.md) §1 states the platform's design philosophy as *Ma (間)* — the Japanese principle that treats empty space as an active design element rather than as absence. That is a philosophy, and a philosophy cannot be violated by a commit. What can be violated is the rest of the document, which is a complete and unusually specific design specification: a 12-column grid on an 8-point scale, a maximum content width of 1200–1440px, exact spacing values, a five-role palette with hex codes, three permitted font weights, precise radii and control heights, and a WCAG AA accessibility baseline. It also closes with a validation checklist (§16) intended to be applied before any UI element is introduced.
 
-It is prose. Prose specifications are followed until someone is in a hurry, and §11's instruction — *"Avoid arbitrary spacing values that disrupt consistency"* — is precisely the kind of rule that decays silently. Nothing in a codebase prevents `padding: 25px`.
+It is prose. Prose specifications are followed until someone is in a hurry, and *Ma* is unusually easy to lose that way — an interface does not stop being calm in one commit, it stops in forty. §11's instruction — *"Avoid arbitrary spacing values that disrupt consistency"* — is precisely the kind of rule that decays silently. Nothing in a codebase prevents `padding: 25px`.
 
 [ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) established Tailwind as the single styling engine and its theme as the single token source. This record decides what goes in that theme, and resolves the two open choices the specification deliberately left as candidate lists: §4 offers four typefaces, and §7 offers three icon libraries, each requiring one to be picked and used consistently.
 
@@ -28,12 +28,12 @@ It is prose. Prose specifications are followed until someone is in a hurry, and 
 
 ## 3. Considered Options
 
-**Option 1 — Replace Tailwind's default theme with the Zen tokens, so off-system values do not exist.** *(chosen)*
+**Option 1 — Replace Tailwind's default theme with the Ma tokens, so off-system values do not exist.** *(chosen)*
 
 - **Pros:** The approved scale becomes the only scale — `p-25` is not a class, so §11 holds mechanically. The palette has five roles and no more, so §5's "multiple competing accent colours" is structurally impossible. Component code reads in design vocabulary (`bg-surface`, `text-primary`) rather than in hex, so a token change propagates everywhere at once.
 - **Cons:** Tailwind's default numeric spacing scale is familiar to developers; overriding it means the well-known `p-4` no longer means what they expect. Every token addition is a deliberate act, which is the point but also friction.
 
-**Option 2 — Extend Tailwind's defaults with Zen tokens alongside them.**
+**Option 2 — Extend Tailwind's defaults with Ma tokens alongside them.**
 
 - **Pros:** Familiar defaults retained; a developer can reach for either; less initial configuration.
 - **Cons:** Both scales are then available, so nothing prevents the off-system one — §11 is back to a review comment. This is the option that looks harmless and quietly defeats the whole record.

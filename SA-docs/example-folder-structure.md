@@ -6,6 +6,8 @@
   │   ├── Business Goals.md
   │   └── SRS.md
   │
+  ├── diagrams/                    PlantUML sources -> committed .svg siblings
+  │
   ├── 01-system
   │   ├── Solution Architecture.md
   │   ├── Context Diagram.md
@@ -19,6 +21,7 @@
   ├── 02-backend
   │   ├── Backend Architecture.md
   │   ├── Domain Model.md
+  │   ├── Module Dependency Diagram.md
   │   ├── CQRS.md
   │   ├── Event Driven.md
   │   ├── Database.md
@@ -39,6 +42,7 @@
   │   └── Performance.md
   │
   └── 04-shared
+      ├── Integration Contract.md
       ├── OpenAPI
       ├── Event Contract
       ├── Error Codes

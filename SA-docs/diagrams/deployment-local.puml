@@ -1,0 +1,48 @@
+@startuml deployment-local
+!include _common.iuml
+title Enterprise Commerce Platform — Local Development Topology (single host)
+
+actor "Developer" as Dev
+
+node "Developer workstation" as HOST {
+  component "Gradle bootRun\necp-app.jar  (1 replica)" as API
+  component "next dev\nlocalhost:3000" as WEB
+
+  node "Docker Compose  —  docker-compose.dev.yml" as COMPOSE {
+    database "PostgreSQL" as PG
+    database "Redis" as REDIS
+    queue "Kafka (KRaft)" as KAFKA
+    database "Elasticsearch" as ES
+    database "MongoDB" as MONGO
+  }
+
+  component "Testcontainers\nPostgreSQL · Kafka\n(ephemeral, per test run)" as TC
+}
+
+cloud "Provider stubs" as STUB {
+  component "Payment · Carrier · Email\nstub adapters" as STUBS
+}
+
+Dev --> WEB : localhost:3000
+Dev --> API : localhost:8080
+WEB --> API : /api/v1
+
+API --> PG
+API --> REDIS
+API --> KAFKA
+API --> ES
+API --> MONGO
+API --> STUBS
+
+note bottom of COMPOSE
+  Same images and versions as production, so a defect
+  that depends on the data tier reproduces locally.
+  No nginx: the developer talks to each service directly.
+end note
+
+note bottom of TC
+  Integration tests use Testcontainers rather than the
+  long-running Compose stack, so a test run never depends
+  on developer-local data. (ADR-0018)
+end note
+@enduml
