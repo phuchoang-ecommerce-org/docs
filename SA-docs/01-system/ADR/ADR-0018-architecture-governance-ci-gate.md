@@ -68,8 +68,13 @@ A second, related gap: **the repository names no testing framework at all.** No 
 | One repository per aggregate root; none for child entities | `Domain Model.md` §7 | [ADR-0010](./ADR-0010-jpa-write-model-jdbc-read-models.md) |
 | The Audit module exposes no update or delete operation | `NFR-OBS-02` | [ADR-0017](./ADR-0017-append-only-audit-log.md) |
 | No `@Service`/`@Repository` outside the approved meta-annotations | `Technology Stack.md` | [ADR-0007](./ADR-0007-jmolecules-tactical-ddd.md) |
+| No `org.springframework.data.mongodb` type outside a module's `infrastructure` package | `CON-03`, `NFR-MAINT-03` | [ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md) |
+| A MongoDB write occurs only inside an `@EventHandler` — never an `@ApplicationService`, controller, or scheduled job | `CON-06`, single-writer | [ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md), [ADR-0013](./ADR-0013-mongodb-scoped-to-read-models.md) |
+| A `@QueryService` reaching MongoDB carries no PostgreSQL transaction | `NFR-PERF-05`, `CON-06` | [ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md) |
 
 The authorisation rule is the single highest-value entry: a missing call is a silent authorisation bypass, and it is the one omission that no other mechanism catches.
+
+The last MongoDB rule is the second-least-obvious. It is a **narrowing** of the `@QueryService` row above, not a contradiction of it: a PostgreSQL query service is read-only *and* transactional, a MongoDB one is read-only and carries no transaction at all. The failure it prevents — a transactional connection held for the duration of every dashboard request — appears only as pool pressure under load, never as a failing test, so an assertion is the only thing that catches it ([ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md) §5).
 
 **Test strategy — `Proposed`**, since the repository names no framework:
 
@@ -77,7 +82,7 @@ The authorisation rule is the single highest-value entry: a missing call is a si
 |---|---|---|
 | Domain unit tests | JUnit 5, no Spring context | Aggregate invariants: `BR-INV-01`, `BR-ORD-01/02/06`, `BR-PAY-01/02`, `BR-PRM-03`. Pure and fast, which is a direct dividend of [ADR-0005](./ADR-0005-clean-architecture-ports-and-adapters.md). |
 | Architecture tests | ArchUnit + `ApplicationModules.verify()` | The table above. **Build-failing, never skippable.** |
-| Module integration tests | Spring Modulith test scenarios + Testcontainers (PostgreSQL) | Cross-module flows through public APIs and events. |
+| Module integration tests | Spring Modulith test scenarios + Testcontainers (PostgreSQL, MongoDB) | Cross-module flows through public APIs and events. MongoDB is present because a projection's idempotency and ordering guards ([ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md) §4) are only meaningful against a real store — redelivering the same event twice must leave the document unchanged. |
 | Persistence & concurrency tests | Testcontainers PostgreSQL | `NFR-REL-01` fault injection at each step; `NFR-REL-03` concurrency at `NFR-SCAL-06` peak. **Real PostgreSQL — an optimistic-locking guarantee cannot be verified against an in-memory database.** |
 | Authorisation tests | Spring Security Test, matrix-driven | `NFR-SEC-01` per role, per operation, from SRS §2.3's authority table. |
 | Event delivery tests | Testcontainers Kafka + induced failure | `NFR-REL-05`, `NFR-REL-06` at-least-once delivery. |

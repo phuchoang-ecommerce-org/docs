@@ -96,4 +96,4 @@ flowchart LR
 
 ## 6. Related Decisions
 
-[ADR-0008](./ADR-0008-cqrs-command-query-separation.md) · [ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md) · [ADR-0013](./ADR-0013-mongodb-scoped-to-read-models.md) · [ADR-0015](./ADR-0015-redis-cache-and-rate-limiting.md)
+[ADR-0008](./ADR-0008-cqrs-command-query-separation.md) · [ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md) · [ADR-0013](./ADR-0013-mongodb-scoped-to-read-models.md) · [ADR-0015](./ADR-0015-redis-cache-and-rate-limiting.md) · [ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md)

@@ -63,6 +63,7 @@ A `Proposed` record is never quietly promoted. Promotion is its own commit.
 | [0018](./ADR-0018-architecture-governance-ci-gate.md) | Architecture governance as a CI gate; test strategy | Accepted · test stack **Proposed** | `P15` · `NFR-MAINT-05` · `AC-04` |
 | [0027](./ADR-0027-java-21-spring-boot-4-gradle.md) | Java 21 (LTS) on Spring Boot 4.1.1, built with Gradle (multi-module) | **Proposed** | `P15` · `NFR-SCAL-04` · `NFR-MAINT-05` |
 | [0029](./ADR-0029-flyway-versioned-schema-migrations.md) | Flyway for versioned schema migrations; Hibernate restricted to `validate` | Accepted (Flyway) · rules **Proposed** | `P15` · `NFR-MAINT-05` · `NFR-REL-01` · `NFR-OBS-02` |
+| [0030](./ADR-0030-spring-data-mongodb-read-model-access.md) | Spring Data MongoDB as the read-model access technology | **Proposed** | `P13` · `CON-06` · `NFR-PERF-05` · `NFR-PERF-06` |
 
 ### Frontend
 
@@ -89,7 +90,8 @@ A `Proposed` record is never quietly promoted. Promotion is its own commit.
   ↓
 0028                     where that one deployable physically runs
   ↓
-0027, 0005 → 0018, 0029  backend — runtime, structure, data, events, security, governance
+0027, 0005 → 0018,       backend — runtime, structure, data, events, security, governance
+0029 → 0030
 0019 → 0026              frontend — rendering, language, design system, data, session, motion
 ```
 
@@ -101,7 +103,7 @@ Two records carry more weight than the rest and are worth reading first if time 
 
 ## 5. Adding a Record
 
-1. Take the next number in the sequence — currently **`ADR-0030`**. Numbers are never reused, including for superseded records.
+1. Take the next number in the sequence — currently **`ADR-0031`**. Numbers are never reused, including for superseded records.
 2. Name the file `ADR-00NN-<kebab-case-title>.md`.
 3. Copy the structure from any existing record: metadata block, then the six numbered sections.
 4. Give `Considered Options` at least one option that was genuinely rejected, with real trade-offs. If there isn't one, the decision probably didn't need a record.

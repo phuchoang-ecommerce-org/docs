@@ -89,8 +89,8 @@ A *no* to either means PostgreSQL — through a JDBC projection ([ADR-0010](./AD
 ### Neutral / follow-on
 
 - If the reporting workload turns out modest, Option 2 (a separate PostgreSQL reporting instance) removes a technology at equal isolation. This is the first thing to revisit if operational cost bites.
-- Document schema versioning and rebuild procedure are for [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md).
+- The access technology — how a projection writes and how a query reads — is decided by [ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md), which also assigns the lag alerting named as a cost above. Document schema versioning and the rebuild procedure remain for [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md).
 
 ## 6. Related Decisions
 
-[ADR-0008](./ADR-0008-cqrs-command-query-separation.md) · [ADR-0009](./ADR-0009-postgresql-source-of-truth.md) · [ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md) · [ADR-0014](./ADR-0014-elasticsearch-search-read-model.md)
+[ADR-0008](./ADR-0008-cqrs-command-query-separation.md) · [ADR-0009](./ADR-0009-postgresql-source-of-truth.md) · [ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md) · [ADR-0014](./ADR-0014-elasticsearch-search-read-model.md) · [ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md)

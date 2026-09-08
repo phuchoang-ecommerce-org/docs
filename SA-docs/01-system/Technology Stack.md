@@ -10,7 +10,7 @@
 - Lombok
 - MapStruct
 - JMolecules
-- MongoDB/PostgreSQL (Using both of Spring Data JPA and Spring Data JDBC)
+- MongoDB/PostgreSQL (Spring Data JPA for the PostgreSQL write model, Spring Data JDBC for PostgreSQL read models, Spring Data MongoDB for the projected read models)
 - Flyway
 - ElasticSearch
 - Event-Driven Architecture

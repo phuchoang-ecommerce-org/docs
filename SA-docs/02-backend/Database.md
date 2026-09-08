@@ -1743,7 +1743,7 @@ Catalog's search read model ([ADR-0014](../01-system/ADR/ADR-0014-elasticsearch-
 
 ### 7.2 MongoDB — reporting collections
 
-Scoped to exactly what [ADR-0013](../01-system/ADR/ADR-0013-mongodb-scoped-to-read-models.md) permits: pre-aggregated reporting documents and flexible denormalised views, fed by Kafka, eventually consistent within `NFR-PERF-06`'s 5 minutes.
+Scoped to exactly what [ADR-0013](../01-system/ADR/ADR-0013-mongodb-scoped-to-read-models.md) permits: pre-aggregated reporting documents and flexible denormalised views, fed by Kafka, eventually consistent within `NFR-PERF-06`'s 5 minutes. [ADR-0030](../01-system/ADR/ADR-0030-spring-data-mongodb-read-model-access.md) decides how they are reached — `MongoTemplate` upserts from an `@EventHandler`, never a repository `save()`; the statements below are that decision at the document level.
 
 | Collection | Document shape | Key / index |
 |---|---|---|
@@ -1753,6 +1753,81 @@ Scoped to exactly what [ADR-0013](../01-system/ADR/ADR-0013-mongodb-scoped-to-re
 | `report_inventory_movement` | `{ _id: "sku|warehouseId|day", reserved, committed, released, adjusted, updatedAt }` | `_id` composite, same upsert reason |
 
 **`BR-RPT-01` is a computation rule in these documents, not a constraint.** Revenue counts only Paid-or-beyond orders; refunds and returns are excluded from the period the order was placed in and recognised in the period they occurred — which is why `refundedAmount` and `returnedAmount` are separate fields on the day they happened rather than adjustments to a past day's `grossAmount`. Restating them as separate fields is what makes the rule inspectable in the data.
+
+#### 7.2.1 Every field, and why it has that type
+
+| Field class | BSON type | Rule |
+|---|---|---|
+| Money — `grossAmount`, `discountAmount`, `refundedAmount`, `returnedAmount`, `netAmount`, `lifetimeValue` | `Decimal128` | **Never `Double`.** Mapped from `BigDecimal` by a `MongoCustomConversions` pair ([ADR-0030](../01-system/ADR/ADR-0030-spring-data-mongodb-read-model-access.md) §4). Same rule and reason as §7.1's `scaled_float` — binary floating point cannot represent a decimal currency amount, and a reporting figure that disagrees with the ledger by a cent is a reconciliation dispute. |
+| Counters — `orderCount`, `unitsSold`, `viewCount`, `reserved`, `committed`, `released`, `adjusted` | `Int64` | Moved only by `$inc`. Never read-modify-written. |
+| `conversionRate` | derived, not stored as truth | Computed from `unitsSold` and `viewCount` at query time or recomputed on write; it is not independently incremented, or the two counters and the ratio drift. |
+| Timestamps — `updatedAt`, `firstOrderAt`, `lastOrderAt`, `lastEventAt` | `Date` (UTC) | `lastEventAt` carries the **envelope's `occurredAt`**, not the write time ([`Integration Contract.md`](../04-shared/Integration%20Contract.md) §6.1 — the two differ by outbox lag, and conflating them computes wrong durations). |
+| `lastEventAt` | `Date` | Present on the two `$set`-only collections. The out-of-order guard (§7.2.3). |
+| `appliedEvents` | array of `String` | Present on the two `$inc` collections. Bounded ring of `eventId` values (§7.2.2). |
+
+#### 7.2.2 Counter collections — `$inc` guarded by an applied-event ring
+
+`report_sales_daily` and `report_inventory_movement` accumulate. `$inc` is not idempotent, so at-least-once redelivery must be excluded by the update's own criteria — the composite `_id` alone makes the *upsert* safe, not the *increment*.
+
+```js
+// report_sales_daily — one atomic updateOne per consumed event.
+db.report_sales_daily.updateOne(
+  { _id:           "2026-09-07|USD",
+    appliedEvents: { $ne: eventId } },        // the guard IS the dedupe
+  { $inc:  { orderCount: 1,
+             grossAmount:    Decimal128(amount),
+             discountAmount: Decimal128(discount),
+             netAmount:      Decimal128(net) },
+    $set:  { day: "2026-09-07", currency: "USD", updatedAt: now },
+    $push: { appliedEvents: { $each: [eventId], $slice: -RING } } },
+  { upsert: true }
+);
+```
+
+Three properties, each of which is a rule that would otherwise be re-derived at implementation time:
+
+1. **The guard and the increment are one statement.** A single-document update is atomic in MongoDB, so `appliedEvents: { $ne: eventId }` and the `$inc` cannot interleave. A preceding `findOne` to check for the id leaves exactly the read-check-write window §6.1's first property rejects on the transactional path, for the same reason.
+2. **`modifiedCount == 0` means already applied** — acknowledge the message, do not retry. On a *first* write racing another consumer the upsert instead raises a duplicate-key error on `_id`; that is also "already applied," and it is the one case where a normal outcome appears in the log as an exception ([ADR-0030](../01-system/ADR/ADR-0030-spring-data-mongodb-read-model-access.md) §4).
+3. **`RING` must exceed Kafka's maximum redelivery horizon.** Past the ring's rotation, a redelivered event is no longer recognised and double-counts. That horizon is deferred to `Backend Architecture.md` (§11 item 3), so the ring size is deferred with it — recorded here as a dependency, not left as a number someone guesses.
+
+`report_inventory_movement` takes the identical shape on `_id: "sku|warehouseId|day"` with `$inc` over `reserved`, `committed`, `released`, `adjusted`.
+
+#### 7.2.3 Snapshot collections — `$set` guarded by a high-water mark
+
+`report_product_performance` and `report_customer_activity` overwrite rather than accumulate. `$set` is naturally idempotent, so these need no ring — but they do need **ordering**, and a reporting projection consumes from every context at once, so it is never partition-ordered ([`Integration Contract.md`](../04-shared/Integration%20Contract.md) §6.3: ordering holds within a partition and nowhere else).
+
+```js
+db.report_customer_activity.updateOne(
+  { _id: customerId,
+    $or: [ { lastEventAt: { $lt: occurredAt } },
+           { lastEventAt: { $exists: false } } ] },   // ordering guard
+  { $set: { orderCount, lifetimeValue: Decimal128(ltv),
+            lastOrderAt, lastEventAt: occurredAt, updatedAt: now },
+    $setOnInsert: { firstOrderAt } },
+  { upsert: true }
+);
+```
+
+Without the guard, a redelivered `OrderPaid` from an hour ago overwrites a newer `lastOrderAt` and the document silently goes backwards — the failure is invisible in the data, which is why the guard is in the criteria rather than in a comparison the handler performs.
+
+#### 7.2.4 Indexes — declared here, created explicitly, never inferred
+
+`auto-index-creation` is **off** ([ADR-0030](../01-system/ADR/ADR-0030-spring-data-mongodb-read-model-access.md) §4). One startup component creates exactly this set and nothing else; this table is its source, the way §8's script list is Flyway's.
+
+| Collection | Index | Serves |
+|---|---|---|
+| `report_sales_daily` | `_id` (`day\|currency`) | Upsert key; day-range scans over a period |
+| `report_product_performance` | `_id` (`productId`) | Upsert key |
+| `report_product_performance` | `{ period: 1, grossAmount: -1 }` | Top-products-in-period, the dashboard's most frequent query |
+| `report_customer_activity` | `_id` (`customerId`) | Upsert key |
+| `report_customer_activity` | `{ lastOrderAt: -1 }` | Recency segments |
+| `report_inventory_movement` | `_id` (`sku\|warehouseId\|day`) | Upsert key |
+
+The same rule as `ix_…_processed_at`'s deliberate absence in §5.2 applies: an index not named by a query above is not created, because an unused index is write-path cost on the hottest write in the collection.
+
+#### 7.2.5 There is no `reporting_processed_event` table
+
+§5.2 requires the processed-event insert to be *"in the same transaction as the handler's own write"* and lists `reporting_` among the consuming modules. **No transaction spans PostgreSQL and MongoDB**, so for this one consumer the rule is unimplementable as written. §7.2.2 and §7.2.3 put the dedupe inside the document being updated, in the same atomic write — which is what §5.2's rule was asking for, achieved by the only means available on this store ([ADR-0030](../01-system/ADR/ADR-0030-spring-data-mongodb-read-model-access.md) §4). §5.2 governs PostgreSQL consumers; §7.2 governs this one. The Flyway script at §8 creates `*_processed_event` for the PostgreSQL consumers only.
 
 **Admission test for any new collection** ([ADR-0013](../01-system/ADR/ADR-0013-mongodb-scoped-to-read-models.md) §4), restated here because this is where the temptation arises: does its shape evolve independently of the transactional schema, *and* can it tolerate eventual consistency while being fully rebuildable from Kafka? A *no* to either means a PostgreSQL JDBC projection. *"It would be easier in Mongo"* is not a yes.
 

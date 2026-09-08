@@ -15,7 +15,7 @@ This folder holds the solution architecture for the Enterprise Commerce Platform
 | [`01-system/`](./01-system) | [`Technology Stack.md`](./01-system/Technology%20Stack.md) | Backend/frontend technology shortlist |
 | [`01-system/`](./01-system) | [`Deployment Diagram.md`](./01-system/Deployment%20Diagram.md) | Physical topology — nodes, containers, networks, ports, volumes; which quality targets the topology meets and which it does not; local development topology; operational concerns |
 | [`01-system/ADR/`](./01-system/ADR) | [`README.md`](./01-system/ADR/README.md) | Architecture Decision Records — index, status rules, and how to add one |
-| [`01-system/ADR/`](./01-system/ADR) | `ADR-0001`–`ADR-0003`, `ADR-0005`–`ADR-0028` | One record per decision: context, alternatives considered, outcome, consequences — 4 cross-cutting, 16 backend, 8 frontend. `ADR-0004` is retired, not reused ([why](./01-system/ADR/README.md)) |
+| [`01-system/ADR/`](./01-system/ADR) | `ADR-0001`–`ADR-0003`, `ADR-0005`–`ADR-0030` | One record per decision: context, alternatives considered, outcome, consequences — 4 cross-cutting, 17 backend, 8 frontend. `ADR-0004` is retired, not reused ([why](./01-system/ADR/README.md)) |
 | [`02-backend/`](./02-backend) | [`Backend Architecture.md`](./02-backend/Backend%20Architecture.md) | Backend architecture plan *(stub)* |
 | [`02-backend/`](./02-backend) | [`Domain Model.md`](./02-backend/Domain%20Model.md) | Domain-Driven Design — strategic & tactical design: subdomain classification, bounded contexts, context map, aggregates, entities, value objects, domain events |
 | [`02-backend/`](./02-backend) | [`Module Dependency Diagram.md`](./02-backend/Module%20Dependency%20Diagram.md) | The module graph the build verifies — compile-time dependencies, runtime event flow, layer rules, forbidden edges, extraction readiness |
@@ -37,7 +37,7 @@ Folders are organized by concern, following the target layout in [`example-folde
       ↓
 01-system/Solution Architecture.md   which architecture decision answers each problem, and why
 01-system/Technology Stack.md        the technology shortlist that decision draws from
-01-system/ADR/                       why that decision and not another one  (ADR-0001–ADR-0028)
+01-system/ADR/                       why that decision and not another one  (ADR-0001–ADR-0030)
       ↓
 02-backend/                          how the backend implements it
 02-backend/Database.md               the tables, constraints, and indexes those decisions produce

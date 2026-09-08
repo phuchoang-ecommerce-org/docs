@@ -11,7 +11,7 @@
 
 ## 1. Context and Problem Statement
 
-[`Technology Stack.md`](../Technology%20Stack.md) says: *"MongoDB/PostgreSQL (Using both of Spring Data JPA and Spring Data JDBC)."* It commits to using both and says nothing about which is used where. Left unresolved, "both" means each developer chooses per repository, and the persistence strategy becomes an accident of who wrote the class.
+[`Technology Stack.md`](../Technology%20Stack.md) said, at the time of this record: *"MongoDB/PostgreSQL (Using both of Spring Data JPA and Spring Data JDBC)."* (The line has since been amended to name all three Spring Data modules and their sides — by this record and by [ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md). The original wording is quoted here because it is the ambiguity this record exists to resolve.) It committed to using both and said nothing about which is used where. Left unresolved, "both" means each developer chooses per repository, and the persistence strategy becomes an accident of who wrote the class.
 
 The two are genuinely different tools. JPA gives a persistence context, dirty checking, lazy loading, and `@Version` optimistic locking — machinery that suits an aggregate with a lifecycle. Spring Data JDBC has no persistence context and no lazy loading; it maps a query result to an object and stops — which suits a read model, and makes the SQL that answers a `NFR-PERF-01` latency target visible rather than generated.
 
@@ -83,9 +83,9 @@ Supporting rules:
 
 ### Neutral / follow-on
 
-- MongoDB read models use Spring Data MongoDB, and Elasticsearch its own client; this record governs PostgreSQL access only.
+- MongoDB read models use Spring Data MongoDB and Elasticsearch its own client; this record governs PostgreSQL access only. [ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md) picks up the MongoDB half.
 - Whether a given read is served from PostgreSQL/JDBC or from a projected store is [ADR-0008](./ADR-0008-cqrs-command-query-separation.md)'s classification table, not a per-query preference.
 
 ## 6. Related Decisions
 
-[ADR-0005](./ADR-0005-clean-architecture-ports-and-adapters.md) · [ADR-0007](./ADR-0007-jmolecules-tactical-ddd.md) · [ADR-0008](./ADR-0008-cqrs-command-query-separation.md) · [ADR-0009](./ADR-0009-postgresql-source-of-truth.md) · [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md)
+[ADR-0005](./ADR-0005-clean-architecture-ports-and-adapters.md) · [ADR-0007](./ADR-0007-jmolecules-tactical-ddd.md) · [ADR-0008](./ADR-0008-cqrs-command-query-separation.md) · [ADR-0009](./ADR-0009-postgresql-source-of-truth.md) · [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md) · [ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md)
