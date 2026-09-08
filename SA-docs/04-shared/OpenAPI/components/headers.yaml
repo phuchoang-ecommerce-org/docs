@@ -1,0 +1,57 @@
+# Reusable response headers — Enterprise Commerce Platform (ECP)
+
+RetryAfter:
+  description: >-
+    Seconds the caller should wait before retrying. Set on every `429`
+    (`Integration Contract` §4.4, `NFR-SEC-05`) and on a `503` where the
+    dependency outage is expected to be brief.
+  required: true
+  schema:
+    type: integer
+    format: int32
+    minimum: 0
+
+Location:
+  description: >-
+    Absolute or root-relative URI of the resource created (`201`) or of the
+    asynchronous job accepted (`202`) — `Integration Contract` §2.1.
+  required: true
+  schema:
+    type: string
+    format: uri-reference
+
+CorrelationId:
+  description: >-
+    Echoes the request's `X-Correlation-Id`, or carries the one issued at the
+    edge when the caller supplied none. Threaded through every downstream hop and
+    repeated in every error body (`Integration Contract` §6.2, `NFR-OBS-03`).
+
+    **[ASSUMPTION]** The header name is chosen here. §6.2 requires the identifier
+    end-to-end but names no HTTP header anywhere in the repository.
+  required: false
+  schema:
+    type: string
+    format: uuid
+
+ETag:
+  description: >-
+    Entity tag for a cacheable catalog read, enabling the `304` that
+    `Integration Contract` §2.1 lists for `GET` and supporting `NFR-PERF-01`'s
+    p95 <= 300 ms catalog target.
+
+    **[ASSUMPTION]** No document names a conditional-request mechanism. Note the
+    deliberate asymmetry: `If-Match`/`412` is **not** offered anywhere in this
+    API, because `ADR-0011` keeps the aggregate `version` off the wire, so a
+    client has no precondition it could legitimately assert.
+  required: false
+  schema:
+    type: string
+
+Deprecation:
+  description: >-
+    Present on every operation of a superseded API version. `v1` is removed no
+    earlier than two release cycles after every known client has migrated
+    (`Integration Contract` §8.3). Absent throughout `v1` while `v1` is current.
+  required: false
+  schema:
+    type: string

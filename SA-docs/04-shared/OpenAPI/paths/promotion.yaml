@@ -1,0 +1,289 @@
+# Promotion (`PRM`) — path items
+#
+# Permission matrix row (Integration Contract §9):
+#   Guest — · Customer redeem · Staff manage · Warehouse —
+#   Support read · Admin manage
+#
+# `UC-PRM-03` (Apply Promotion to Order) is realised in `ordering.yaml`, on the
+# checkout voucher resource and at placement — the discount belongs to the order,
+# not to the promotion.
+
+promotions:
+  get:
+    operationId: listPromotions
+    tags: [Promotion]
+    summary: List promotions
+    description: 'Operator-facing. A Customer never lists promotions; they redeem a code (`Integration Contract` §9).'
+    x-ecp-roles: [STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-PRM-01, UC-PRM-05]
+      fr: [FR-PRM-01, FR-ADM-06]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: array
+          items: { $ref: '../components/schemas/promotion.yaml#/PromotionStatus' }
+    responses:
+      '200':
+        description: Matching promotions.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/promotion.yaml#/PromotionPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  post:
+    operationId: createPromotion
+    tags: [Promotion]
+    summary: Create a promotion
+    description: >-
+      Creates a promotion in `DRAFT` (`FR-PRM-01`, `FR-PRM-07`, `FR-ADM-06`).
+
+      **Both usage limits are mandatory.** A configuration that is unbounded,
+      self-contradictory, or capable of driving an order total negative is
+      rejected outright (`UC-PRM-01` E1, `BR-PRM-02`) — an unbounded promotion is
+      a commercial liability, not a permissive default.
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-PRM-01]
+      fr: [FR-PRM-01, FR-PRM-07, FR-ADM-06, FR-AUD-02]
+      br: [BR-PRM-01, BR-PRM-02, BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/promotion.yaml#/PromotionWrite' }
+    responses:
+      '201':
+        description: Promotion created, in `DRAFT`.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/promotion.yaml#/Promotion' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '422': { $ref: '../components/responses.yaml#/DiscountExceedsOrder' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+promotionById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/PromotionId'
+  get:
+    operationId: getPromotion
+    tags: [Promotion]
+    summary: Get one promotion
+    x-ecp-roles: [STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-PRM-01]
+      fr: [FR-PRM-01]
+      br: []
+    description: 'Includes `usageCount` against `usageLimit`, the exposure figure an operator needs (`FR-PRM-01`).'
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The promotion.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/promotion.yaml#/Promotion' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  patch:
+    operationId: updatePromotion
+    tags: [Promotion]
+    summary: Update a promotion
+    description: >-
+      Audited with before-and-after values (`FR-AUD-02`). **Never retroactive**:
+      orders already placed keep the discount they were placed with
+      (`BR-ORD-06`).
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-PRM-01]
+      fr: [FR-PRM-01, FR-ADM-06, FR-AUD-02]
+      br: [BR-PRM-01, BR-PRM-02, BR-ORD-06]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/promotion.yaml#/PromotionWrite' }
+    responses:
+      '200':
+        description: Updated promotion.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/promotion.yaml#/Promotion' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '422': { $ref: '../components/responses.yaml#/DiscountExceedsOrder' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+promotionStatus:
+  parameters:
+    - $ref: '../components/parameters.yaml#/PromotionId'
+  put:
+    operationId: setPromotionStatus
+    tags: [Promotion]
+    summary: Activate, pause, or expire a promotion
+    description: >-
+      Launches a flash sale, pauses a running promotion, expires one, or
+      reactivates it (`FR-PRM-06`, `FR-PRM-10`, `UC-PRM-04`, `UC-PRM-05`).
+      Activation makes the sale price visible in catalog and search; expiry
+      withdraws it. Supply `effectiveAt` to schedule rather than apply now
+      (`A-02`).
+
+      Usage caps hold under concurrency: a redemption that would exceed the limit
+      is `409 ECP-PRM-4090` at placement, which is an **expected** outcome during
+      a flash sale, not a fault (`UC-PRM-02` E7).
+
+      **Placed orders are never affected** (`BR-ORD-06`).
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-PRM-04, UC-PRM-05]
+      fr: [FR-PRM-06, FR-PRM-10, FR-AUD-02]
+      br: [BR-PRM-01, BR-ORD-06]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/promotion.yaml#/PromotionStatusChange' }
+    responses:
+      '200':
+        description: Status applied, or scheduled.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/promotion.yaml#/Promotion' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+promotionVouchers:
+  parameters:
+    - $ref: '../components/parameters.yaml#/PromotionId'
+  post:
+    operationId: generatePromotionVouchers
+    tags: [Promotion]
+    summary: Generate voucher codes
+    description: 'Single-use or shared codes for a promotion (`FR-PRM-07`).'
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-PRM-01]
+      fr: [FR-PRM-07]
+      br: [BR-PRM-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/promotion.yaml#/VoucherBatch' }
+    responses:
+      '201':
+        description: Codes generated.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '../components/schemas/promotion.yaml#/Voucher' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+promotionRedemptions:
+  parameters:
+    - $ref: '../components/parameters.yaml#/PromotionId'
+  get:
+    operationId: listPromotionRedemptions
+    tags: [Promotion]
+    summary: List a promotion's redemptions
+    description: >-
+      Who redeemed, against which order, for how much — the exposure figure
+      behind `usageCount` (`FR-PRM-09`).
+    x-ecp-roles: [STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-PRM-03]
+      fr: [FR-PRM-09]
+      br: [BR-PRM-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: Redemptions.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/promotion.yaml#/RedemptionPage' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+voucherValidations:
+  post:
+    operationId: validateVoucher
+    tags: [Promotion]
+    summary: Validate a voucher code
+    description: |
+      Reports whether a code is valid and what discount it would produce
+      (`FR-PRM-08`, `UC-PRM-02`).
+
+      **A rejection is deliberately non-disclosive**: unrecognised, expired, and
+      exhausted codes return the same `valid: false` with no distinguishing
+      detail. This endpoint is an enumeration surface, so it carries a stricter,
+      **fail-closed** rate limit alongside login, registration and password reset
+      (`NFR-SEC-05`, `UC-AUD-04` A1).
+
+      A `POST` rather than a `GET` because the code is a credential-like secret
+      that does not belong in a URL, a log, or a browser history.
+
+      The discount reported is a **preview**, not a reservation
+      (`Domain Model` §5.2).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-traces:
+      uc: [UC-PRM-02]
+      fr: [FR-PRM-08]
+      br: [BR-PRM-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/promotion.yaml#/VoucherValidationRequest' }
+    responses:
+      '200':
+        description: >-
+          The validation outcome. `valid: false` is a successful response, not an
+          error: the code was evaluated.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/promotion.yaml#/VoucherValidationResult' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

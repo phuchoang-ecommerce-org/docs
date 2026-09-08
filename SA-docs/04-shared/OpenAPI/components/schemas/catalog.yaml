@@ -1,0 +1,294 @@
+# Product Catalog & Category (`CAT`) — schemas
+# Aggregates: Product (child entity Variant), Category. Domain Model §8.2, Database.md §4.2
+
+PublicationStatus:
+  type: string
+  description: >-
+    Whether a product is visible to a shopper. Only `PUBLISHED` products appear
+    in browse, search, or recommendations (`BR-CAT-02`). Open vocabulary
+    (`Integration Contract` §8.1) — clients must tolerate an unknown value.
+  x-extensible-enum: [DRAFT, PUBLISHED, UNPUBLISHED, DISCONTINUED]
+  examples: [PUBLISHED]
+
+Category:
+  type: object
+  required: [id, name, slug, depth]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    parentId: { $ref: './common.yaml#/Id' }
+    name: { type: string }
+    slug:
+      type: string
+      description: Human-facing reference, unique across the tree. Never a path id.
+    depth: { type: integer, format: int32, minimum: 0 }
+    sortOrder: { type: integer, format: int32 }
+    imageUrl: { type: string, format: uri }
+    featured: { type: boolean }
+    ancestors:
+      type: array
+      description: >-
+        Root-to-parent chain, so a deep link can render breadcrumbs without
+        walking the tree (`UC-CAT-01` A2).
+      items: { $ref: '#/CategoryRef' }
+
+CategoryRef:
+  type: object
+  required: [id, name, slug]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    name: { type: string }
+    slug: { type: string }
+
+CategoryNode:
+  description: >-
+    A category with its children inlined. Categories nest to arbitrary depth
+    (`FR-CAT-05`), so this schema is recursive.
+  allOf:
+    - $ref: '#/Category'
+    - type: object
+      properties:
+        children:
+          type: array
+          items: { $ref: '#/CategoryNode' }
+
+CategoryPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/Category' }
+
+CategoryWrite:
+  type: object
+  required: [name]
+  additionalProperties: false
+  properties:
+    name: { type: string }
+    parentId:
+      $ref: './common.yaml#/Id'
+      description: >-
+        Moving a category moves its descendants with it. A parent that would
+        create a cycle is rejected (`BR-CAT-03`).
+    imageUrl: { type: string, format: uri }
+    sortOrder: { type: integer, format: int32 }
+    featured: { type: boolean }
+
+Variant:
+  type: object
+  description: >-
+    A purchasable configuration of a product, with its own SKU, price, and
+    independently tracked stock (`FR-CAT-02`).
+  required: [id, sku, listPrice, active]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    sku:
+      type: string
+      description: >-
+        Unique platform-wide (`BR-CAT-01`). A removed SKU is never reused
+        (`UC-ADM-01`).
+    name: { type: string }
+    listPrice: { $ref: './common.yaml#/Money' }
+    promotionalPrice:
+      $ref: './common.yaml#/Money'
+      description: >-
+        Present only while a flash sale or automatic promotion applies
+        (`FR-PRM-06`). Advisory for display; the binding price is fixed at order
+        placement (`BR-ORD-06`).
+    options:
+      type: object
+      description: 'Attribute values that identify this variant, e.g. `{"size": "M"}`.'
+      additionalProperties: { type: string }
+    weightGrams: { type: integer, format: int32, minimum: 0 }
+    active: { type: boolean }
+    availability: { $ref: './inventory.yaml#/VariantAvailability' }
+
+ProductImage:
+  type: object
+  required: [id, url]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    url: { type: string, format: uri }
+    altText: { type: string }
+    sortOrder: { type: integer, format: int32 }
+
+ProductSummary:
+  type: object
+  description: The listing-shaped projection of a product.
+  required: [id, name, slug, publicationStatus]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    name: { type: string }
+    slug: { type: string }
+    brand: { type: string }
+    publicationStatus: { $ref: '#/PublicationStatus' }
+    primaryImageUrl: { type: string, format: uri }
+    priceFrom:
+      $ref: './common.yaml#/Money'
+      description: >-
+        Lowest current variant price. A listing shows a range rather than a
+        single price where variants differ (`UC-CAT-04` A1).
+    priceTo: { $ref: './common.yaml#/Money' }
+    averageRating:
+      type: number
+      format: double
+      minimum: 1
+      maximum: 5
+      description: >-
+        Denormalised from Review events by Catalog's own handler and therefore
+        **non-authoritative** (`Domain Model` §5.2). Null when no review exists —
+        which is distinct from a rating of zero.
+    reviewCount: { type: integer, format: int32, minimum: 0 }
+    inStock:
+      type: boolean
+      description: >-
+        Advisory availability only. Quantities and warehouse structure are never
+        exposed to a Guest or Customer, and the binding check happens inside the
+        order-placement transaction (`ADR-0008` §4).
+
+ProductSummaryPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/ProductSummary' }
+
+Product:
+  type: object
+  description: >-
+    Full product detail (`FR-CAT-01`, `FR-CAT-04`). The `reviews` and
+    `relatedProducts` sections are **independently omittable**: failure of the
+    review or recommendation capability must not prevent the product page from
+    rendering (`NFR-AVAIL-02`).
+  required: [id, name, slug, publicationStatus, variants, images, categories]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    name: { type: string }
+    slug: { type: string }
+    description: { type: string }
+    brand: { type: string }
+    publicationStatus: { $ref: '#/PublicationStatus' }
+    publishedAt: { type: string, format: date-time }
+    categories:
+      type: array
+      items: { $ref: '#/CategoryRef' }
+    attributes:
+      type: object
+      description: Open-shaped product attributes (`catalog_product.attributes`).
+      additionalProperties: true
+    images:
+      type: array
+      items: { $ref: '#/ProductImage' }
+    variants:
+      type: array
+      items: { $ref: '#/Variant' }
+    averageRating: { type: number, format: double, minimum: 1, maximum: 5 }
+    reviewCount: { type: integer, format: int32, minimum: 0 }
+    reviews:
+      description: >-
+        A short page of recent published reviews. **Omitted when the review
+        capability is unavailable** rather than failing the response
+        (`NFR-AVAIL-02`).
+      $ref: './review.yaml#/ReviewPage'
+    relatedProducts:
+      type: array
+      description: >-
+        Omitted when the recommendation capability is unavailable
+        (`NFR-AVAIL-02`, `FR-SCH-07`).
+      items: { $ref: '#/ProductSummary' }
+
+ProductWrite:
+  type: object
+  required: [name]
+  additionalProperties: false
+  properties:
+    name: { type: string }
+    description: { type: string }
+    brand: { type: string }
+    categoryId: { $ref: './common.yaml#/Id' }
+    attributes:
+      type: object
+      additionalProperties: true
+
+VariantWrite:
+  type: object
+  required: [sku, listPrice]
+  additionalProperties: false
+  properties:
+    sku:
+      type: string
+      description: Must be unique platform-wide; a previously removed SKU may not be reused (`BR-CAT-01`).
+    name: { type: string }
+    listPrice: { $ref: './common.yaml#/Money' }
+    options:
+      type: object
+      additionalProperties: { type: string }
+    weightGrams: { type: integer, format: int32, minimum: 0 }
+    active: { type: boolean, default: true }
+
+PriceChange:
+  type: object
+  description: >-
+    A price change is a distinct, separately audited action (`FR-ADM-01`,
+    `FR-AUD-02`), not an incidental field update — which is why it has its own
+    endpoint rather than being folded into a variant `PATCH`.
+  required: [listPrice, reason]
+  additionalProperties: false
+  properties:
+    listPrice: { $ref: './common.yaml#/Money' }
+    reason: { type: string }
+
+PublicationChange:
+  type: object
+  required: [publicationStatus]
+  additionalProperties: false
+  properties:
+    publicationStatus: { $ref: '#/PublicationStatus' }
+    reason: { type: string }
+
+ProductImageWrite:
+  type: object
+  required: [url]
+  additionalProperties: false
+  properties:
+    url: { type: string, format: uri }
+    altText: { type: string }
+    sortOrder: { type: integer, format: int32 }
+
+BulkProductAmendment:
+  type: object
+  description: >-
+    A batch of independent product amendments. **One rejection does not fail the
+    batch**: every item reports its own outcome (`UC-ADM-01` A3).
+  required: [items]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        required: [productId, amendment]
+        properties:
+          productId: { $ref: './common.yaml#/Id' }
+          amendment: { $ref: '#/ProductWrite' }
+
+BulkAmendmentResult:
+  type: object
+  required: [results]
+  properties:
+    results:
+      type: array
+      items:
+        type: object
+        required: [productId, applied]
+        properties:
+          productId: { $ref: './common.yaml#/Id' }
+          applied: { type: boolean }
+          code:
+            type: string
+            description: Error code for a rejected item; absent when applied.
+          detail: { type: string }

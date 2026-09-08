@@ -1,0 +1,267 @@
+# Notification (`NTF`) — path items
+#
+# Permission matrix row (Integration Contract §9):
+#   Guest — · Customer own · Staff — · Warehouse — · Support read · Admin manage
+#
+# `UC-NTF-01` (Deliver Email) and `UC-NTF-02` (Deliver In-App) have **no
+# endpoint**: both are Kafka event consumers that no client invokes
+# (`Integration Contract` §7) — see `README.md` §5.
+
+notifications:
+  get:
+    operationId: listOwnNotifications
+    tags: [Notification]
+    summary: View the caller's in-app notifications
+    description: >-
+      Most recent first, with unread distinguished and an `unreadCount` for the
+      badge (`FR-NTF-04`). Filterable by unread state and by category.
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-NTF-03]
+      fr: [FR-NTF-04]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: unread
+        in: query
+        required: false
+        schema: { type: boolean }
+      - name: category
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/notification.yaml#/NotificationCategory' }
+    responses:
+      '200':
+        description: The caller's notifications.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/notification.yaml#/NotificationPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+notificationById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/NotificationId'
+  patch:
+    operationId: setNotificationReadState
+    tags: [Notification]
+    summary: Mark a notification read or unread
+    description: >-
+      Both directions, because a customer may want to come back to something
+      (`FR-NTF-04`, `UC-NTF-03` A2). Another customer's notification returns
+      `404`, never `403`.
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-NTF-03]
+      fr: [FR-NTF-04]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/notification.yaml#/NotificationUpdate' }
+    responses:
+      '200':
+        description: Read state applied.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/notification.yaml#/Notification' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  delete:
+    operationId: dismissNotification
+    tags: [Notification]
+    summary: Dismiss a notification
+    description: >-
+      Removes the notification from the caller's inbox. **The delivery record
+      survives** (`UC-NTF-03` A3): Support must still be able to answer "was the
+      customer told?" after the customer has cleared their list
+      (`FR-NTF-06`). Idempotent (`Integration Contract` §2.1).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-NTF-03]
+      fr: [FR-NTF-04]
+      br: [BR-NTF-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Dismissed, or already absent.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+notificationReadMarks:
+  post:
+    operationId: markNotificationsRead
+    tags: [Notification]
+    summary: Mark every notification read
+    description: 'One action rather than one call per notification (`UC-NTF-03` A1).'
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-NTF-03]
+      fr: [FR-NTF-04]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/notification.yaml#/NotificationReadMark' }
+    responses:
+      '204':
+        description: Marked read.
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+notificationPreferences:
+  get:
+    operationId: getOwnNotificationPreferences
+    tags: [Notification]
+    summary: Get the caller's notification preferences
+    description: >-
+      Promotional opt-in per channel (`FR-NTF-05`). Transactional categories are
+      returned with `transactionalOptional: false` so a client can render the
+      control as disabled and explain why, rather than silently omitting it
+      (`BR-NTF-02`).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-NTF-04]
+      fr: [FR-NTF-05]
+      br: [BR-NTF-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The caller's preferences.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/notification.yaml#/NotificationPreferences' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  put:
+    operationId: setOwnNotificationPreferences
+    tags: [Notification]
+    summary: Update the caller's notification preferences
+    description: >-
+      Replaces the preference set (`FR-NTF-05`). Sending every channel with
+      `promotionalOptIn: false` is the "opt out of everything promotional in one
+      action" of `UC-NTF-04` A2. **A transactional message can never be switched
+      off** — the schema offers no field for it (`BR-NTF-02`).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-NTF-04]
+      fr: [FR-NTF-05]
+      br: [BR-NTF-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/notification.yaml#/NotificationPreferences' }
+    responses:
+      '200':
+        description: Preferences applied.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/notification.yaml#/NotificationPreferences' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+notificationUnsubscriptions:
+  post:
+    operationId: unsubscribeFromPromotionalNotifications
+    tags: [Notification]
+    summary: Unsubscribe using a single-use token
+    description: >-
+      Opts out of promotional messages **without signing in**, using a token from
+      an email footer (`UC-NTF-04` A1) — requiring a login to stop marketing mail
+      is how unsubscribe links get ignored. Transactional messages are unaffected
+      (`BR-NTF-02`). Rate-limited, since it is unauthenticated
+      (`NFR-SEC-05`).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER]
+    x-ecp-traces:
+      uc: [UC-NTF-04]
+      fr: [FR-NTF-05]
+      br: [BR-NTF-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/notification.yaml#/UnsubscribeRequest' }
+    responses:
+      '204':
+        description: Unsubscribed from promotional messages.
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+notificationDeliveries:
+  get:
+    operationId: listNotificationDeliveries
+    tags: [Notification]
+    summary: Review delivery outcomes
+    description: >-
+      The operational record behind "was the customer told?" (`FR-NTF-06`).
+      Every message is recorded before dispatch, retried with backoff, and
+      finally marked `UNDELIVERABLE` — never silently dropped (`BR-NTF-01`), and
+      this is where that is visible.
+
+      Read access is operator-only (`Integration Contract` §9). Delivery bodies
+      are not returned: only the metadata needed to answer the question
+      (`NFR-SEC-07`).
+    x-ecp-roles: [CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-NTF-03]
+      fr: [FR-NTF-06]
+      br: [BR-NTF-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: recipientAccountId
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: array
+          items: { $ref: '../components/schemas/notification.yaml#/DeliveryStatus' }
+    responses:
+      '200':
+        description: Delivery records.
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/PageEnvelope'
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      items: { $ref: '../components/schemas/notification.yaml#/NotificationDelivery' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

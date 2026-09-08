@@ -1,0 +1,218 @@
+# Cart & Wishlist (`CRT`) — schemas
+# Aggregates: Cart (child entity CartLine), Wishlist (child entity WishlistItem).
+# Domain Model §8.4, Database.md §4.4
+
+CartStatus:
+  type: string
+  description: >-
+    Open vocabulary (`Integration Contract` §8.1). `MERGED` means the cart was
+    folded into another on login and is no longer the caller's active cart
+    (`UC-CRT-05`).
+  x-extensible-enum: [ACTIVE, CHECKED_OUT, EXPIRED, MERGED]
+  examples: [ACTIVE]
+
+CartLine:
+  type: object
+  description: |
+    A cart line.
+
+    **A cart line has no stored price** — `BR-CRT-04` is enforced by absence in
+    the schema (`Database.md` §4.4). The `unitPrice` and `lineTotal` below are
+    computed live from Catalog at display time and are therefore
+    **non-authoritative**: pricing is fixed once, at order placement
+    (`BR-ORD-06`). A client must not treat them as a quotation.
+  required: [id, variantId, sku, quantity]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    variantId: { $ref: './common.yaml#/Id' }
+    sku: { type: string }
+    productId: { $ref: './common.yaml#/Id' }
+    productName: { type: string }
+    variantName: { type: string }
+    imageUrl: { type: string, format: uri }
+    quantity: { type: integer, format: int32, minimum: 1 }
+    unitPrice:
+      $ref: './common.yaml#/Money'
+      description: Current catalog price. Advisory, not a quotation (`BR-CRT-04`).
+    lineTotal: { $ref: './common.yaml#/Money' }
+    priceChanged:
+      type: boolean
+      description: >-
+        The price moved since the line was added. Flagged so the customer is
+        never surprised at checkout (`UC-CRT-04` A1).
+    stockShort:
+      type: boolean
+      description: Available stock is below the line quantity (`BR-CRT-02`).
+    purchasable:
+      type: boolean
+      description: >-
+        `false` when the variant has been unpublished or discontinued. Such a
+        line is retained and marked, not silently dropped (`UC-CRT-05` A3).
+    unpurchasableReason: { type: string }
+    addedAt: { type: string, format: date-time }
+
+Cart:
+  type: object
+  description: >-
+    A cart. Owned either by a customer or, for a Guest, by a session
+    (`A-01`). Expiry defaults to 30 days for a customer and 7 days for a guest,
+    both configurable (`A-05`, `BR-CRT-01`).
+  required: [id, status, lines, subtotal, expiresAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    customerId: { $ref: './common.yaml#/Id' }
+    status: { $ref: '#/CartStatus' }
+    lines:
+      type: array
+      items: { $ref: '#/CartLine' }
+    subtotal:
+      $ref: './common.yaml#/Money'
+      description: Sum of the live line totals. Advisory (`BR-CRT-04`).
+    discountPreview:
+      $ref: './promotion.yaml#/DiscountPreview'
+      description: >-
+        **Non-binding** preview of an automatic promotion. Cart queries Promotion
+        as an Open Host Service for display only; the binding redemption happens
+        inside the order-placement transaction (`Domain Model` §5.2).
+    lastActivityAt: { type: string, format: date-time }
+    expiresAt: { type: string, format: date-time }
+
+CartLineWrite:
+  type: object
+  required: [variantId, quantity]
+  additionalProperties: false
+  properties:
+    variantId: { $ref: './common.yaml#/Id' }
+    quantity: { type: integer, format: int32, minimum: 1 }
+    sourceWishlistItemId:
+      $ref: './common.yaml#/Id'
+      description: >-
+        When present, moves a wishlist item into the cart. The wishlist item is
+        removed **only after the add succeeds** (`UC-CRT-08`), so a failure never
+        loses the saved item.
+
+CartLineUpdate:
+  type: object
+  required: [quantity]
+  additionalProperties: false
+  properties:
+    quantity:
+      type: integer
+      format: int32
+      minimum: 0
+      description: >-
+        `0` removes the line (`UC-CRT-02` A1). A quantity above available stock
+        is rejected with `ECP-CRT-4090` and **never silently capped**
+        (`BR-CRT-02`).
+
+CartLineRemoval:
+  type: object
+  additionalProperties: false
+  properties:
+    saveToWishlist:
+      type: boolean
+      default: false
+      description: Remove and save to the wishlist in one action (`UC-CRT-03` A1).
+
+CartMergeRequest:
+  type: object
+  required: [sourceCartId]
+  additionalProperties: false
+  properties:
+    sourceCartId:
+      $ref: './common.yaml#/Id'
+      description: The guest cart to fold in.
+
+CartMergeOutcome:
+  type: object
+  description: >-
+    What the merge actually did. A merge **must never fail the login**
+    (`UC-CRT-05`), so problems are reported here rather than as an error status.
+  required: [merged]
+  properties:
+    merged: { type: boolean }
+    cartId: { $ref: './common.yaml#/Id' }
+    adjustments:
+      type: array
+      description: >-
+        Per-line outcomes. Quantities above available stock are capped **with
+        explicit reporting**, unpublished lines are dropped with a reason, and
+        out-of-stock lines are carried over marked unpurchasable
+        (`UC-CRT-05` A2, A3).
+      items:
+        type: object
+        required: [variantId, outcome]
+        properties:
+          variantId: { $ref: './common.yaml#/Id' }
+          outcome:
+            type: string
+            x-extensible-enum: [ADDED, COMBINED, QUANTITY_CAPPED, DROPPED, CARRIED_UNPURCHASABLE]
+          requestedQuantity: { type: integer, format: int32 }
+          appliedQuantity: { type: integer, format: int32 }
+          detail: { type: string }
+
+WishlistItem:
+  type: object
+  required: [id, variantId]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    variantId: { $ref: './common.yaml#/Id' }
+    sku: { type: string }
+    productId: { $ref: './common.yaml#/Id' }
+    productName: { type: string }
+    currentPrice: { $ref: './common.yaml#/Money' }
+    priceAtAdd: { $ref: './common.yaml#/Money' }
+    priceDropped:
+      type: boolean
+      description: Current price is below the price when the item was saved (`UC-CRT-07`).
+    availability: { $ref: './inventory.yaml#/VariantAvailability' }
+    addedAt: { type: string, format: date-time }
+
+Wishlist:
+  type: object
+  description: >-
+    A customer's wishlist. Assumed private — no document specifies sharing, and
+    that remains an open item.
+  required: [id, name, items]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    name: { type: string, default: Default }
+    items:
+      type: array
+      items: { $ref: '#/WishlistItem' }
+
+WishlistItemWrite:
+  type: object
+  required: [variantId]
+  additionalProperties: false
+  properties:
+    variantId: { $ref: './common.yaml#/Id' }
+
+WishlistTransfer:
+  type: object
+  description: >-
+    Move every movable wishlist item into the cart. Items that cannot move are
+    **left behind with a per-item reason** rather than failing the whole action
+    (`UC-CRT-08` A2).
+  additionalProperties: false
+  properties:
+    keepInWishlist:
+      type: boolean
+      default: false
+      description: Copy instead of move (`UC-CRT-08` A1).
+
+WishlistTransferResult:
+  type: object
+  required: [cart, results]
+  properties:
+    cart: { $ref: '#/Cart' }
+    results:
+      type: array
+      items:
+        type: object
+        required: [itemId, moved]
+        properties:
+          itemId: { $ref: './common.yaml#/Id' }
+          moved: { type: boolean }
+          code: { type: string }
+          detail: { type: string }

@@ -1,0 +1,19 @@
+# Redocly configuration — Enterprise Commerce Platform (ECP)
+#
+# Used by `npm run docs:openapi:lint` and `npm run docs:openapi:bundle` from
+# `util/`. Two rules from the `recommended` ruleset are relaxed, each for a
+# stated reason rather than to make output quiet.
+
+apis:
+  ecp@v1:
+    root: ./openapi.yaml
+
+extends:
+  - recommended
+
+rules:
+  # The local-development server is deliberately `http://localhost:8080`: it is
+  # the topology `01-system/Deployment Diagram.md` describes for local work, and
+  # publishing it here is the point. The production server is a templated
+  # variable with no real host, because no document names one.
+  no-server-example.com: off

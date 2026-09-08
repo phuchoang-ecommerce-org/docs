@@ -40,8 +40,9 @@ A `Proposed` record is never quietly promoted. Promotion is its own commit.
 |---|---|---|---|
 | [0001](./ADR-0001-record-architecture-decisions.md) | Record architecture decisions in ADRs | Accepted | `NFR-MAINT-05` · `AC-04` |
 | [0002](./ADR-0002-modular-monolith-deployment-unit.md) | Modular monolith as the deployment unit | Accepted | `P1` · `P14` · `CON-08` · `CON-09` |
-| [0003](./ADR-0003-rest-api-style.md) | REST as the client-facing API style | Accepted · versioning **Proposed** | `P3` · `P5` · `NFR-SEC-01` · `NFR-REL-02` |
+| [0003](./ADR-0003-rest-api-style.md) | REST as the client-facing API style | Accepted · versioning **Proposed** · §4 `Contract` row superseded by `ADR-0031` | `P3` · `P5` · `NFR-SEC-01` · `NFR-REL-02` |
 | [0028](./ADR-0028-deployment-topology-containerisation.md) | Docker Compose on two VMs as the deployment topology | **Proposed** | `CON-08` · `CON-09` · `NFR-AVAIL-01` · `NFR-SCAL-06` |
+| [0031](./ADR-0031-contract-first-openapi.md) | Contract-first OpenAPI, verified rather than generated | **Proposed** | `P5` · `P15` · `CON-02` · `NFR-SEC-01` |
 
 ### Backend
 
@@ -103,7 +104,7 @@ Two records carry more weight than the rest and are worth reading first if time 
 
 ## 5. Adding a Record
 
-1. Take the next number in the sequence — currently **`ADR-0031`**. Numbers are never reused, including for superseded records.
+1. Take the next number in the sequence — currently **`ADR-0032`**. Numbers are never reused, including for superseded records.
 2. Name the file `ADR-00NN-<kebab-case-title>.md`.
 3. Copy the structure from any existing record: metadata block, then the six numbered sections.
 4. Give `Considered Options` at least one option that was genuinely rejected, with real trade-offs. If there isn't one, the decision probably didn't need a record.

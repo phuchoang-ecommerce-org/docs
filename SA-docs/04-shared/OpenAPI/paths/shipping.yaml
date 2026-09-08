@@ -1,0 +1,317 @@
+# Shipping (`SHP`) — path items
+#
+# Permission matrix row (Integration Contract §9):
+#   Guest — · Customer own tracking · Staff read · Warehouse manage
+#   Support read · Admin manage
+
+shippingQuotes:
+  get:
+    operationId: getShippingQuotes
+    tags: [Shipping]
+    summary: Quote shipping options and delivery estimates
+    description: |
+      Quotes fees and delivery estimates for a destination and basket contents
+      (`FR-SHP-02`, `FR-SHP-03`). Where an order would split across warehouses,
+      a fee is quoted **per shipment** (`UC-SHP-01` A1); free-shipping thresholds
+      and promotional conditions are stated on each option (`FR-PRM-03`).
+
+      Delivery estimates are always a **range**, never a single date
+      (`UC-SHP-02`).
+
+      **The platform never estimates a fee it could not obtain.** If the carrier
+      cannot be reached the response is `503 ECP-GEN-5030` and the customer is
+      told, rather than being quoted a guess (`UC-SHP-01` E2).
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-SHP-01, UC-SHP-02]
+      fr: [FR-SHP-02, FR-SHP-03]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: checkoutId
+        in: query
+        required: false
+        description: Quote for the contents and destination of a checkout in progress.
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+      - name: postalCode
+        in: query
+        required: false
+        schema: { type: string }
+      - name: countryCode
+        in: query
+        required: false
+        schema: { type: string, pattern: '^[A-Z]{2}$' }
+    responses:
+      '200':
+        description: Quoted options.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/shipping.yaml#/ShippingQuote' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+      '503': { $ref: '../components/responses.yaml#/DependencyUnavailable' }
+
+shipments:
+  get:
+    operationId: listShipments
+    tags: [Shipping]
+    summary: List shipments
+    description: >-
+      Operator-facing shipment list (`FR-SHP-06`). A Customer reaches their own
+      shipments through the order, not through this list.
+    x-ecp-roles: [STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-SHP-05]
+      fr: [FR-SHP-06]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: array
+          items: { $ref: '../components/schemas/shipping.yaml#/ShipmentStatus' }
+      - name: carrier
+        in: query
+        required: false
+        schema: { type: string }
+    responses:
+      '200':
+        description: Matching shipments.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/shipping.yaml#/ShipmentPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  post:
+    operationId: createShipment
+    tags: [Shipping]
+    summary: Create a shipment
+    description: >-
+      Creates a shipment from a `PACKED` order and books it with the carrier
+      (`FR-SHP-01`, `FR-SHP-04`). Carrier selection is automatic unless
+      overridden, and an override **requires a recorded reason**
+      (`UC-SHP-03` A1). A split order produces one shipment per line set, each
+      with its own tracking reference. For a Cash On Delivery order the amount to
+      collect is declared to the carrier (`FR-PAY-07`).
+    x-ecp-roles: [WAREHOUSE_OPERATOR, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-SHP-03]
+      fr: [FR-SHP-01, FR-SHP-04]
+      br: [BR-SHP-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/shipping.yaml#/ShipmentWrite' }
+    responses:
+      '201':
+        description: Shipment created and booked.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/shipping.yaml#/Shipment' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/OrderTransitionNotPermitted' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+      '503': { $ref: '../components/responses.yaml#/DependencyUnavailable' }
+
+orderShipments:
+  parameters:
+    - $ref: '../components/parameters.yaml#/OrderId'
+  get:
+    operationId: listOrderShipments
+    tags: [Shipping]
+    summary: List an order's shipments
+    description: >-
+      An order split across warehouses has more than one (`FR-SHP-06`). Another
+      customer's order returns `404`, never `403`.
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-SHP-05, UC-ORD-07]
+      fr: [FR-SHP-06, FR-ORD-13]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The order's shipments.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '../components/schemas/shipping.yaml#/Shipment' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+shipmentById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ShipmentId'
+  get:
+    operationId: getShipment
+    tags: [Shipping]
+    summary: View shipment tracking
+    description: >-
+      Current status, tracking history in order, delivery estimate, and **when
+      the last update was received** — so a customer can distinguish "nothing has
+      happened" from "we have not been told" (`FR-SHP-06`, `UC-SHP-05`). A deep
+      link to the carrier is offered **alongside** this view, never instead of
+      it.
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-SHP-05]
+      fr: [FR-SHP-06]
+      br: [BR-SHP-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The shipment.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/shipping.yaml#/Shipment' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+shipmentTrackingEvents:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ShipmentId'
+  get:
+    operationId: listShipmentTrackingEvents
+    tags: [Shipping]
+    summary: List a shipment's tracking events
+    description: >-
+      Append-only history, including updates that were **recorded but not
+      applied** because they would have moved progress backwards
+      (`BR-SHP-02`). Retaining them keeps the carrier's account complete rather
+      than tidy.
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-SHP-04, UC-SHP-05]
+      fr: [FR-SHP-05, FR-SHP-06]
+      br: [BR-SHP-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: Tracking events, oldest first.
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/PageEnvelope'
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      items: { $ref: '../components/schemas/shipping.yaml#/TrackingEvent' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+shipmentCarrierEvents:
+  post:
+    operationId: receiveCarrierEvent
+    tags: [Shipping]
+    summary: Receive a carrier tracking update
+    description: |
+      Inbound carrier callback (`FR-SHP-05`, `UC-SHP-04`).
+
+      **Signature verification is a precondition of processing**; an unverifiable
+      update is recorded and rejected with `401`.
+
+      **Deduplicated on `carrierEventId`** and applied at most once
+      (`NFR-REL-04`). An out-of-order update is retained in history with
+      `applied: false` and never moves the shipment backwards (`BR-SHP-02`).
+      Exception events — failed attempt, refusal, damage, return-to-sender, a
+      revised estimate — each drive their own handling rather than being
+      flattened into a generic status change.
+    security:
+      - providerSignature: []
+    x-ecp-roles: []
+    x-ecp-actor: Shipping Carrier
+    x-ecp-traces:
+      uc: [UC-SHP-04]
+      fr: [FR-SHP-05]
+      br: [BR-SHP-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/shipping.yaml#/CarrierEvent' }
+    responses:
+      '202':
+        description: >-
+          Accepted, or already applied. A duplicate delivery returns this rather
+          than an error, so a well-behaved carrier does not retry forever.
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401':
+        description: The signature could not be verified. The update was recorded and not applied.
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+shipmentDeliveryConfirmation:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ShipmentId'
+  post:
+    operationId: confirmShipmentDelivery
+    tags: [Shipping]
+    summary: Confirm delivery
+    description: >-
+      Confirms delivery (`FR-SHP-07`, `UC-SHP-06`). Starts the return window
+      (`A-06`, `BR-ORD-05`), triggers Cash On Delivery settlement
+      (`FR-PAY-07`), and makes the product reviewable by its verified buyer
+      (`BR-REV-01`).
+
+      **Applied once.** A duplicate confirmation is acknowledged without
+      restarting the return window (`UC-SHP-06` E1) — restarting it would
+      silently extend a customer's rights and the platform's liability.
+    x-ecp-roles: [WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-actor: Shipping Carrier
+    x-ecp-traces:
+      uc: [UC-SHP-06]
+      fr: [FR-SHP-07]
+      br: [BR-ORD-05, BR-SHP-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/shipping.yaml#/DeliveryConfirmation' }
+    responses:
+      '200':
+        description: Delivery confirmed, or already confirmed. The return window is unchanged on a repeat.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/shipping.yaml#/Shipment' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

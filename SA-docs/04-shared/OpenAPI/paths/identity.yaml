@@ -1,0 +1,567 @@
+# Identity & Access (`CUS`) — path items
+#
+# Top-level keys are *names*, not paths; `openapi.yaml` maps each real path to
+# one of them. This avoids `~1` JSON-pointer escaping in every root reference.
+#
+# Permission matrix row (Integration Contract §9):
+#   Guest: register, log in · Customer: own record · Staff: — · Warehouse: —
+#   Support: read · Admin: manage
+# Support and Admin reach accounts through `administration.yaml`, not here:
+# every operation below is either public or scoped to the caller's own record.
+
+accounts:
+  post:
+    operationId: registerAccount
+    tags: [Customer & Identity]
+    summary: Register a customer account
+    description: |
+      Creates an account from an email address and a password, and sends a
+      single-use, time-limited verification link (`FR-CUS-01`, `FR-CUS-02`).
+
+      **The response never discloses whether the address was already
+      registered** (`BR-CUS-04`, `UC-CUS-01` E2) — a duplicate registration
+      returns the same `202` and sends a "someone tried to register with your
+      address" mail instead. This endpoint carries a stricter rate limit and
+      fails closed (`NFR-SEC-05`).
+    security: []
+    x-ecp-roles: [GUEST]
+    x-ecp-traces:
+      uc: [UC-CUS-01]
+      fr: [FR-CUS-01, FR-CUS-02]
+      br: [BR-CUS-01, BR-CUS-02, BR-CUS-04]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/RegistrationRequest' }
+    responses:
+      '202':
+        description: >-
+          Accepted. A verification mail has been sent if the address was
+          eligible. Deliberately indistinguishable from the duplicate-address
+          case.
+        headers:
+          X-Correlation-Id: { $ref: '../components/headers.yaml#/CorrelationId' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+      '503': { $ref: '../components/responses.yaml#/DependencyUnavailable' }
+
+  get:
+    operationId: searchAccounts
+    tags: [Administration]
+    summary: Search customer accounts
+    description: >-
+      Operator-facing account search (`FR-ADM-03`). **Reading customer data is
+      itself an audited action** (`UC-AUD-01` A3, `FR-AUD-02`) — access to
+      personal data is a recorded event, not a free read.
+    x-ecp-roles: [CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-03]
+      fr: [FR-ADM-03, FR-AUD-02]
+      br: [BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: email
+        in: query
+        required: false
+        schema: { type: string }
+      - name: status
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/identity.yaml#/AccountStatus' }
+      - name: role
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/administration.yaml#/RoleCode' }
+    responses:
+      '200':
+        description: Matching accounts.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/identity.yaml#/AccountPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+accountVerifications:
+  post:
+    operationId: verifyEmailAddress
+    tags: [Customer & Identity]
+    summary: Verify an email address
+    description: >-
+      Consumes a verification token and records the account as verified
+      (`FR-CUS-02`). The token is single-use and time-limited; an expired one is
+      reported as expired so the caller knows to request another rather than
+      assuming the address is wrong (`UC-CUS-02` E1).
+    security: []
+    x-ecp-roles: [GUEST]
+    x-ecp-traces:
+      uc: [UC-CUS-02]
+      fr: [FR-CUS-02]
+      br: [BR-CUS-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/EmailVerificationRequest' }
+    responses:
+      '204':
+        description: Verified. The account may now check out.
+        headers:
+          X-Correlation-Id: { $ref: '../components/headers.yaml#/CorrelationId' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+accountVerificationRequests:
+  post:
+    operationId: resendEmailVerification
+    tags: [Customer & Identity]
+    summary: Request a new verification mail
+    description: >-
+      Issues a fresh verification link and invalidates any outstanding one
+      (`UC-CUS-02` A1). Non-disclosive and rate-limited for the same reason as
+      registration (`BR-CUS-04`, `NFR-SEC-05`).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER]
+    x-ecp-traces:
+      uc: [UC-CUS-02]
+      fr: [FR-CUS-02]
+      br: [BR-CUS-02, BR-CUS-04]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/VerificationResendRequest' }
+    responses:
+      '202':
+        description: Accepted. Non-disclosive by design.
+        headers:
+          X-Correlation-Id: { $ref: '../components/headers.yaml#/CorrelationId' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+sessions:
+  post:
+    operationId: logIn
+    tags: [Customer & Identity]
+    summary: Log in
+    description: |
+      Authenticates a caller and establishes a session: a short-lived access
+      token plus a server-side refresh token that rotates on every use
+      (`FR-CUS-03`, `ADR-0016` §4).
+
+      A browser caller receives the tokens as `httpOnly` cookies and no token in
+      the body; a non-browser caller receives them in the body (`ADR-0025` §4).
+
+      An unverified account gets a **restricted** session — browse and cart, no
+      checkout (`UC-CUS-03` A2). Supplying `guestCartId` merges the guest cart in
+      the same call (`UC-CRT-05`); a merge problem is reported in
+      `cartMerge` and never fails the login.
+
+      Failure is non-disclosive: bad address and bad password are
+      indistinguishable (`BR-CUS-04`). This endpoint carries the strictest rate
+      limit and **fails closed** (`NFR-SEC-05`, `ADR-0015` §5).
+    security: []
+    x-ecp-roles: [GUEST]
+    x-ecp-traces:
+      uc: [UC-CUS-03, UC-CRT-05]
+      fr: [FR-CUS-03, FR-CRT-06]
+      br: [BR-CUS-03, BR-CUS-04]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/CredentialsRequest' }
+    responses:
+      '201':
+        description: Session established.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+          X-Correlation-Id: { $ref: '../components/headers.yaml#/CorrelationId' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/identity.yaml#/Session' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+      '503': { $ref: '../components/responses.yaml#/DependencyUnavailable' }
+  delete:
+    operationId: endAllOwnSessions
+    tags: [Customer & Identity]
+    summary: Log out of every session
+    description: >-
+      Ends every session the caller holds and invalidates every associated
+      refresh token (`UC-CUS-04` A1). Clearing a cookie alone would leave a valid
+      session behind, so invalidation is server-side (`ADR-0025` §4).
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CUS-04]
+      fr: [FR-CUS-04]
+      br: [BR-CUS-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Every session ended.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+sessionsCurrent:
+  delete:
+    operationId: logOut
+    tags: [Customer & Identity]
+    summary: Log out
+    description: >-
+      Ends the current session and invalidates its refresh token (`FR-CUS-04`).
+      Idempotent: logging out of an already-ended session is `204`, not `404`
+      (`Integration Contract` §2.1).
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CUS-04]
+      fr: [FR-CUS-04]
+      br: [BR-CUS-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Session ended.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+sessionRenewals:
+  post:
+    operationId: renewSession
+    tags: [Customer & Identity]
+    summary: Exchange a refresh token for a new access token
+    description: |
+      Issues a new access token and **rotates** the refresh token, consuming the
+      one presented (`FR-CUS-05`, `NFR-SEC-03`).
+
+      Presenting an already-consumed token is `401 ECP-GEN-4011` and invalidates
+      the entire session chain — that is the reuse-detection guarantee
+      `BR-CUS-03` requires, not an error to be retried.
+
+      A role change takes effect no later than the next renewal
+      (`UC-AUD-03`, `UC-ADM-06`).
+    security: []
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CUS-05]
+      fr: [FR-CUS-05]
+      br: [BR-CUS-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/SessionRenewalRequest' }
+    responses:
+      '200':
+        description: New access token issued; the refresh token has been rotated.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/identity.yaml#/Session' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/RefreshTokenRejected' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+passwordResetRequests:
+  post:
+    operationId: requestPasswordReset
+    tags: [Customer & Identity]
+    summary: Request a password-reset link
+    description: >-
+      Sends a single-use, time-limited reset link (`FR-CUS-07`). The response is
+      identical whether or not the address is registered (`BR-CUS-04`), and the
+      endpoint carries a stricter, fail-closed rate limit (`NFR-SEC-05`).
+    security: []
+    x-ecp-roles: [GUEST]
+    x-ecp-traces:
+      uc: [UC-CUS-07]
+      fr: [FR-CUS-07]
+      br: [BR-CUS-03, BR-CUS-04]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/PasswordResetRequest' }
+    responses:
+      '202':
+        description: Accepted. Non-disclosive by design.
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+passwordResets:
+  post:
+    operationId: completePasswordReset
+    tags: [Customer & Identity]
+    summary: Set a new password using a reset token
+    description: >-
+      Sets a new password and ends every existing session (`FR-CUS-07`,
+      `BR-CUS-03`). A token is **not** consumed when the new password fails the
+      strength policy, so the customer can try again without requesting a second
+      link (`UC-CUS-07` E3).
+    security: []
+    x-ecp-roles: [GUEST]
+    x-ecp-traces:
+      uc: [UC-CUS-07]
+      fr: [FR-CUS-07]
+      br: [BR-CUS-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/PasswordReset' }
+    responses:
+      '204':
+        description: Password set; every existing session has been ended.
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+accountsMe:
+  get:
+    operationId: getOwnAccount
+    tags: [Customer & Identity]
+    summary: Get the caller's own account
+    description: >-
+      Returns the caller's own record only (`FR-CUS-08`). "Own" is a runtime
+      ownership check layered on the role check (`Integration Contract` §9).
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CUS-08]
+      fr: [FR-CUS-08]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The caller's account.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/identity.yaml#/Account' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  patch:
+    operationId: updateOwnProfile
+    tags: [Customer & Identity]
+    summary: Update the caller's own profile
+    description: >-
+      Partial update, applied whole-or-nothing (`FR-CUS-08`). Requesting a new
+      email address does **not** change `email`: it populates `pendingEmail` and
+      starts a verification cycle, and the current address stays in force until
+      the new one is proven (`UC-CUS-08` A2).
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CUS-08]
+      fr: [FR-CUS-08]
+      br: [BR-CUS-01, BR-CUS-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/ProfileUpdate' }
+    responses:
+      '200':
+        description: Updated account.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/identity.yaml#/Account' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+accountsMePassword:
+  put:
+    operationId: changeOwnPassword
+    tags: [Customer & Identity]
+    summary: Change the caller's own password
+    description: >-
+      Requires re-confirmation of the current password (`FR-CUS-06`). Ends the
+      caller's other sessions by default (`BR-CUS-03`). The current password is
+      never echoed, logged, or included in any error (`NFR-SEC-07`).
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CUS-06]
+      fr: [FR-CUS-06]
+      br: [BR-CUS-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/PasswordChangeRequest' }
+    responses:
+      '204':
+        description: Password changed.
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+accountsMeAddresses:
+  get:
+    operationId: listOwnAddresses
+    tags: [Customer & Identity]
+    summary: List the caller's shipping addresses
+    description: 'Paginated, like every collection in this API (`FR-CUS-09`).'
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CUS-09]
+      fr: [FR-CUS-09]
+      br: [BR-CUS-05]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The caller's addresses.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/identity.yaml#/CustomerAddressPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  post:
+    operationId: addOwnAddress
+    tags: [Customer & Identity]
+    summary: Add a shipping address
+    description: >-
+      Adds an address to the caller's book (`FR-CUS-09`). Nominating it as
+      default clears the previous default server-side — exactly one default is
+      permitted (`BR-CUS-05`), which is why there is no separate
+      "set default" endpoint.
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CUS-09]
+      fr: [FR-CUS-09]
+      br: [BR-CUS-05]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/CustomerAddressWrite' }
+    responses:
+      '201':
+        description: Address created.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/identity.yaml#/CustomerAddress' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+accountsMeAddressById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/AddressId'
+  get:
+    operationId: getOwnAddress
+    tags: [Customer & Identity]
+    summary: Get one of the caller's addresses
+    description: >-
+      An address belonging to another customer returns `404`, never `403`
+      (`Integration Contract` §2.1).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CUS-09]
+      fr: [FR-CUS-09]
+      br: [BR-CUS-05]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The address.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/identity.yaml#/CustomerAddress' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  put:
+    operationId: replaceOwnAddress
+    tags: [Customer & Identity]
+    summary: Replace one of the caller's addresses
+    description: >-
+      Whole replacement, idempotent (`Integration Contract` §2.1). Setting
+      `isDefaultShipping` clears the previous default (`BR-CUS-05`).
+      An address already frozen onto a placed order is unaffected: orders carry a
+      snapshot, not a reference (`BR-ORD-06`).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CUS-09]
+      fr: [FR-CUS-09]
+      br: [BR-CUS-05, BR-ORD-06]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/CustomerAddressWrite' }
+    responses:
+      '200':
+        description: Updated address.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/identity.yaml#/CustomerAddress' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  delete:
+    operationId: removeOwnAddress
+    tags: [Customer & Identity]
+    summary: Remove one of the caller's addresses
+    description: >-
+      Idempotent — removing an address that is already gone returns `204`, not
+      `404` (`Integration Contract` §2.1). Removing the default leaves the book
+      with no default until one is nominated (`BR-CUS-05`).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CUS-09]
+      fr: [FR-CUS-09]
+      br: [BR-CUS-05]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Removed, or already absent.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

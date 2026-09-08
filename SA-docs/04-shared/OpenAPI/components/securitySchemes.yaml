@@ -1,0 +1,61 @@
+# Security schemes — Enterprise Commerce Platform (ECP)
+# Source: Integration Contract §5 · ADR-0016 · ADR-0025
+
+bearerAuth:
+  type: http
+  scheme: bearer
+  bearerFormat: JWT
+  description: >-
+    **The normative scheme for this API.** A short-lived JWT carrying subject,
+    roles, and expiry, verified without a datastore lookup (`ADR-0016` §4).
+
+    `ADR-0025` §4 is explicit that the browser's `httpOnly` cookie sits between
+    the browser and the Next.js server, and that the Next.js server calls *this*
+    API with `Authorization: Bearer`. The option where a browser calls the
+    backend directly with a backend-set cookie was considered and rejected there.
+    So for the backend REST surface, bearer is the primary scheme and
+    `sessionCookie` is the secondary one.
+
+    Tokens never appear in logs, error messages, or audit entries (`NFR-SEC-07`).
+
+sessionCookie:
+  type: apiKey
+  in: cookie
+  name: ecp_session
+  description: >-
+    Session cookie for a caller that reaches this API directly from a browser.
+    `httpOnly` + `Secure` + `SameSite=Lax` (`Strict` for admin routes); never
+    readable by client JavaScript and never stored in `localStorage`
+    (`ADR-0025` §4). Must be accompanied by `csrfToken` on every state-changing
+    request.
+
+    **[ASSUMPTION]** The cookie name `ecp_session` is chosen here. `ADR-0025` §5
+    defers cookie naming and lifetime to `Frontend Architecture.md`, which is
+    currently a stub.
+
+csrfToken:
+  type: apiKey
+  in: header
+  name: X-CSRF-Token
+  description: >-
+    CSRF token, **mandatory** on every cookie-authenticated state-changing
+    request, because cookies are sent automatically (`Integration Contract` §5,
+    `ADR-0025` §4 — "Not optional and not deferred"). Never required alongside
+    `bearerAuth`, which is not ambiently attached.
+
+    **[ASSUMPTION]** The header name `X-CSRF-Token` is chosen here. `ADR-0025` §5
+    defers the CSRF token mechanism to `Frontend Architecture.md`.
+
+providerSignature:
+  type: apiKey
+  in: header
+  name: X-ECP-Signature
+  description: >-
+    Signature over the raw request body, presented by an external provider on an
+    inbound callback (`UC-PAY-03`, `UC-SHP-04`). Verification is a precondition
+    of processing: an unverifiable callback is recorded and rejected, never
+    applied.
+
+    **[ASSUMPTION]** The header name is chosen here. The use cases require
+    signature verification but no document names a header, and `NFR-MAINT-03`
+    forbids naming a specific provider, so the header is provider-neutral.

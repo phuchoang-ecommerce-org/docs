@@ -3,7 +3,7 @@
 **Document type:** Interface specification (normative)
 **Status:** **Proposed** — every section states a decision made nowhere else in the repository
 **Audience:** Backend Engineering, Frontend Engineering, Architecture Review, QA
-**Related documents:** [ADR-0003](../01-system/ADR/ADR-0003-rest-api-style.md) · [ADR-0012](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) · [ADR-0016](../01-system/ADR/ADR-0016-jwt-refresh-rotation-rbac.md) · [Domain Model](../02-backend/Domain%20Model.md) · [Module Dependency Diagram](../02-backend/Module%20Dependency%20Diagram.md) · [SRS](../../BA-docs/srs.md)
+**Related documents:** [ADR-0003](../01-system/ADR/ADR-0003-rest-api-style.md) · [ADR-0031](../01-system/ADR/ADR-0031-contract-first-openapi.md) · [OpenAPI](./OpenAPI/README.md) · [ADR-0012](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) · [ADR-0016](../01-system/ADR/ADR-0016-jwt-refresh-rotation-rbac.md) · [Domain Model](../02-backend/Domain%20Model.md) · [Module Dependency Diagram](../02-backend/Module%20Dependency%20Diagram.md) · [SRS](../../BA-docs/srs.md)
 
 ---
 
@@ -20,11 +20,15 @@ Five documents point at `04-shared/` for a contract that did not exist: [`ADR-00
 
 **What is not.** Internal, in-process interactions. A Spring Modulith event between two modules in the same deployable is governed by [`Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md) §5, not by this document — it is a compile-time dependency, and the compiler is a better contract than prose.
 
-### 1.1 Why there is no OpenAPI file here
+### 1.1 Where the OpenAPI document lives
 
-`04-shared/OpenAPI/` stays reserved and empty until the controller layer exists. [`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md) §4 requires OpenAPI 3.1 be *"generated rather than hand-written, so it cannot drift"* — and a hand-authored specification written before the code is the exact drift that requirement exists to prevent. [`ADR-0020`](../01-system/ADR/ADR-0020-typescript-strict-mode.md) then generates the frontend's types from that generated document.
+[`04-shared/OpenAPI/`](./OpenAPI/README.md) holds the OpenAPI 3.1 description of the REST surface — 121 paths, 155 operations, across all fourteen domains.
 
-So the split is: **§2–§5 are the rules the generated OpenAPI must comply with; the generated OpenAPI is the enumeration of endpoints.** This document never lists endpoints one by one, because that list would be the thing that drifts.
+**It is hand-authored, and that is a deliberate reversal.** This section previously said the folder stayed empty until the controller layer existed, because [`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md) §4 required the document be *"generated rather than hand-written, so it cannot drift."* [`ADR-0031`](../01-system/ADR/ADR-0031-contract-first-openapi.md) supersedes that row. The concern about drift was right; the mechanism changed. **Drift is now prevented by verification rather than by generation**: once controllers exist, CI diffs the generated description against the published one and fails the build on divergence, so a mismatch forces a human to say which of the two is wrong. Until then the document is checked by review, by `redocly lint`, and by the coverage assertions in [`OpenAPI/README.md`](./OpenAPI/README.md) §8.
+
+The reason for reversing is in [`ADR-0031`](../01-system/ADR/ADR-0031-contract-first-openapi.md) §1, and it is short: waiting for the controller layer meant there was no contract at all, which blocked [`ADR-0020`](../01-system/ADR/ADR-0020-typescript-strict-mode.md), left QA nothing to test against, and would have let the wire format be decided one controller at a time without review.
+
+So the split is: **§2–§5 are the rules the OpenAPI document must comply with; the OpenAPI document is the enumeration of endpoints.** This document still never lists endpoints one by one — that separation is unchanged, and it is why the two files do not duplicate each other.
 
 ### 1.2 Status
 
@@ -187,6 +191,8 @@ Not exhaustive — the enumeration lives in `04-shared/Error Codes` as the API g
 | `ECP-PAY-4220` | 422 | Refund would exceed the amount captured | `BR-PAY-02` |
 | `ECP-REV-4030` | 403 | Reviewer is not a verified buyer of this product | `BR-REV-01`, `FR-REV-06` |
 | `ECP-CRT-4090` | 409 | Requested quantity exceeds available stock for the variant | `BR-CRT-02` |
+
+One code was added to this catalogue by [`04-shared/OpenAPI/`](./OpenAPI/README.md): **`ECP-GEN-4040`** (`404` — the resource does not exist, *or* exists and the caller does not own it; the two are deliberately indistinguishable, §2.1). It is needed because §4.5 rule 2 requires every `4xx` to carry a code and this table had none for `404`. It belongs here and in `04-shared/Error Codes`.
 
 **`ECP-INV-4091` and `ECP-PRM-4090` are the two that matter most.** Both are the visible surface of a concurrency guarantee — `BR-INV-01`'s oversell prevention and the usage-cap enforcement `UC-PRM-02` E7 describes — and both are *expected* outcomes under peak load, not exceptional ones. A client that treats either as a generic failure will present a checkout error where it should present "someone else just took the last one."
 
@@ -370,11 +376,11 @@ Every row becomes an authorisation rule at the API/application boundary, never a
 | Error codes | The domain named in the code | New codes appended to §4.4 and `04-shared/Error Codes` in the same change that introduces them. A code is never redefined. |
 | Event schemas | **Jointly**, publisher and every known consumer | Additive changes ship freely; breaking changes need agreement from every consumer group, including ones the publisher does not own. |
 | Permission matrix | Identity & Access, tracking SRS §2.3 | Changes here follow the SRS, not the reverse. If the grid and SRS §2.3 disagree, **SRS §2.3 is right** and this document is stale. |
-| Generated OpenAPI | Produced from the controller layer | Never hand-edited. A wrong specification means wrong code, not a wrong file. |
+| Published OpenAPI | The module owning the resource, in [`04-shared/OpenAPI/`](./OpenAPI/README.md) | Hand-authored and normative ([ADR-0031](../01-system/ADR/ADR-0031-contract-first-openapi.md)). Once controllers exist, CI diffs the generated description against it and fails the build on divergence; a mismatch is resolved in the same change by fixing whichever of the two is wrong. |
 
 Three standing rules:
 
-1. **Generated artefacts win over prose.** Where the generated OpenAPI disagrees with §2 or §3, the generated document describes reality and this one is stale — fix the code, then this document.
+1. **Machine-checkable artefacts win over prose — in one direction only.** Where the OpenAPI document's *enumeration* disagrees with reality, fix the code or the document; the CI gate ([ADR-0031](../01-system/ADR/ADR-0031-contract-first-openapi.md)) makes that a build failure rather than a discussion. But where the OpenAPI document's *rules* disagree with §2–§5 of this document, **this document is right**: it is the law, and the OpenAPI file is the enumeration written under it.
 2. **A `Proposed` section is never quietly promoted.** §4 and §6 are first-time decisions. Promotion to `Accepted` is its own commit, per [ADR-0001](../01-system/ADR/ADR-0001-record-architecture-decisions.md).
 3. **A contract change that reaches an external consumer is a release event**, not a refactor. This includes every Kafka topic, because a consumer may exist that no one on the publishing team knows about — which is the entire point of `P2`.
 
@@ -382,6 +388,6 @@ Three standing rules:
 
 ## 11. Next Step
 
-`Backend Architecture.md` implements this contract: the controller layer that generates the OpenAPI document into `04-shared/OpenAPI/`, the outbox relay and topic configuration, and the error-code registry. The physical boundary these contracts cross is drawn in [`01-system/Deployment Diagram.md`](../01-system/Deployment%20Diagram.md); the internal boundaries they do *not* govern are in [`02-backend/Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md).
+`Backend Architecture.md` implements this contract: the controller layer that must match the OpenAPI document in [`04-shared/OpenAPI/`](./OpenAPI/README.md), the CI gate that verifies it does ([ADR-0031](../01-system/ADR/ADR-0031-contract-first-openapi.md)), the outbox relay and topic configuration, and the error-code registry. The physical boundary these contracts cross is drawn in [`01-system/Deployment Diagram.md`](../01-system/Deployment%20Diagram.md); the internal boundaries they do *not* govern are in [`02-backend/Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md).
 
 Two items here want ratification rather than implementation: the **error taxonomy** (§4) and the **event envelope** (§6). Both close gaps that [`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md) and [`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) named and left open, and either may deserve promotion into an ADR of its own.

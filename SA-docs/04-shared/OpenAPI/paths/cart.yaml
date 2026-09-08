@@ -1,0 +1,341 @@
+# Cart & Wishlist (`CRT`) — path items
+#
+# Permission matrix row (Integration Contract §9):
+#   Guest own guest cart · Customer own · Staff — · Warehouse —
+#   Support read · Admin read
+#
+# `UC-CRT-06` (Expire Inactive Cart) has **no endpoint**: it is Scheduler-driven
+# (`A-02`, `FR-CRT-07`) — see `README.md` §5.
+
+cartsCurrent:
+  get:
+    operationId: getCurrentCart
+    tags: [Cart & Wishlist]
+    summary: View the caller's cart
+    description: |
+      Returns the caller's active cart, creating an empty guest cart implicitly
+      if none exists (`FR-CRT-04`, `FR-CRT-05`).
+
+      **Every line is priced live at request time** (`BR-CRT-04`): a cart line
+      stores no price, and the figures returned are advisory until placement
+      fixes them (`BR-ORD-06`). Lines whose price moved, whose stock is short, or
+      which are no longer purchasable are flagged rather than altered or removed,
+      so the customer is never surprised at checkout (`FR-CRT-08`).
+
+      Cart contents are strongly consistent (`ADR-0008` §4).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CRT-04]
+      fr: [FR-CRT-04, FR-CRT-05, FR-CRT-08]
+      br: [BR-CRT-01, BR-CRT-04]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The caller's cart.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/cart.yaml#/Cart' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+cartById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CartId'
+  get:
+    operationId: getCart
+    tags: [Cart & Wishlist]
+    summary: Get one cart
+    description: >-
+      A cart the caller does not own returns `404`, never `403`
+      (`Integration Contract` §2.1). Support and Administrator hold read access
+      to any cart (§9).
+    x-ecp-roles: [GUEST, CUSTOMER, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CRT-04]
+      fr: [FR-CRT-04]
+      br: [BR-CRT-04]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The cart.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/cart.yaml#/Cart' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+cartLines:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CartId'
+  post:
+    operationId: addCartLine
+    tags: [Cart & Wishlist]
+    summary: Add an item to the cart
+    description: |
+      Adds a variant (`FR-CRT-01`). Adding a variant already in the cart
+      **combines** with the existing line and re-checks the *combined* quantity
+      against available stock, not just the increment (`UC-CRT-01` A1).
+
+      Exceeding available stock is `409 ECP-CRT-4090` with the available quantity
+      in `detail`; the quantity is never silently capped (`BR-CRT-02`).
+
+      Supplying `sourceWishlistItemId` moves a saved item into the cart; the
+      wishlist item is removed only after the add succeeds (`UC-CRT-08`).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CRT-01, UC-CRT-08]
+      fr: [FR-CRT-01, FR-CRT-05, FR-CRT-10]
+      br: [BR-CRT-02, BR-CRT-04]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/cart.yaml#/CartLineWrite' }
+    responses:
+      '200':
+        description: The updated cart.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/cart.yaml#/Cart' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/CartQuantityExceedsStock' }
+      '422':
+        description: The variant is not purchasable — unpublished or discontinued (`BR-CAT-02`).
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+cartLineById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CartId'
+    - $ref: '../components/parameters.yaml#/CartLineId'
+  patch:
+    operationId: updateCartLineQuantity
+    tags: [Cart & Wishlist]
+    summary: Update a cart line's quantity
+    description: >-
+      Sets an absolute quantity (`FR-CRT-02`). `0` removes the line
+      (`UC-CRT-02` A1). A quantity above available stock is
+      `409 ECP-CRT-4090` and is **never silently capped** (`BR-CRT-02`).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CRT-02]
+      fr: [FR-CRT-02]
+      br: [BR-CRT-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/cart.yaml#/CartLineUpdate' }
+    responses:
+      '200':
+        description: The updated cart.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/cart.yaml#/Cart' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/CartQuantityExceedsStock' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  delete:
+    operationId: removeCartLine
+    tags: [Cart & Wishlist]
+    summary: Remove a cart line
+    description: >-
+      Idempotent — removing an absent line is `204`, not `404`
+      (`Integration Contract` §2.1). Pass `saveToWishlist=true` to remove and
+      save in one action (`UC-CRT-03` A1).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CRT-03]
+      fr: [FR-CRT-03]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: saveToWishlist
+        in: query
+        required: false
+        description: Customer only; a Guest has no wishlist.
+        schema: { type: boolean, default: false }
+    responses:
+      '204':
+        description: Removed, or already absent.
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+cartMerges:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CartId'
+  post:
+    operationId: mergeGuestCart
+    tags: [Cart & Wishlist]
+    summary: Merge a guest cart into the caller's cart
+    description: |
+      Folds a guest cart into the authenticated customer's cart (`FR-CRT-06`).
+      Normally performed as part of `logIn`; this endpoint covers the case where
+      a guest cart is claimed after the session already exists.
+
+      **The merge never fails the caller.** Quantities above available stock are
+      capped *with explicit reporting*, unpublished lines are dropped with a
+      reason, and out-of-stock lines are carried over marked unpurchasable — all
+      reported per line in `adjustments` (`UC-CRT-05` A2, A3).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CRT-05]
+      fr: [FR-CRT-06]
+      br: [BR-CRT-02, BR-CRT-04]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/cart.yaml#/CartMergeRequest' }
+    responses:
+      '200':
+        description: Merge outcome, including per-line adjustments.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/cart.yaml#/CartMergeOutcome' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+wishlistsCurrent:
+  get:
+    operationId: getOwnWishlist
+    tags: [Cart & Wishlist]
+    summary: View the caller's wishlist
+    description: >-
+      Saved items with their **current** price and availability, with a price
+      drop since saving highlighted (`FR-CRT-09`). Customers only: a Guest has no
+      wishlist (`A-01`).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CRT-07]
+      fr: [FR-CRT-09]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The caller's wishlist.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/cart.yaml#/Wishlist' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+wishlistItems:
+  parameters:
+    - $ref: '../components/parameters.yaml#/WishlistId'
+  post:
+    operationId: addWishlistItem
+    tags: [Cart & Wishlist]
+    summary: Save an item to the wishlist
+    description: >-
+      Adding an item already saved reports "already saved" rather than
+      duplicating it (`UC-CRT-07` A1) — the response is `200` with the unchanged
+      wishlist, not `201`.
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CRT-07]
+      fr: [FR-CRT-09]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/cart.yaml#/WishlistItemWrite' }
+    responses:
+      '200':
+        description: The wishlist, with the item saved or already present.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/cart.yaml#/Wishlist' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+wishlistItemById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/WishlistId'
+    - $ref: '../components/parameters.yaml#/WishlistItemId'
+  delete:
+    operationId: removeWishlistItem
+    tags: [Cart & Wishlist]
+    summary: Remove a wishlist item
+    description: 'Idempotent (`Integration Contract` §2.1).'
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CRT-07]
+      fr: [FR-CRT-09]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Removed, or already absent.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+cartWishlistTransfers:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CartId'
+  post:
+    operationId: moveWishlistItemsToCart
+    tags: [Cart & Wishlist]
+    summary: Move every movable wishlist item into the cart
+    description: >-
+      Bulk counterpart of adding a line with `sourceWishlistItemId`
+      (`FR-CRT-10`). Items that cannot move — out of stock, unpublished — are
+      **left in the wishlist with a per-item reason** rather than failing the
+      whole action (`UC-CRT-08` A2). Set `keepInWishlist` to copy instead of move
+      (`UC-CRT-08` A1).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CRT-08]
+      fr: [FR-CRT-10]
+      br: [BR-CRT-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/cart.yaml#/WishlistTransfer' }
+    responses:
+      '200':
+        description: The updated cart plus a per-item outcome for every wishlist item.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/cart.yaml#/WishlistTransferResult' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

@@ -1,0 +1,103 @@
+# Search & Recommendation (`SCH`) — schemas
+#
+# `SCH` is not a bounded context of its own. `Domain Model` §3 resolves it into a
+# CQRS read model inside Catalog, served by the Elasticsearch index
+# `ecp-products-v1` (`Database.md` §7.1, `ADR-0014`). Which store answers a query
+# never appears in a URI or a response (`ADR-0003` §4), so this file describes a
+# search *capability*, not a search datastore.
+
+SearchResultPage:
+  description: >-
+    Search results. **`page.total` is always absent here**: an exact deep count
+    against Elasticsearch would breach `NFR-PERF-03`, and clients must render
+    correctly without it (`Integration Contract` §3.1).
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      required: [facets]
+      properties:
+        items:
+          type: array
+          items: { $ref: './catalog.yaml#/ProductSummary' }
+        matchCount:
+          type: integer
+          format: int64
+          description: >-
+            Approximate number of matches, for "about N results". Distinct from
+            `page.total`, which is an exact count and is not offered here.
+        facets:
+          type: array
+          description: Available refinements with their counts (`FR-SCH-03`).
+          items: { $ref: '#/Facet' }
+        activeFilters:
+          type: array
+          description: >-
+            The filters actually applied. Echoed back so the client can show what
+            is in force, including a filter it did not set (`UC-SCH-03`).
+          items: { $ref: '#/ActiveFilter' }
+        degraded:
+          type: boolean
+          description: >-
+            `true` when the search capability is answering in a reduced mode.
+            Search degrades rather than blocking browse, cart, or checkout
+            (`NFR-AVAIL-02`).
+
+Facet:
+  type: object
+  required: [field, values]
+  properties:
+    field: { type: string, examples: [brand] }
+    values:
+      type: array
+      items:
+        type: object
+        required: [value, count]
+        properties:
+          value: { type: string }
+          count: { type: integer, format: int64, minimum: 0 }
+
+ActiveFilter:
+  type: object
+  required: [field, value]
+  properties:
+    field: { type: string }
+    value: { type: string }
+
+Suggestion:
+  type: object
+  required: [text]
+  properties:
+    text: { type: string }
+    source:
+      type: string
+      description: >-
+        Where the suggestion came from. Open vocabulary
+        (`Integration Contract` §8.1).
+      x-extensible-enum: [CATALOG, POPULAR, OWN_RECENT]
+
+Keyword:
+  type: object
+  required: [keyword]
+  properties:
+    keyword: { type: string }
+    searchedAt: { type: string, format: date-time }
+
+KeywordPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/Keyword' }
+
+PersonalisationPreference:
+  type: object
+  description: >-
+    Personalised recommendations are derived strictly from the signed-in
+    customer's own activity and never from another customer's data
+    (`BR-SCH-01`). Opting out falls back to trending, never to nothing.
+  required: [personalisationEnabled]
+  additionalProperties: false
+  properties:
+    personalisationEnabled: { type: boolean }

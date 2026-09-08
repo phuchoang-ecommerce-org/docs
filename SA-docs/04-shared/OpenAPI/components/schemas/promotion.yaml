@@ -1,0 +1,189 @@
+# Promotion (`PRM`) — schemas
+# Aggregate: Promotion. Domain Model §8.8, Database.md §4.8
+
+DiscountType:
+  type: string
+  description: 'Open vocabulary (`Integration Contract` §8.1).'
+  x-extensible-enum: [PERCENTAGE, FIXED_AMOUNT, FREE_SHIPPING]
+  examples: [PERCENTAGE]
+
+PromotionStatus:
+  type: string
+  description: 'Open vocabulary (`Integration Contract` §8.1).'
+  x-extensible-enum: [DRAFT, ACTIVE, PAUSED, EXPIRED]
+  examples: [ACTIVE]
+
+DiscountPreview:
+  type: object
+  description: |
+    A **non-binding** discount preview.
+
+    Cart and checkout query Promotion as an Open Host Service for display
+    (`Domain Model` §5.2). Only the `PromotionRedemptionPort` call inside the
+    order-placement transaction is binding — which is why a promotion previewed
+    successfully can still be exhausted at placement with `409 ECP-PRM-4090`
+    (`UC-PRM-02` E7). A client must present this as an estimate, not a promise.
+  required: [amount, binding]
+  properties:
+    promotionId: { $ref: './common.yaml#/Id' }
+    code: { type: string }
+    name: { type: string }
+    amount: { $ref: './common.yaml#/Money' }
+    freeShipping: { type: boolean }
+    binding:
+      type: boolean
+      description: Always `false` on this schema. Present so the contract states it explicitly.
+
+Promotion:
+  type: object
+  required: [id, name, discountType, discountValue, validFrom, validUntil, status]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    code:
+      type: string
+      description: >-
+        Voucher code. Absent for an automatic promotion, which needs no code
+        (`FR-PRM-07`).
+    name: { type: string }
+    description: { type: string }
+    discountType: { $ref: '#/DiscountType' }
+    discountValue:
+      type: string
+      pattern: '^[0-9]{1,15}(\.[0-9]{1,4})?$'
+      description: >-
+        Percentage points for `PERCENTAGE` (never above 100, enforced by a
+        database constraint), otherwise a decimal amount paired with `currency`.
+    currency: { type: string, pattern: '^[A-Z]{3}$' }
+    maxDiscountAmount: { $ref: './common.yaml#/Money' }
+    minOrderAmount: { $ref: './common.yaml#/Money' }
+    validFrom: { type: string, format: date-time }
+    validUntil: { type: string, format: date-time }
+    usageLimit:
+      type: integer
+      format: int64
+      description: >-
+        Total redemptions permitted. **Mandatory at creation**: an unbounded
+        promotion is rejected (`UC-PRM-01` E1).
+    usageCount: { type: integer, format: int64, minimum: 0 }
+    perCustomerLimit: { type: integer, format: int32 }
+    priority: { type: integer, format: int32 }
+    stackable: { type: boolean }
+    status: { $ref: '#/PromotionStatus' }
+
+PromotionPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/Promotion' }
+
+PromotionWrite:
+  type: object
+  description: >-
+    `usageLimit` and `perCustomerLimit` are both mandatory. A configuration that
+    is unbounded, self-contradictory, or capable of producing a negative order
+    total is rejected outright (`UC-PRM-01` E1, `BR-PRM-02`).
+  required: [name, discountType, discountValue, validFrom, validUntil, usageLimit, perCustomerLimit]
+  additionalProperties: false
+  properties:
+    code: { type: string }
+    name: { type: string }
+    description: { type: string }
+    discountType: { $ref: '#/DiscountType' }
+    discountValue: { type: string, pattern: '^[0-9]{1,15}(\.[0-9]{1,4})?$' }
+    currency: { type: string, pattern: '^[A-Z]{3}$' }
+    maxDiscountAmount: { $ref: './common.yaml#/Money' }
+    minOrderAmount: { $ref: './common.yaml#/Money' }
+    validFrom: { type: string, format: date-time }
+    validUntil: { type: string, format: date-time }
+    usageLimit: { type: integer, format: int64, minimum: 1 }
+    perCustomerLimit: { type: integer, format: int32, minimum: 1 }
+    priority: { type: integer, format: int32, default: 0 }
+    stackable: { type: boolean, default: false }
+
+PromotionStatusChange:
+  type: object
+  description: >-
+    Activates a promotion or flash sale, pauses it, or expires it (`FR-PRM-06`,
+    `FR-PRM-10`). Activating makes the sale price visible in catalog and search;
+    expiring withdraws it. **Placed orders are never affected** — a promotion
+    change is never retroactive (`BR-ORD-06`).
+  required: [status, reason]
+  additionalProperties: false
+  properties:
+    status: { $ref: '#/PromotionStatus' }
+    reason: { type: string, minLength: 1 }
+    effectiveAt:
+      type: string
+      format: date-time
+      description: >-
+        Schedule the change instead of applying it now. The Scheduler applies it
+        (`A-02`).
+
+VoucherBatch:
+  type: object
+  description: 'Generates voucher codes, single-use or shared (`FR-PRM-07`).'
+  required: [count]
+  additionalProperties: false
+  properties:
+    count: { type: integer, format: int32, minimum: 1, maximum: 10000 }
+    singleUse: { type: boolean, default: true }
+    prefix: { type: string }
+
+Voucher:
+  type: object
+  required: [code]
+  properties:
+    code: { type: string }
+    singleUse: { type: boolean }
+    redeemedAt: { type: string, format: date-time }
+
+VoucherValidationRequest:
+  type: object
+  required: [code]
+  additionalProperties: false
+  properties:
+    code: { type: string }
+    checkoutId:
+      $ref: './common.yaml#/Id'
+      description: >-
+        Optional. When present, the discount is computed against that checkout's
+        contents rather than being described generically.
+
+VoucherValidationResult:
+  type: object
+  description: |
+    The outcome of validating a code (`FR-PRM-08`, `UC-PRM-02`).
+
+    **A rejection is deliberately non-disclosive**: unrecognised, expired, and
+    exhausted codes are indistinguishable, because this endpoint is an
+    enumeration surface. It also carries a stricter, fail-closed rate limit
+    (`NFR-SEC-05`, `UC-AUD-04` A1).
+  required: [valid]
+  properties:
+    valid: { type: boolean }
+    discount:
+      $ref: '#/DiscountPreview'
+      description: Present only when `valid` is `true`. Non-binding.
+
+Redemption:
+  type: object
+  required: [id, promotionId, orderId, discountAmount, redeemedAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    promotionId: { $ref: './common.yaml#/Id' }
+    orderId: { $ref: './common.yaml#/Id' }
+    customerId: { $ref: './common.yaml#/Id' }
+    discountAmount: { $ref: './common.yaml#/Money' }
+    redeemedAt: { type: string, format: date-time }
+
+RedemptionPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/Redemption' }

@@ -1,0 +1,754 @@
+# Checkout & Order (`ORD`, Core / flagship) — path items
+#
+# Permission matrix row (Integration Contract §9):
+#   Guest — · Customer own · Staff progress · Warehouse progress
+#   Support read, cancel, return · Admin manage
+#
+# `UC-ADM-04` (Manage Orders) is realised here, on the order resource itself,
+# rather than on a separate `/admin` surface — see `README.md` §4.
+
+checkouts:
+  post:
+    operationId: initiateCheckout
+    tags: [Checkout & Order]
+    summary: Initiate checkout
+    description: |
+      Creates a Draft order from the caller's cart, or **resumes the existing
+      Draft** — never a second one (`FR-ORD-01`, `UC-ORD-01`).
+
+      Requires an authenticated, email-verified customer: a Guest cannot check
+      out (`A-01`), and a restricted session gets `403` (`UC-CUS-03` A2).
+
+      An empty cart, or one with no purchasable line, is
+      `422 ECP-ORD-4220` — well-formed but impossible, and never worth retrying
+      (`Integration Contract` §2.1).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-01]
+      fr: [FR-ORD-01]
+      br: [BR-ORD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '201':
+        description: Draft order created.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Checkout' }
+      '200':
+        description: An existing Draft order was resumed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Checkout' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '422': { $ref: '../components/responses.yaml#/CartNotPurchasable' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+checkoutsCurrent:
+  get:
+    operationId: getCurrentCheckout
+    tags: [Checkout & Order]
+    summary: Get the caller's checkout in progress
+    description: 'The Draft order and everything still blocking placement (`UC-ORD-01`, `UC-ORD-04`).'
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-01]
+      fr: [FR-ORD-01]
+      br: [BR-ORD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The checkout in progress.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Checkout' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+checkoutShippingAddress:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CheckoutId'
+  put:
+    operationId: setCheckoutShippingAddress
+    tags: [Checkout & Order]
+    summary: Provide the shipping address
+    description: >-
+      Takes an address-book entry or a new address, which is also stored in the
+      book (`FR-ORD-02`). **Recalculates the shipping fee**, because destination
+      is an input to it (`FR-SHP-02`).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-02]
+      fr: [FR-ORD-02, FR-ORD-04]
+      br: [BR-CUS-05]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/ordering.yaml#/ShippingAddressSelection' }
+    responses:
+      '200':
+        description: Address set; shipping options and fee recalculated.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Checkout' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+      '503': { $ref: '../components/responses.yaml#/DependencyUnavailable' }
+
+checkoutBillingInformation:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CheckoutId'
+  put:
+    operationId: setCheckoutBillingInformation
+    tags: [Checkout & Order]
+    summary: Provide billing information
+    description: 'May differ from the shipping address (`FR-ORD-03`).'
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-02]
+      fr: [FR-ORD-03]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/ordering.yaml#/BillingInformation' }
+    responses:
+      '200':
+        description: Billing information set.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Checkout' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+checkoutShippingOption:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CheckoutId'
+  put:
+    operationId: selectCheckoutShippingOption
+    tags: [Checkout & Order]
+    summary: Select a shipping option
+    description: >-
+      Chooses among the quoted options and fixes the fee on the Draft order
+      (`FR-ORD-04`, `FR-SHP-02`). Quotes come from `getShippingQuotes`.
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-02, UC-SHP-01]
+      fr: [FR-ORD-04, FR-SHP-02]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/ordering.yaml#/ShippingOptionSelection' }
+    responses:
+      '200':
+        description: Option selected; the fee is fixed on the Draft order.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Checkout' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+checkoutVoucher:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CheckoutId'
+  put:
+    operationId: applyCheckoutVoucher
+    tags: [Checkout & Order]
+    summary: Apply a voucher to the checkout
+    description: |
+      Applies a voucher code and recomputes the discount (`FR-ORD-05`,
+      `FR-PRM-08`, `UC-PRM-03`).
+
+      Replacing an already-applied voucher validates the new code **before**
+      dropping the old one, so a bad replacement never leaves the customer with
+      neither (`UC-ORD-03` A2).
+
+      **The discount applied here is not yet binding.** Cart and checkout query
+      Promotion as an Open Host Service for a preview; the binding redemption
+      happens inside the order-placement transaction (`Domain Model` §5.2), which
+      is why a promotion can still be exhausted at placement with
+      `409 ECP-PRM-4090`.
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-03, UC-PRM-03]
+      fr: [FR-ORD-05, FR-PRM-08, FR-PRM-09]
+      br: [BR-PRM-01, BR-PRM-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/ordering.yaml#/VoucherApplication' }
+    responses:
+      '200':
+        description: Voucher applied; the discount preview is on the Draft order.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Checkout' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/PromotionUsageExhausted' }
+      '422': { $ref: '../components/responses.yaml#/VoucherNotApplicable' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  delete:
+    operationId: removeCheckoutVoucher
+    tags: [Checkout & Order]
+    summary: Remove the applied voucher
+    description: 'Idempotent — removing when none is applied is `204` (`Integration Contract` §2.1).'
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-03]
+      fr: [FR-ORD-05]
+      br: [BR-PRM-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Removed, or none was applied.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+checkoutSummary:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CheckoutId'
+  get:
+    operationId: getOrderSummary
+    tags: [Checkout & Order]
+    summary: Review the order summary
+    description: >-
+      Re-prices the cart, re-checks availability, re-validates the voucher, and
+      re-confirms the shipping fee (`FR-ORD-06`, `FR-ORD-07`). Where anything
+      moved, `changed` is `true`, the differences are itemised, and a fresh
+      `confirmationToken` is issued — placement with a stale token is rejected,
+      which is what makes "the customer agreed to *these* numbers" verifiable
+      (`UC-ORD-04` A1).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-04]
+      fr: [FR-ORD-06, FR-ORD-07]
+      br: [BR-ORD-06]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The summary the customer is asked to confirm.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/OrderSummary' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '422': { $ref: '../components/responses.yaml#/CartNotPurchasable' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+orders:
+  get:
+    operationId: listOrders
+    tags: [Checkout & Order]
+    summary: List orders
+    description: |
+      A Customer sees **only their own** orders, reverse-chronologically, with
+      each order's current state — this is the purchase history of `FR-CUS-10`.
+      Support and Administrator may search across customers by state, date, or
+      reference (`UC-ADM-04`); `customerId` is accepted for those roles only and
+      is `403` for a Customer.
+
+      Sortable fields are `placedAt` and `total`. Cursor-paginated: offset
+      paging duplicates and skips rows on a list that changes underneath the
+      reader, which an order list does (`Integration Contract` §3.2).
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-CUS-10, UC-ORD-06, UC-ADM-04]
+      fr: [FR-CUS-10, FR-ORD-12, FR-ADM-04]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: status
+        in: query
+        required: false
+        description: 'Filter by lifecycle state. Values are the `OrderStatus` literals, e.g. `SHIPPING`.'
+        schema:
+          type: array
+          items: { $ref: '../components/schemas/ordering.yaml#/OrderStatus' }
+      - name: placedAfter
+        in: query
+        required: false
+        description: 'RFC 3339 date-time, UTC (`Integration Contract` §2).'
+        schema: { type: string, format: date-time }
+      - name: placedBefore
+        in: query
+        required: false
+        schema: { type: string, format: date-time }
+      - name: orderNumber
+        in: query
+        required: false
+        schema: { type: string }
+      - name: customerId
+        in: query
+        required: false
+        description: Support and Administrator only.
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+    responses:
+      '200':
+        description: Matching orders.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/OrderPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  post:
+    operationId: placeOrder
+    tags: [Checkout & Order]
+    summary: Place the order
+    description: |
+      Creates the order and reserves stock **atomically** (`FR-ORD-08`,
+      `BR-ORD-02`): one transaction spanning Ordering, Inventory, and Promotion
+      as a three-way partnership (`Domain Model` §5.1). Prices are frozen here
+      and never re-derived (`BR-ORD-06`). The cart is emptied and `OrderCreated`
+      is published through the outbox (`ADR-0012`).
+
+      **`Idempotency-Key` is required** (`FR-ORD-09`, `BR-ORD-03`,
+      `NFR-REL-02`). Replaying the same key with the same body returns the
+      original response verbatim and creates no second order — including under
+      concurrent submission, where exactly one request is processed and the other
+      blocks briefly and receives the same response. A missing key is
+      `400 ECP-ORD-4001`; the same key with a different body is
+      `409 ECP-ORD-4090`.
+
+      Two `409`s here are **expected outcomes under load, not failures**:
+      `ECP-INV-4091` (someone else took the last unit) and `ECP-PRM-4090` (the
+      promotion was exhausted by a concurrent redemption). Both may succeed on
+      retry and must be presented as such, not as a generic checkout error
+      (`Integration Contract` §4.4).
+
+      An order with a zero total moves straight to `PAID`; otherwise it lands in
+      `PENDING_PAYMENT`. Targets p95 <= 800 ms excluding provider time
+      (`NFR-PERF-02`).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-05, UC-INV-01, UC-PRM-03]
+      fr: [FR-ORD-08, FR-ORD-09, FR-INV-02, FR-PRM-09]
+      br: [BR-ORD-01, BR-ORD-02, BR-ORD-03, BR-ORD-06, BR-INV-01, BR-PRM-01, BR-PRM-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IdempotencyKey'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/ordering.yaml#/PlaceOrderRequest' }
+    responses:
+      '201':
+        description: >-
+          Order placed. On an idempotent replay this is the **original**
+          response, returned verbatim with its original status.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Order' }
+      '400': { $ref: '../components/responses.yaml#/IdempotencyKeyMissing' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409': { $ref: '../components/responses.yaml#/InsufficientStock' }
+      '422': { $ref: '../components/responses.yaml#/CartNotPurchasable' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+      '503': { $ref: '../components/responses.yaml#/DependencyUnavailable' }
+
+orderById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/OrderId'
+  get:
+    operationId: getOrder
+    tags: [Checkout & Order]
+    summary: View order details
+    description: >-
+      Values **as recorded at placement**, not current catalog values
+      (`FR-ORD-12`, `BR-ORD-06`), plus the transitions the calling role may
+      perform from the current state.
+
+      Another customer's order returns `404`, never `403`: returning `403` would
+      confirm the order exists and leak across a tenancy boundary
+      (`Integration Contract` §2.1).
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-06, UC-ADM-04]
+      fr: [FR-ORD-12, FR-ADM-04]
+      br: [BR-ORD-06]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The order.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Order' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+orderLines:
+  parameters:
+    - $ref: '../components/parameters.yaml#/OrderId'
+  get:
+    operationId: listOrderLines
+    tags: [Checkout & Order]
+    summary: List an order's lines
+    description: >-
+      Frozen line detail (`BR-ORD-06`). **A placed order's contents and total can
+      never be amended** through any interface, by any role — there is no `PUT`,
+      `PATCH`, or `DELETE` here, and that absence is the enforcement
+      (`UC-ADM-04` E1).
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-06]
+      fr: [FR-ORD-12]
+      br: [BR-ORD-06]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The order's lines.
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/PageEnvelope'
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      items: { $ref: '../components/schemas/ordering.yaml#/OrderLine' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+orderTracking:
+  parameters:
+    - $ref: '../components/parameters.yaml#/OrderId'
+  get:
+    operationId: trackOrder
+    tags: [Checkout & Order]
+    summary: Track an order
+    description: >-
+      Current state, shipment progress, delivery estimate, and the remaining
+      return window (`FR-ORD-13`). Order state is strongly consistent
+      (`ADR-0008` §4); carrier progress is as recent as the last update received,
+      which the shipment reports.
+    x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-07]
+      fr: [FR-ORD-13]
+      br: [BR-SHP-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: Tracking detail.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/OrderTracking' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+orderCancellation:
+  parameters:
+    - $ref: '../components/parameters.yaml#/OrderId'
+  post:
+    operationId: cancelOrder
+    tags: [Checkout & Order]
+    summary: Cancel an order
+    description: |
+      Cancels the whole order, or only the lines named (`FR-ORD-14`,
+      `UC-ORD-08`). Releases the stock reservation and, where payment was
+      captured, initiates a refund.
+
+      Permitted only from `DRAFT`, `PENDING_PAYMENT`, `PAYMENT_FAILED`, `PAID`,
+      and `PROCESSING`. From `PACKED` onward there is no cancellation edge
+      (`BR-ORD-04`) and the response is `409 ECP-ORD-4091` — including for an
+      Administrator (`UC-ORD-10`).
+
+      A cancellation is a subordinate resource rather than
+      `/orders/{id}/cancel`, because `Integration Contract` §2 forbids a verb in
+      a path.
+    x-ecp-roles: [CUSTOMER, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-08, UC-INV-02]
+      fr: [FR-ORD-14, FR-INV-03]
+      br: [BR-ORD-01, BR-ORD-04, BR-INV-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/ordering.yaml#/OrderCancellation' }
+    responses:
+      '200':
+        description: Cancelled. Stock released; a refund is initiated where payment was captured.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Order' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/OrderTransitionNotPermitted' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+      '503': { $ref: '../components/responses.yaml#/DependencyUnavailable' }
+
+orderReturnRequest:
+  parameters:
+    - $ref: '../components/parameters.yaml#/OrderId'
+  get:
+    operationId: getOrderReturnRequest
+    tags: [Checkout & Order]
+    summary: Get the return request for an order
+    x-ecp-roles: [CUSTOMER, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-09]
+      fr: [FR-ORD-15]
+      br: [BR-ORD-05]
+    description: 'The return request and its resolution, if any (`FR-ORD-15`).'
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The return request.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Return' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  post:
+    operationId: requestOrderReturn
+    tags: [Checkout & Order]
+    summary: Request a return
+    description: >-
+      Requests the return of selected lines with a mandatory reason
+      (`FR-ORD-15`). Only within the return window — 14 days from delivery
+      (`A-06`, `BR-ORD-05`); outside it the response is
+      `409 ECP-ORD-4091`. Who bears return shipping cost is an open item: no
+      document states it.
+    x-ecp-roles: [CUSTOMER, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-ORD-09]
+      fr: [FR-ORD-15]
+      br: [BR-ORD-05]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/ordering.yaml#/ReturnRequest' }
+    responses:
+      '201':
+        description: Return requested.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Return' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/OrderTransitionNotPermitted' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+orderReturnResolution:
+  parameters:
+    - $ref: '../components/parameters.yaml#/OrderId'
+  put:
+    operationId: resolveOrderReturn
+    tags: [Checkout & Order]
+    summary: Accept, reject, or write off a return
+    description: >-
+      Resolves a return on inspection (`UC-ORD-09` A2, A3). A partial return is
+      legal. `WRITTEN_OFF` records an inventory adjustment for damaged goods
+      rather than returning stock to sale (`FR-INV-05`). Accepting moves the
+      order to `RETURNED`, from which `REFUNDED` is the only edge
+      (`BR-ORD-01`).
+    x-ecp-roles: [WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ORD-09]
+      fr: [FR-ORD-15, FR-INV-05]
+      br: [BR-ORD-01, BR-ORD-05]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/ordering.yaml#/ReturnResolution' }
+    responses:
+      '200':
+        description: Return resolved.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Return' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/OrderTransitionNotPermitted' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+orderStatusTransitions:
+  parameters:
+    - $ref: '../components/parameters.yaml#/OrderId'
+  post:
+    operationId: advanceOrderStatus
+    tags: [Checkout & Order]
+    summary: Advance an order's status
+    description: >-
+      Applies one step of the `BR-ORD-01` state machine (`FR-ORD-10`,
+      `FR-ORD-11`, `FR-ORD-16`). The state change, its side effect — committing
+      reservations on `PACKED`, for instance (`UC-INV-03`) — and its audit entry
+      are applied atomically.
+
+      An illegal transition is `409 ECP-ORD-4091` **for every role, including
+      Administrator**: the edge set is a business rule, not a permission
+      (`UC-ORD-10` E1).
+
+      **Support is excluded.** SRS §2.3 grants Customer Support `read, cancel,
+      return` on Checkout & Order — not `progress`, which is Staff's and
+      Warehouse's. Support reaches cancellation and returns through their own
+      operations. See `README.md` §5.1.
+    x-ecp-roles: [STAFF, WAREHOUSE_OPERATOR, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ORD-10, UC-ADM-04, UC-INV-03]
+      fr: [FR-ORD-10, FR-ORD-11, FR-ORD-16, FR-ADM-04, FR-AUD-02]
+      br: [BR-ORD-01, BR-ORD-04, BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/ordering.yaml#/StatusTransition' }
+    responses:
+      '200':
+        description: Transition applied.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Order' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/OrderTransitionNotPermitted' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+orderStatusTransitionBatches:
+  post:
+    operationId: advanceOrderStatusesInBulk
+    tags: [Checkout & Order]
+    summary: Advance several orders' statuses
+    description: >-
+      Each order is evaluated independently: an illegal transition on one does
+      not fail the others (`UC-ORD-10` A1, `UC-ADM-04`). Returns `200` with
+      per-order outcomes, because partial success is the expected case.
+    x-ecp-roles: [STAFF, WAREHOUSE_OPERATOR, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ORD-10, UC-ADM-04]
+      fr: [FR-ORD-10, FR-ORD-11, FR-ADM-04]
+      br: [BR-ORD-01, BR-ORD-04]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/ordering.yaml#/BulkStatusTransition' }
+    responses:
+      '200':
+        description: Per-order outcomes.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/BulkStatusTransitionResult' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+orderInvestigationFlag:
+  parameters:
+    - $ref: '../components/parameters.yaml#/OrderId'
+  put:
+    operationId: setOrderInvestigationFlag
+    tags: [Checkout & Order]
+    summary: Flag an order for investigation
+    description: >-
+      Marks an order for investigation **without changing its state**
+      (`UC-ADM-04` A2). Audited like any other operator action (`FR-AUD-02`).
+    x-ecp-roles: [STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-04]
+      fr: [FR-ADM-04, FR-AUD-02]
+      br: [BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/ordering.yaml#/InvestigationFlag' }
+    responses:
+      '200':
+        description: Flag applied. The order's state is unchanged.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/ordering.yaml#/Order' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

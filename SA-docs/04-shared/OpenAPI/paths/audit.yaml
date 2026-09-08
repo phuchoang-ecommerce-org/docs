@@ -1,0 +1,137 @@
+# Audit & Access Control (`AUD`) — path items
+#
+# Permission matrix row (Integration Contract §9):
+#   Audit trail: Support read · Admin read · every other cell blank
+#   — and **no role has `manage`**.
+#
+# THIS FILE CONTAINS ONLY `GET`. That is the contract, not an oversight:
+# `BR-AUD-01` and `NFR-OBS-02` require the trail to be unamendable through any
+# interface by any role, and `ADR-0017` enforces it by exposing no mutation API
+# at any layer and granting the database role only INSERT and SELECT. An
+# attempted modification is itself recorded as a security event (`UC-AUD-01`).
+#
+# The other three `AUD` use cases have no endpoint:
+#   `UC-AUD-01` Record Audit Entry — written by projection, never by a caller
+#   `UC-AUD-03` Authorise Request  — realised as the 401/403 on every operation
+#   `UC-AUD-04` Enforce Rate Limit — realised as the 429 on every operation
+# See `README.md` §5.
+
+auditEntries:
+  get:
+    operationId: searchAuditTrail
+    tags: [Audit & Access Control]
+    summary: Search the audit trail
+    description: |
+      Searches by actor, entity, action, time range, or `correlationId`
+      (`FR-AUD-04`, `UC-AUD-02`). Paginated and time-ordered.
+
+      Filtering by `correlationId` gives the **correlated view**: every entry
+      from one business transaction across order, payment, inventory, and
+      shipping (`NFR-OBS-03`). That is the whole point of threading one
+      identifier through every hop.
+
+      **The search is itself audited** (`UC-AUD-02`, `UC-AUD-01` A3): who looked
+      at the audit trail is part of the audit trail.
+
+      Three response properties that are contract, not detail:
+      an empty result is `200` with an empty `items` — distinguishable from a
+      failed search, which is an error; an over-large time range is **refused**
+      with `422` rather than silently truncated; and `retentionBoundary` declares
+      the oldest date still held, so entries beyond retention (7 years — `A-13`,
+      `FR-DAT-05`) are reported as missing rather than quietly omitted
+      (`UC-AUD-02` E2).
+    x-ecp-roles: [CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-AUD-02]
+      fr: [FR-AUD-04, FR-AUD-02, FR-DAT-05]
+      br: [BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: actorId
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+      - name: entityType
+        in: query
+        required: false
+        schema: { type: string }
+      - name: entityId
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+      - name: action
+        in: query
+        required: false
+        schema: { type: string }
+      - name: module
+        in: query
+        required: false
+        schema: { type: string }
+      - name: correlationId
+        in: query
+        required: false
+        description: Returns every entry from one business transaction (`NFR-OBS-03`).
+        schema: { type: string, format: uuid }
+      - name: occurredAfter
+        in: query
+        required: false
+        schema: { type: string, format: date-time }
+      - name: occurredBefore
+        in: query
+        required: false
+        schema: { type: string, format: date-time }
+    responses:
+      '200':
+        description: >-
+          Matching entries, oldest first. An empty `items` array means the search
+          ran and found nothing.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/audit.yaml#/AuditEntryPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '422':
+        description: >-
+          The requested time range is too large. Refused rather than truncated,
+          so a caller never mistakes a partial answer for a complete one
+          (`UC-AUD-02` E1).
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+auditEntryById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/AuditEntryId'
+  get:
+    operationId: getAuditEntry
+    tags: [Audit & Access Control]
+    summary: Get one audit entry
+    description: >-
+      Actor, action, entity, before-and-after values, reason, and timestamp
+      (`FR-AUD-03`). `beforeValue` and `afterValue` carry business fields only —
+      never a credential, a token, a payment instrument, or a raw request payload
+      (`NFR-SEC-07`).
+
+      This read is itself audited (`UC-AUD-01` A3).
+    x-ecp-roles: [CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-AUD-02]
+      fr: [FR-AUD-03, FR-AUD-04]
+      br: [BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The audit entry.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/audit.yaml#/AuditEntry' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

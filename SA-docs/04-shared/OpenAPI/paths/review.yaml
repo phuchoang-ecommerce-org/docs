@@ -1,0 +1,375 @@
+# Review (`REV`) — path items
+#
+# Permission matrix row (Integration Contract §9):
+#   Guest read · Customer own · Staff moderate · Warehouse —
+#   Support moderate · Admin manage
+
+productReviews:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ProductId'
+  get:
+    operationId: listProductReviews
+    tags: [Review]
+    summary: View a product's reviews
+    description: >-
+      Published reviews only: moderated-out reviews are excluded
+      (`FR-REV-07`). Sortable by `createdAt` or `helpfulness`, filterable by
+      rating value. Each review carries its rating, text, images, date, amended
+      flag, verified-buyer flag, and the variant reviewed.
+
+      Reviews are a degradable capability: their absence must not prevent the
+      product page from rendering (`NFR-AVAIL-02`).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-REV-04]
+      fr: [FR-REV-07]
+      br: [BR-REV-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: rating
+        in: query
+        required: false
+        schema: { type: array, items: { type: integer, format: int32, minimum: 1, maximum: 5 } }
+    responses:
+      '200':
+        description: Published reviews.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/review.yaml#/ReviewPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  post:
+    operationId: submitProductReview
+    tags: [Review]
+    summary: Submit a product review
+    description: |
+      Submits a rating with optional text and images (`FR-REV-01`, `FR-REV-02`,
+      `FR-REV-03`).
+
+      **The verified-buyer check is server-side and unbypassable by any role**
+      (`BR-REV-01`, `FR-REV-06`, `P5`): a reviewer with no delivered order
+      containing the product gets `403 ECP-REV-4030`.
+
+      That check reads an eventually consistent projection. A customer whose
+      delivery event has not yet landed must be told **to try again shortly** —
+      never that they did not buy the product (`Domain Model` §8.9).
+
+      One review per customer per product (`BR-REV-02`). Published immediately
+      and moderated after the fact (`A-08`), which recalculates the product's
+      aggregate rating.
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-REV-01]
+      fr: [FR-REV-01, FR-REV-02, FR-REV-03, FR-REV-06]
+      br: [BR-REV-01, BR-REV-02, BR-REV-04]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/review.yaml#/ReviewWrite' }
+    responses:
+      '201':
+        description: Review submitted and published.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/review.yaml#/Review' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/ReviewerNotVerifiedBuyer' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: This customer has already reviewed this product (`BR-REV-02`).
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+productRatingSummary:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ProductId'
+  get:
+    operationId: getProductRatingSummary
+    tags: [Review]
+    summary: Get a product's aggregate rating
+    description: >-
+      Average and the distribution across rating values (`FR-REV-07`). A `null`
+      average means no reviews exist — distinct from a rating of zero.
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-REV-04]
+      fr: [FR-REV-07]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The rating summary.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/review.yaml#/RatingSummary' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+reviews:
+  get:
+    operationId: listReviews
+    tags: [Review]
+    summary: List reviews for moderation
+    description: >-
+      The moderation queue: reported reviews, and reviews awaiting a decision
+      (`FR-REV-08`, `FR-ADM-07`). Operator-facing only.
+    x-ecp-roles: [STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-REV-05]
+      fr: [FR-REV-08, FR-ADM-07]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: moderationStatus
+        in: query
+        required: false
+        schema:
+          type: array
+          items: { $ref: '../components/schemas/review.yaml#/ModerationStatus' }
+      - name: reported
+        in: query
+        required: false
+        schema: { type: boolean }
+    responses:
+      '200':
+        description: Matching reviews.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/review.yaml#/ReviewPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+reviewById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ReviewId'
+  get:
+    operationId: getReview
+    tags: [Review]
+    summary: Get one review
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-REV-04]
+      fr: [FR-REV-07]
+      br: []
+    security: []
+    description: >-
+      A moderated-out review is `404` for a shopper and visible to a moderator —
+      the same URI, a different answer by role (`Integration Contract` §9).
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The review.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/review.yaml#/Review' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  patch:
+    operationId: editOwnReview
+    tags: [Review]
+    summary: Edit the caller's own review
+    description: >-
+      Permitted within the 30-day edit window (`A-09`, `BR-REV-03`); outside it
+      the response is `409`. The review is marked **amended** with an amendment
+      date rather than silently replaced (`FR-REV-04`), and the aggregate rating
+      is recalculated. Another customer's review returns `404`, never `403`.
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-REV-02]
+      fr: [FR-REV-04]
+      br: [BR-REV-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/review.yaml#/ReviewUpdate' }
+    responses:
+      '200':
+        description: Updated review, marked amended.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/review.yaml#/Review' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: The edit window has closed (`A-09`, `BR-REV-03`).
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  delete:
+    operationId: deleteOwnReview
+    tags: [Review]
+    summary: Delete the caller's own review
+    description: >-
+      Releases the one-review-per-product limit, so the customer may review the
+      product again (`FR-REV-05`, `BR-REV-02`). Recalculates the aggregate
+      rating. Idempotent (`Integration Contract` §2.1).
+    x-ecp-roles: [CUSTOMER, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-REV-03]
+      fr: [FR-REV-05]
+      br: [BR-REV-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Deleted, or already absent.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+reviewImages:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ReviewId'
+  post:
+    operationId: addReviewImage
+    tags: [Review]
+    summary: Add an image to the caller's review
+    description: >-
+      Format and size are validated against `BR-REV-04` before the image is
+      accepted (`NFR-SEC-04`). Permitted within the edit window (`BR-REV-03`).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-REV-01, UC-REV-02]
+      fr: [FR-REV-03, FR-REV-04]
+      br: [BR-REV-03, BR-REV-04]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/review.yaml#/ReviewImageWrite' }
+    responses:
+      '201':
+        description: Image added.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/review.yaml#/ReviewImage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+reviewImageById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ReviewId'
+    - $ref: '../components/parameters.yaml#/ImageId'
+  delete:
+    operationId: removeReviewImage
+    tags: [Review]
+    summary: Remove an image from the caller's review
+    description: 'Idempotent (`Integration Contract` §2.1).'
+    x-ecp-roles: [CUSTOMER, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-REV-02]
+      fr: [FR-REV-04]
+      br: [BR-REV-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Removed, or already absent.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+reviewReports:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ReviewId'
+  post:
+    operationId: reportReview
+    tags: [Review]
+    summary: Report a review
+    description: >-
+      Flags a review for moderator attention (`UC-REV-05`). Open to any visitor,
+      so it is unauthenticated and rate-limited. Reporting does not itself hide
+      the review; a moderator decides.
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-REV-05]
+      fr: [FR-REV-08]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/review.yaml#/ReviewReport' }
+    responses:
+      '202':
+        description: Report accepted for moderation.
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+reviewModeration:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ReviewId'
+  put:
+    operationId: moderateReview
+    tags: [Review]
+    summary: Moderate a review
+    description: >-
+      Hides, removes, or reinstates a review, or dismisses outstanding reports
+      (`FR-REV-08`, `FR-ADM-07`, `UC-REV-05`). The reason is mandatory, the
+      aggregate rating is recalculated, and the author is notified.
+
+      **The audit entry is a precondition of the change**, not a consequence: if
+      it cannot be written, the moderation does not happen (`FR-AUD-02`,
+      `BR-AUD-01`).
+    x-ecp-roles: [STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-REV-05]
+      fr: [FR-REV-08, FR-ADM-07, FR-AUD-02]
+      br: [BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/review.yaml#/ModerationDecision' }
+    responses:
+      '200':
+        description: Moderation applied.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/review.yaml#/Review' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

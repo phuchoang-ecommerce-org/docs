@@ -1,0 +1,221 @@
+# Payment (`PAY`) — schemas
+# Aggregate: Payment (child entities PaymentAttempt, Refund). Domain Model §8.6, Database.md §4.6
+#
+# HARD CONSTRAINT: no schema in this file carries a payment instrument. There is
+# no card number, no CVV, no expiry, no provider credential, and no token —
+# neither in a request nor in a response. `providerReference` is an opaque
+# handle. `NFR-SEC-07` is a constraint on payloads, not only on logs
+# (`Integration Contract` §7).
+
+PaymentMethodType:
+  type: string
+  description: 'Open vocabulary (`Integration Contract` §8.1).'
+  x-extensible-enum: [CARD, BANK_TRANSFER, WALLET, CASH_ON_DELIVERY]
+  examples: [CARD]
+
+PaymentStatus:
+  type: string
+  description: >-
+    Note the British spelling `AUTHORISED`, which is the literal the schema
+    stores (`Database.md` §4.6). Open vocabulary
+    (`Integration Contract` §8.1). Payment state has **no permitted lag** and is
+    never served from a cache (`NFR-PERF-06`, `ADR-0015` §5).
+  x-extensible-enum: [PENDING, AUTHORISED, CAPTURED, FAILED, PARTIALLY_REFUNDED, REFUNDED]
+  examples: [CAPTURED]
+
+AttemptOutcome:
+  type: string
+  x-extensible-enum: [PENDING, SUCCEEDED, FAILED]
+  description: 'Open vocabulary (`Integration Contract` §8.1).'
+
+RefundStatus:
+  type: string
+  x-extensible-enum: [PENDING, SETTLED, FAILED]
+  description: 'Open vocabulary (`Integration Contract` §8.1).'
+
+PaymentMethod:
+  type: object
+  description: >-
+    An **eligible** payment method for a given order. Cash On Delivery
+    eligibility depends on destination and order value (`BR-PAY-03`), so this is
+    computed per order rather than being a static list.
+  required: [type, eligible]
+  properties:
+    type: { $ref: '#/PaymentMethodType' }
+    displayName: { type: string }
+    eligible: { type: boolean }
+    ineligibleReason:
+      type: string
+      description: Present when `eligible` is `false`, so a client can explain the exclusion.
+
+Payment:
+  type: object
+  description: 'One payment per order (`Database.md` §4.6 enforces the uniqueness).'
+  required: [id, orderId, method, currency, status]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    orderId: { $ref: './common.yaml#/Id' }
+    customerId: { $ref: './common.yaml#/Id' }
+    method: { $ref: '#/PaymentMethodType' }
+    currency: { type: string, pattern: '^[A-Z]{3}$' }
+    authorisedAmount: { $ref: './common.yaml#/Money' }
+    capturedAmount: { $ref: './common.yaml#/Money' }
+    refundedAmount:
+      $ref: './common.yaml#/Money'
+      description: Never exceeds `capturedAmount` (`BR-PAY-02`, database constraint).
+    status: { $ref: '#/PaymentStatus' }
+    createdAt: { type: string, format: date-time }
+
+PaymentAttempt:
+  type: object
+  description: >-
+    One attempt against the provider. The record is created **before** the
+    provider is contacted, so a timeout leaves evidence that the attempt happened
+    (`UC-PAY-02` E2) — a timeout is never treated as a decline.
+  required: [id, paymentId, attemptNumber, amount, outcome, requestedAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    paymentId: { $ref: './common.yaml#/Id' }
+    attemptNumber: { type: integer, format: int32, minimum: 1 }
+    amount: { $ref: './common.yaml#/Money' }
+    outcome: { $ref: '#/AttemptOutcome' }
+    providerReference:
+      type: string
+      description: >-
+        Opaque provider handle. **Never an instrument** and never a provider
+        credential (`NFR-SEC-07`).
+    failureReason:
+      type: string
+      description: >-
+        Platform-owned wording. A provider's own error is never passed through
+        (`Integration Contract` §4.5 rule 4, `ADR-0005`).
+    requestedAt: { type: string, format: date-time }
+    resolvedAt:
+      type: string
+      format: date-time
+      description: Null exactly while `outcome` is `PENDING`.
+
+Refund:
+  type: object
+  required: [id, paymentId, amount, reason, status, requestedAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    paymentId: { $ref: './common.yaml#/Id' }
+    amount: { $ref: './common.yaml#/Money' }
+    reason: { type: string }
+    status: { $ref: '#/RefundStatus' }
+    providerReference: { type: string }
+    requestedAt: { type: string, format: date-time }
+    settledAt: { type: string, format: date-time }
+
+PaymentInitiation:
+  type: object
+  description: >-
+    Initiates authorisation and capture for an order. **No instrument crosses
+    this boundary**: the customer supplies payment details to the provider, and
+    the platform receives only a reference (`NFR-SEC-07`, `ADR-0005`).
+  required: [orderId, method]
+  additionalProperties: false
+  properties:
+    orderId: { $ref: './common.yaml#/Id' }
+    method: { $ref: '#/PaymentMethodType' }
+    returnUrl:
+      type: string
+      format: uri
+      description: Where the provider should return the customer after an interactive flow.
+
+PaymentInitiationResult:
+  type: object
+  required: [payment, attempt]
+  properties:
+    payment: { $ref: '#/Payment' }
+    attempt: { $ref: '#/PaymentAttempt' }
+    redirectUrl:
+      type: string
+      format: uri
+      description: >-
+        Present when the provider requires the customer to complete the payment
+        interactively. The result then arrives asynchronously on the callback
+        (`UC-PAY-03`).
+
+PaymentMethodSelection:
+  type: object
+  required: [method]
+  additionalProperties: false
+  properties:
+    method: { $ref: '#/PaymentMethodType' }
+
+CashCollection:
+  type: object
+  description: >-
+    Records Cash On Delivery collection (`FR-PAY-07`, `UC-PAY-04`). **An amount
+    that does not match records what was collected and does not mark the order
+    paid** (`UC-PAY-04` E1) — reconciliation is a human decision, not a rounding.
+  required: [amount, collectedBy]
+  additionalProperties: false
+  properties:
+    amount: { $ref: './common.yaml#/Money' }
+    collectedBy: { type: string, minLength: 1 }
+    collectedAt: { type: string, format: date-time }
+
+RefundWrite:
+  type: object
+  description: >-
+    Full or partial refund with a **mandatory reason**. The refund is recorded
+    before the provider is called, so a provider failure leaves a record to
+    reconcile against (`UC-PAY-06`). Capped at the cumulative captured amount
+    (`BR-PAY-02`). Whether a refund above some threshold needs a second approver
+    is an open item: no document states one.
+  required: [amount, reason]
+  additionalProperties: false
+  properties:
+    amount: { $ref: './common.yaml#/Money' }
+    reason: { type: string, minLength: 1 }
+
+ProviderNotification:
+  type: object
+  description: >-
+    An inbound provider callback (`UC-PAY-03`). Carries authorisation, capture,
+    refund, and asynchronous bank-transfer settlement outcomes. Deliberately
+    loose: `NFR-MAINT-03` requires that a provider can be swapped as a routine
+    change, so the platform's own vocabulary is used and provider-specific fields
+    live in `providerPayload`.
+  required: [providerReference, outcome]
+  additionalProperties: false
+  properties:
+    providerReference:
+      type: string
+      description: >-
+        The stable reference the attempt was created with. Correlation to an
+        order happens through it (`Integration Contract` §6.4).
+    outcome: { $ref: '#/AttemptOutcome' }
+    amount: { $ref: './common.yaml#/Money' }
+    kind:
+      type: string
+      x-extensible-enum: [AUTHORISATION, CAPTURE, REFUND, SETTLEMENT]
+    occurredAt: { type: string, format: date-time }
+    providerEventId:
+      type: string
+      description: >-
+        The provider's own event identifier, used to apply the notification **at
+        most once per attempt** however many times it is delivered
+        (`BR-PAY-01`, `FR-PAY-05`, `NFR-REL-04`).
+    providerPayload:
+      type: object
+      additionalProperties: true
+      description: Provider-specific detail, retained for reconciliation.
+
+UnmatchedPayment:
+  type: object
+  description: >-
+    A provider result that could not be correlated to an order. **Recorded rather
+    than discarded** (`UC-PAY-03` E3) — a payment the platform cannot place is a
+    reconciliation item, not noise.
+  required: [id, providerReference, amount, receivedAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    providerReference: { type: string }
+    amount: { $ref: './common.yaml#/Money' }
+    outcome: { $ref: '#/AttemptOutcome' }
+    receivedAt: { type: string, format: date-time }
+    resolvedAt: { type: string, format: date-time }

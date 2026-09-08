@@ -1,0 +1,442 @@
+# Reusable error responses — Enterprise Commerce Platform (ECP)
+#
+# One response per error code in Integration Contract §4.4, plus the two
+# validation sub-codes from §4.3 and one code added here (see NotFound).
+#
+# Integration Contract §4.5 rule 2: every 4xx/5xx carries a `code`. There is no
+# bare status-code error anywhere in this API.
+
+NotModified:
+  description: >-
+    The entity tag supplied in `If-None-Match` still matches; the representation
+    is unchanged and no body is returned (`Integration Contract` §2.1).
+  headers:
+    ETag: { $ref: './headers.yaml#/ETag' }
+
+# ------------------------------------------------------------- GEN, 4xx / 5xx
+ValidationFailed:
+  description: >-
+    `ECP-GEN-4000` — request validation failed. Every externally supplied field
+    is validated against type, range, and format **before any business
+    processing** (`FR-AUD-08`, `NFR-SEC-04`), and **every** failing field is
+    reported in one response: returning only the first turns form completion into
+    a round-trip per mistake (`Integration Contract` §4.3).
+
+    An unknown query parameter is a validation failure, never silently ignored
+    (§3.3).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-GEN-4000
+        title: Request validation failed
+        status: 400
+        code: ECP-GEN-4000
+        detail: See `errors` for the failing fields.
+        instance: /api/v1/orders
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors:
+          - field: shippingAddress.postalCode
+            code: ECP-GEN-4002
+            detail: Required.
+          - field: lines[0].quantity
+            code: ECP-GEN-4003
+            detail: Must be at least 1.
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+Unauthenticated:
+  description: >-
+    `ECP-GEN-4010` — no credential, or the access token has expired
+    (`NFR-SEC-03`). Distinct from `403`: **only this class is worth refreshing a
+    token for** (`Integration Contract` §2.1).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-GEN-4010
+        title: Not authenticated
+        status: 401
+        code: ECP-GEN-4010
+        instance: /api/v1/orders
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+RefreshTokenRejected:
+  description: >-
+    `ECP-GEN-4011` — the refresh token is invalid, expired, or **already
+    consumed**. Refresh tokens rotate on every use, and presenting a consumed one
+    invalidates the entire session chain (`BR-CUS-03`, `NFR-SEC-03`,
+    `ADR-0016` §4). The caller must authenticate again from scratch.
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-GEN-4011
+        title: Refresh token rejected; session chain invalidated
+        status: 401
+        code: ECP-GEN-4011
+        instance: /api/v1/session-renewals
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+Forbidden:
+  description: >-
+    `ECP-GEN-4030` — authenticated, but the role does not permit this operation
+    (`BR-AUD-02`, `NFR-SEC-01`). The decision is made once, server-side, by
+    `AuthorizationService` before the command executes, and is identical
+    whatever entry point the request arrived through — hiding a control in a
+    client is a UX decision, never an authorisation one.
+
+    **Note the deliberate exception:** a caller asking for a resource that exists
+    but that they do not *own* receives `404`, not this. Returning `403` would
+    confirm the resource exists and leak information across a tenancy boundary
+    (`Integration Contract` §2.1, §9).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-GEN-4030
+        title: Role does not permit this operation
+        status: 403
+        code: ECP-GEN-4030
+        instance: /api/v1/promotions
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+NotFound:
+  description: >-
+    `ECP-GEN-4040` — the resource does not exist, **or it exists and the caller
+    does not own it**. These two cases are deliberately indistinguishable so
+    that identifiers cannot be probed (`Integration Contract` §2.1, §9;
+    `UC-AUD-03`).
+
+    **This code is added by this document.** `Integration Contract` §4.4 is
+    explicitly "not exhaustive" and contains no `404` code, yet §4.5 rule 2
+    requires every 4xx to carry one. It belongs in §4.4 and in
+    `04-shared/Error Codes` when that registry is created.
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-GEN-4040
+        title: Not found
+        status: 404
+        code: ECP-GEN-4040
+        instance: /api/v1/orders/018f3c2a-7b41-7c9e-9f10-2a4b6c8d0e12
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+RateLimited:
+  description: >-
+    `ECP-GEN-4290` — rate limit exceeded. The request is rejected **without being
+    processed** (`UC-AUD-04`). Limits are per caller, never aggregate; an
+    unidentifiable caller gets the most restrictive bucket. Authentication,
+    registration, password reset, and voucher validation carry stricter limits
+    and **fail closed** — losing the limiter must not become a way to bypass
+    `NFR-SEC-05`; every other endpoint fails open (`ADR-0015` §5).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-GEN-4290
+        title: Rate limit exceeded
+        status: 429
+        code: ECP-GEN-4290
+        instance: /api/v1/sessions
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    Retry-After: { $ref: './headers.yaml#/RetryAfter' }
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+DependencyUnavailable:
+  description: >-
+    `ECP-GEN-5030` — a dependency is unavailable. The operation is retryable and
+    **platform state is unchanged** (`NFR-AVAIL-03`).
+
+    A failure caused by an external provider always surfaces as this, never as a
+    passthrough of the provider's own error: the platform's contract does not
+    change when a provider is swapped (`Integration Contract` §4.5 rule 4,
+    `ADR-0005`). `detail` never leaks an exception type, a stack frame, or a SQL
+    fragment (rule 3).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-GEN-5030
+        title: Dependency unavailable
+        status: 503
+        code: ECP-GEN-5030
+        detail: The operation was not applied. Retry is safe.
+        instance: /api/v1/shipping-quotes
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    Retry-After: { $ref: './headers.yaml#/RetryAfter' }
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+# ------------------------------------------------------------ domain-specific
+InsufficientStock:
+  description: >-
+    `ECP-INV-4091` — insufficient available stock for one or more lines
+    (`BR-INV-01`, `FR-ORD-06`).
+
+    **This is an expected outcome under peak load, not an exceptional one.** It
+    is the visible surface of the optimistic-locking oversell guarantee
+    (`ADR-0011`), and a client that renders it as a generic failure will show a
+    checkout error where it should show "someone else just took the last one"
+    (`Integration Contract` §4.4). Being a `409`, it may succeed later; the
+    client may retry.
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-INV-4091
+        title: Insufficient available stock
+        status: 409
+        code: ECP-INV-4091
+        detail: SKU TS-BLU-M has 2 units available; 5 were requested.
+        instance: /api/v1/orders
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+IdempotencyKeyMissing:
+  description: >-
+    `ECP-ORD-4001` — `Idempotency-Key` is required on this operation and was
+    absent (`BR-ORD-03`).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-ORD-4001
+        title: Idempotency-Key required
+        status: 400
+        code: ECP-ORD-4001
+        instance: /api/v1/orders
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+IdempotencyKeyReused:
+  description: >-
+    `ECP-ORD-4090` — the `Idempotency-Key` was reused with a **different**
+    request body. This is a client defect and is reported rather than masked,
+    because masking it would hide a real bug (`Integration Contract` §2.2,
+    `BR-ORD-03`).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-ORD-4090
+        title: Idempotency-Key reused with a different request body
+        status: 409
+        code: ECP-ORD-4090
+        instance: /api/v1/orders
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+OrderTransitionNotPermitted:
+  description: >-
+    `ECP-ORD-4091` — the requested order state transition is not permitted from
+    the current state (`BR-ORD-01`, `FR-ORD-11`).
+
+    The legal edge set is enforced by the `Order` aggregate's only status
+    mutator, and it is rejected **for every role, including Administrator**
+    (`UC-ORD-10`). In particular there is no `CANCELLED` edge from `PACKED` or
+    any later state (`BR-ORD-04`).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-ORD-4091
+        title: Order state transition not permitted
+        status: 409
+        code: ECP-ORD-4091
+        detail: An order in PACKED cannot move to CANCELLED.
+        instance: /api/v1/orders/018f3c2a-7b41-7c9e-9f10-2a4b6c8d0e12/status-transitions
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+CartNotPurchasable:
+  description: >-
+    `ECP-ORD-4220` — the cart is empty, or contains no purchasable line
+    (`BR-ORD-01`). A `422`: well-formed but semantically impossible, and it will
+    never succeed as written. **Clients must not retry it**
+    (`Integration Contract` §2.1).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-ORD-4220
+        title: Cart contains no purchasable line
+        status: 422
+        code: ECP-ORD-4220
+        instance: /api/v1/checkouts
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+PromotionUsageExhausted:
+  description: >-
+    `ECP-PRM-4090` — the promotion's usage limit was reached by a concurrent
+    redemption (`UC-PRM-02` E7).
+
+    Like `ECP-INV-4091`, this is an **expected** outcome under peak load and the
+    visible surface of a concurrency guarantee, not a system failure
+    (`Integration Contract` §4.4).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-PRM-4090
+        title: Promotion usage limit reached
+        status: 409
+        code: ECP-PRM-4090
+        instance: /api/v1/orders
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+VoucherNotApplicable:
+  description: >-
+    `ECP-PRM-4220` — the voucher is invalid, expired, or not applicable to this
+    order (`BR-PRM-01`, `FR-ORD-05`).
+
+    On the standalone validation endpoint the rejection is deliberately
+    **non-disclosive**: unrecognised, expired, and exhausted codes are
+    indistinguishable, because that endpoint is an enumeration surface
+    (`UC-PRM-02`, `NFR-SEC-05`).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-PRM-4220
+        title: Voucher not applicable
+        status: 422
+        code: ECP-PRM-4220
+        instance: /api/v1/checkouts/018f3c2a-7b41-7c9e-9f10-2a4b6c8d0e12/voucher
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+DiscountExceedsOrder:
+  description: >-
+    `ECP-PRM-4221` — the discount would exceed the discountable value of the
+    order (`BR-PRM-02`). The schema-level guarantee behind it is
+    `discount_amount <= subtotal_amount` (`Database.md` §4.5).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-PRM-4221
+        title: Discount exceeds discountable order value
+        status: 422
+        code: ECP-PRM-4221
+        instance: /api/v1/checkouts/018f3c2a-7b41-7c9e-9f10-2a4b6c8d0e12/voucher
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+PaymentAlreadyInFlight:
+  description: >-
+    `ECP-PAY-4090` — a payment attempt is already in flight for this order
+    (`BR-PAY-01`). Retryable once the outstanding attempt resolves.
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-PAY-4090
+        title: A payment attempt is already in flight
+        status: 409
+        code: ECP-PAY-4090
+        instance: /api/v1/payments
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+RefundExceedsCaptured:
+  description: >-
+    `ECP-PAY-4220` — the refund would exceed the amount captured (`BR-PAY-02`).
+    Enforced exactly, on `NUMERIC` values, never on binary floating point
+    (`Database.md` §2.2).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-PAY-4220
+        title: Refund exceeds captured amount
+        status: 422
+        code: ECP-PAY-4220
+        instance: /api/v1/payments/018f3c2a-7b41-7c9e-9f10-2a4b6c8d0e12/refunds
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+ReviewerNotVerifiedBuyer:
+  description: >-
+    `ECP-REV-4030` — the reviewer is not a verified buyer of this product
+    (`BR-REV-01`, `FR-REV-06`). The check is server-side and unbypassable by any
+    role, which is what makes `P5` hold.
+
+    **The verified-purchase projection is eventually consistent.** A customer
+    whose delivery event has not yet landed must be told to try again shortly —
+    never that they did not buy the product (`Domain Model` §8.9).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-REV-4030
+        title: Not a verified buyer of this product
+        status: 403
+        code: ECP-REV-4030
+        detail: No delivered order containing this product was found for this customer. If the order was delivered very recently, try again shortly.
+        instance: /api/v1/products/018f3c2a-7b41-7c9e-9f10-2a4b6c8d0e12/reviews
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
+CartQuantityExceedsStock:
+  description: >-
+    `ECP-CRT-4090` — the requested quantity exceeds available stock for the
+    variant (`BR-CRT-02`). The quantity is **never silently capped**
+    (`UC-CRT-02`); the caller is told what is available and chooses.
+
+    Cart availability is checked against the command side, not a projection:
+    stock availability has no permitted lag (`ADR-0008` §4, `NFR-PERF-06`).
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/common.yaml#/Problem' }
+      example:
+        type: https://ecp.example/errors/ECP-CRT-4090
+        title: Requested quantity exceeds available stock
+        status: 409
+        code: ECP-CRT-4090
+        detail: 2 units are available; 5 were requested.
+        instance: /api/v1/carts/018f3c2a-7b41-7c9e-9f10-2a4b6c8d0e12/lines
+        correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+        errors: []
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }

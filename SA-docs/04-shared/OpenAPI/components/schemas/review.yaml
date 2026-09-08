@@ -1,0 +1,149 @@
+# Review (`REV`) — schemas
+# Aggregate: Review. Domain Model §8.9, Database.md §4.9
+#
+# Review body text is never sent to Reporting (`Integration Contract` §7).
+
+ModerationStatus:
+  type: string
+  description: 'Open vocabulary (`Integration Contract` §8.1).'
+  x-extensible-enum: [PENDING, PUBLISHED, REJECTED, HIDDEN]
+  examples: [PUBLISHED]
+
+ReviewImage:
+  type: object
+  required: [id, url]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    url: { type: string, format: uri }
+    contentType:
+      type: string
+      description: >-
+        Open vocabulary — permitted formats are validated in the aggregate
+        (`BR-REV-04`), and the schema places no constraint on the value.
+    sizeBytes: { type: integer, format: int64, minimum: 1 }
+    sortOrder: { type: integer, format: int32 }
+
+Review:
+  type: object
+  required: [id, productId, rating, moderationStatus, createdAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    productId: { $ref: './common.yaml#/Id' }
+    customerId: { $ref: './common.yaml#/Id' }
+    authorDisplayName: { type: string }
+    orderId: { $ref: './common.yaml#/Id' }
+    variantId:
+      $ref: './common.yaml#/Id'
+      description: The variant actually purchased, shown alongside the review (`FR-REV-07`).
+    rating: { type: integer, format: int32, minimum: 1, maximum: 5 }
+    title: { type: string }
+    body: { type: string }
+    images:
+      type: array
+      items: { $ref: '#/ReviewImage' }
+    verifiedBuyer:
+      type: boolean
+      description: >-
+        Always `true` for a published review: only a verified buyer can submit
+        one (`BR-REV-01`). Carried explicitly so a client need not infer it.
+    moderationStatus: { $ref: '#/ModerationStatus' }
+    moderationReason:
+      type: string
+      description: Operator-visible. Not shown to a shopper.
+    amended:
+      type: boolean
+      description: The review was edited after submission (`FR-REV-04`).
+    amendedAt: { type: string, format: date-time }
+    editableUntil:
+      type: string
+      format: date-time
+      description: 30 days from submission (`A-09`, `BR-REV-03`).
+    createdAt: { type: string, format: date-time }
+
+ReviewPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/Review' }
+
+RatingSummary:
+  type: object
+  description: >-
+    Aggregate rating and its distribution (`FR-REV-07`). A `null`
+    `averageRating` means no review exists, which is **not** the same as a rating
+    of zero.
+  required: [reviewCount, distribution]
+  properties:
+    averageRating: { type: number, format: double, minimum: 1, maximum: 5 }
+    reviewCount: { type: integer, format: int32, minimum: 0 }
+    distribution:
+      type: object
+      description: Count per rating value, keyed `1` to `5`.
+      additionalProperties: { type: integer, format: int32, minimum: 0 }
+
+ReviewWrite:
+  type: object
+  description: >-
+    Rating is required and range-checked; text and images are optional. Image
+    format and size are validated against `BR-REV-04`. One review per customer
+    per product (`BR-REV-02`).
+  required: [rating]
+  additionalProperties: false
+  properties:
+    rating: { type: integer, format: int32, minimum: 1, maximum: 5 }
+    title: { type: string }
+    body: { type: string }
+    variantId: { $ref: './common.yaml#/Id' }
+
+ReviewUpdate:
+  type: object
+  description: >-
+    Editing marks the review amended with an amendment date rather than silently
+    replacing it (`FR-REV-04`, `UC-REV-02`), and is permitted only within the
+    30-day edit window (`A-09`, `BR-REV-03`).
+  additionalProperties: false
+  properties:
+    rating: { type: integer, format: int32, minimum: 1, maximum: 5 }
+    title: { type: string }
+    body: { type: string }
+
+ReviewImageWrite:
+  type: object
+  required: [url, contentType, sizeBytes]
+  additionalProperties: false
+  properties:
+    url: { type: string, format: uri }
+    contentType: { type: string }
+    sizeBytes: { type: integer, format: int64, minimum: 1 }
+
+ReviewReport:
+  type: object
+  description: >-
+    Reports a review for moderator attention (`UC-REV-05`). Open to any visitor,
+    which is why it is not role-restricted. **No content policy exists to
+    moderate against** — the traceability matrix records that as an open gap, not
+    an omission of this contract.
+  required: [reason]
+  additionalProperties: false
+  properties:
+    reason: { type: string, minLength: 1 }
+
+ModerationDecision:
+  type: object
+  description: >-
+    Hide, remove, reinstate a review, or dismiss a report (`FR-REV-08`,
+    `FR-ADM-07`). The reason is mandatory, the aggregate rating is recalculated,
+    and the author is notified. **The audit entry is a precondition of the
+    change** (`FR-AUD-02`, `BR-AUD-01`).
+  required: [moderationStatus, reason]
+  additionalProperties: false
+  properties:
+    moderationStatus: { $ref: '#/ModerationStatus' }
+    reason: { type: string, minLength: 1 }
+    dismissReports:
+      type: boolean
+      default: false
+      description: Clear outstanding reports without changing the review's visibility.

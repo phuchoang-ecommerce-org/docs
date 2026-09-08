@@ -1,0 +1,250 @@
+# Reusable parameters — Enterprise Commerce Platform (ECP)
+# Pagination, filtering and sorting rules: Integration Contract §3
+
+# ---------------------------------------------------------------- pagination
+Cursor:
+  name: cursor
+  in: query
+  required: false
+  description: >-
+    Opaque cursor taken verbatim from a previous response's `page.next`.
+    Cursor pagination is the default and offset (`?page=7`) is rejected: offset
+    duplicates and skips rows when the underlying set changes between requests —
+    routine on an order list — and its cost grows with depth, which is exactly
+    the `P10` problem indexing exists to avoid (`Integration Contract` §3.2).
+
+    **[ASSUMPTION]** The parameter name is chosen here. §3 specifies the
+    response field `page.next` but names no request parameter.
+  schema:
+    type: string
+
+PageSize:
+  name: size
+  in: query
+  required: false
+  description: >-
+    Items per page. Default 20, maximum 100. **A larger request is clamped, not
+    rejected** (`Integration Contract` §3.1).
+
+    **[ASSUMPTION]** The parameter name is chosen here; §3 names only the
+    response field `page.size`.
+  schema:
+    type: integer
+    format: int32
+    minimum: 1
+    maximum: 100
+    default: 20
+
+Sort:
+  name: sort
+  in: query
+  required: false
+  description: >-
+    `field:direction`, e.g. `placedAt:desc`. Only fields the operation documents
+    as sortable are accepted, because each one must be backed by an index
+    (`P10`). An undocumented field is `400 ECP-GEN-4000`. Combining `sort` with
+    `q` is `422` (`Integration Contract` §3.3).
+  schema:
+    type: string
+    pattern: '^[a-zA-Z][a-zA-Z0-9]*:(asc|desc)$'
+  examples:
+    newestFirst:
+      value: placedAt:desc
+
+Query:
+  name: q
+  in: query
+  required: false
+  description: >-
+    Free-text search term. Accepted **only** on search endpoints. Results are
+    relevance-ordered by default; supplying `sort` as well is `422`
+    (`Integration Contract` §3.3).
+  schema:
+    type: string
+    minLength: 1
+
+# ------------------------------------------------------------------- headers
+CorrelationIdHeader:
+  name: X-Correlation-Id
+  in: header
+  required: false
+  description: >-
+    Correlation id for this business transaction. When absent, one is issued at
+    the edge. Either way it is threaded through every downstream hop and echoed
+    in the response and in any error body (`Integration Contract` §6.2,
+    `NFR-OBS-03`).
+
+    **[ASSUMPTION]** The header name is chosen here; §6.2 names none.
+  schema:
+    type: string
+    format: uuid
+
+IdempotencyKey:
+  name: Idempotency-Key
+  in: header
+  required: true
+  description: >-
+    Client-generated opaque string that makes a repeated submission safe.
+    **Required on exactly two operations** — order placement and payment
+    initiation — and applied nowhere else (`ADR-0003` §4,
+    `Integration Contract` §2.2).
+
+    Replaying the same key with the **same** body returns the original response
+    verbatim, with the original status, and creates nothing new. Replaying it
+    with a **different** body is `409 ECP-ORD-4090`, because masking that would
+    hide a real client defect. Two simultaneous requests carrying one key:
+    exactly one is processed, the other blocks briefly and returns the same
+    response — `NFR-REL-02` requires the guarantee to hold under concurrent
+    submission. Keys are retained at least 24 hours; one reused after expiry is
+    treated as new.
+  schema:
+    type: string
+    maxLength: 128
+
+IfNoneMatch:
+  name: If-None-Match
+  in: header
+  required: false
+  description: >-
+    Conditional read. When the entity tag still matches, the response is `304`
+    with no body (`Integration Contract` §2.1). **[ASSUMPTION]** — see the
+    `ETag` response header.
+  schema:
+    type: string
+
+# --------------------------------------------------------------- path pieces
+AccountId:
+  name: accountId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+AddressId:
+  name: addressId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+CategoryId:
+  name: categoryId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+ProductId:
+  name: productId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+VariantId:
+  name: variantId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+ImageId:
+  name: imageId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+StockItemId:
+  name: stockItemId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+ReservationId:
+  name: reservationId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+CartId:
+  name: cartId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+CartLineId:
+  name: lineId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+WishlistId:
+  name: wishlistId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+WishlistItemId:
+  name: itemId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+CheckoutId:
+  name: checkoutId
+  in: path
+  required: true
+  description: >-
+    Identifier of the Draft order the checkout is building. Checkout does not
+    have an identity of its own: `UC-ORD-01` creates or resumes a Draft `Order`
+    and never a second one.
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+OrderId:
+  name: orderId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+PaymentId:
+  name: paymentId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+ShipmentId:
+  name: shipmentId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+PromotionId:
+  name: promotionId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+ReviewId:
+  name: reviewId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+NotificationId:
+  name: notificationId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+RoleCode:
+  name: roleCode
+  in: path
+  required: true
+  schema: { $ref: './schemas/administration.yaml#/RoleCode' }
+
+ExportId:
+  name: exportId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }
+
+AuditEntryId:
+  name: auditEntryId
+  in: path
+  required: true
+  schema: { $ref: './schemas/common.yaml#/Id' }

@@ -1,0 +1,706 @@
+# Product Catalog & Category (`CAT`) — path items
+#
+# Permission matrix row (Integration Contract §9):
+#   Guest read · Customer read · Staff manage · Warehouse read · Support read · Admin manage
+#
+# `UC-ADM-01` (Manage Products) and `UC-ADM-02` (Manage Categories) are realised
+# here rather than on a separate `/admin` surface: a staff operation acts on the
+# same resource and differs only in the role it requires, which is what keeps
+# `NFR-SEC-01` enumerable one endpoint at a time and makes `BR-AUD-02` true by
+# construction.
+
+categories:
+  get:
+    operationId: listCategories
+    tags: [Product Catalog & Category]
+    summary: Browse the category tree
+    description: >-
+      Returns categories as a navigable tree nested to arbitrary depth
+      (`FR-CAT-05`). Cacheable: `ETag` supports the `NFR-PERF-01` p95 <= 300 ms
+      catalog target.
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-CAT-01]
+      fr: [FR-CAT-05, FR-CAT-07]
+      br: [BR-CAT-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IfNoneMatch'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: rootId
+        in: query
+        required: false
+        description: Return the subtree beneath this category instead of the whole tree.
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+      - name: maxDepth
+        in: query
+        required: false
+        schema: { type: integer, format: int32, minimum: 1 }
+    responses:
+      '200':
+        description: The category tree.
+        headers:
+          ETag: { $ref: '../components/headers.yaml#/ETag' }
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '../components/schemas/catalog.yaml#/CategoryNode' }
+      '304': { $ref: '../components/responses.yaml#/NotModified' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  post:
+    operationId: createCategory
+    tags: [Product Catalog & Category]
+    summary: Create a category
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-02]
+      fr: [FR-ADM-02, FR-CAT-05]
+      br: [BR-CAT-03]
+    description: >-
+      A parent that would create a cycle in the tree is rejected (`BR-CAT-03`).
+      The change is audited (`FR-AUD-02`).
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/catalog.yaml#/CategoryWrite' }
+    responses:
+      '201':
+        description: Category created.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/Category' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+featuredCategories:
+  get:
+    operationId: listFeaturedCategories
+    tags: [Product Catalog & Category]
+    summary: List featured categories
+    description: >-
+      Featured categories in their configured display order (`FR-CAT-06`). A
+      separate path rather than `/categories/featured`, which would collide with
+      the `{categoryId}` template.
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-CAT-05]
+      fr: [FR-CAT-06]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/IfNoneMatch'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: Featured categories.
+        headers:
+          ETag: { $ref: '../components/headers.yaml#/ETag' }
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '../components/schemas/catalog.yaml#/Category' }
+      '304': { $ref: '../components/responses.yaml#/NotModified' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+categoryById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CategoryId'
+  get:
+    operationId: getCategory
+    tags: [Product Catalog & Category]
+    summary: Get one category
+    description: >-
+      Includes the root-to-parent `ancestors` chain so a deep link can render
+      breadcrumbs without walking the tree (`UC-CAT-01` A2).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-CAT-01]
+      fr: [FR-CAT-05]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The category.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/Category' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  patch:
+    operationId: updateCategory
+    tags: [Product Catalog & Category]
+    summary: Update or move a category
+    description: >-
+      Changing `parentId` moves the category **and its descendants**
+      (`UC-ADM-02`). A move that would create a cycle is rejected (`BR-CAT-03`).
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-02]
+      fr: [FR-ADM-02]
+      br: [BR-CAT-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/catalog.yaml#/CategoryWrite' }
+    responses:
+      '200':
+        description: Updated category.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/Category' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  delete:
+    operationId: deleteCategory
+    tags: [Product Catalog & Category]
+    summary: Delete a category
+    description: >-
+      Refused with `409` while the category still holds products or child
+      categories; the count is returned so the operator knows what blocks it
+      (`UC-ADM-02` E2). Idempotent otherwise: deleting an absent category is
+      `204` (`Integration Contract` §2.1).
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-02]
+      fr: [FR-ADM-02]
+      br: [BR-CAT-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Deleted, or already absent.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409':
+        description: The category still holds products or child categories.
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+categoryProducts:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CategoryId'
+  get:
+    operationId: listCategoryProducts
+    tags: [Product Catalog & Category]
+    summary: Browse the products in a category
+    description: >-
+      Products in this category **and its descendants**, paginated
+      (`FR-CAT-03`). Out-of-stock products are included and marked, not hidden.
+      Only `PUBLISHED` products appear (`BR-CAT-02`). Sortable fields are
+      `price`, `createdAt`, and `popularity` — each is index-backed (`P10`).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-CAT-02]
+      fr: [FR-CAT-03, FR-CAT-08]
+      br: [BR-CAT-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: brand
+        in: query
+        required: false
+        schema: { type: array, items: { type: string } }
+      - name: priceFrom
+        in: query
+        required: false
+        description: 'Inclusive lower bound, as a decimal string (see `Money`).'
+        schema: { type: string, pattern: '^[0-9]{1,15}(\.[0-9]{1,4})?$' }
+      - name: priceTo
+        in: query
+        required: false
+        schema: { type: string, pattern: '^[0-9]{1,15}(\.[0-9]{1,4})?$' }
+      - name: inStock
+        in: query
+        required: false
+        schema: { type: boolean }
+    responses:
+      '200':
+        description: Products in the category.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/ProductSummaryPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+products:
+  get:
+    operationId: listProducts
+    tags: [Product Catalog & Category]
+    summary: List products
+    description: >-
+      The catalog listing, filterable and paginated (`FR-CAT-03`). A Guest or
+      Customer sees only `PUBLISHED` products (`BR-CAT-02`); `publicationStatus`
+      is accepted as a filter for Staff and Administrator only, and is a `403`
+      for anyone else. This is the operator-facing product list `UC-ADM-01`
+      works from.
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-CAT-02, UC-ADM-01]
+      fr: [FR-CAT-03, FR-ADM-01]
+      br: [BR-CAT-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: categoryId
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+      - name: brand
+        in: query
+        required: false
+        schema: { type: array, items: { type: string } }
+      - name: publicationStatus
+        in: query
+        required: false
+        description: Staff and Administrator only.
+        schema: { $ref: '../components/schemas/catalog.yaml#/PublicationStatus' }
+    responses:
+      '200':
+        description: Matching products.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/ProductSummaryPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  post:
+    operationId: createProduct
+    tags: [Product Catalog & Category]
+    summary: Create a product
+    description: >-
+      Creates a product in `DRAFT` (`FR-ADM-01`). Publication is a separate,
+      separately audited action. The change is audited (`FR-AUD-02`).
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-01]
+      fr: [FR-ADM-01, FR-CAT-01]
+      br: [BR-CAT-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/catalog.yaml#/ProductWrite' }
+    responses:
+      '201':
+        description: Product created, in `DRAFT`.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/Product' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+productById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ProductId'
+  get:
+    operationId: getProduct
+    tags: [Product Catalog & Category]
+    summary: View product details
+    description: >-
+      Full detail: variants, images, attributes, aggregate rating, per-variant
+      availability, recent reviews, and related products (`FR-CAT-01`,
+      `FR-CAT-04`, `FR-INV-07`).
+
+      **The `reviews` and `relatedProducts` sections are omitted rather than
+      failing the response** when those capabilities are unavailable — failure of
+      search, recommendations, or reviews must never prevent browsing
+      (`NFR-AVAIL-02`). Availability shown here is advisory; the binding check
+      happens inside the order-placement transaction (`ADR-0008` §4).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-CAT-03]
+      fr: [FR-CAT-01, FR-CAT-04, FR-INV-07]
+      br: [BR-CAT-01, BR-CAT-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/IfNoneMatch'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The product.
+        headers:
+          ETag: { $ref: '../components/headers.yaml#/ETag' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/Product' }
+      '304': { $ref: '../components/responses.yaml#/NotModified' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  patch:
+    operationId: updateProduct
+    tags: [Product Catalog & Category]
+    summary: Update a product
+    description: >-
+      Amends attributes, brand, description, or category (`FR-ADM-01`). **Price
+      changes do not go through this operation** — they have their own endpoint
+      because `FR-AUD-02` requires a price change to be audited as a distinct
+      action.
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-01]
+      fr: [FR-ADM-01]
+      br: [BR-CAT-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/catalog.yaml#/ProductWrite' }
+    responses:
+      '200':
+        description: Updated product.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/Product' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  delete:
+    operationId: deleteProduct
+    tags: [Product Catalog & Category]
+    summary: Delete a product
+    description: >-
+      Refused with `409` where stock or open orders exist; unpublishing is
+      offered instead (`UC-ADM-01` E2). A removed SKU is never reused
+      (`BR-CAT-01`).
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-01]
+      fr: [FR-ADM-01]
+      br: [BR-CAT-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Deleted, or already absent.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409':
+        description: Stock or open orders exist. Unpublish instead.
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+productPublication:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ProductId'
+  put:
+    operationId: setProductPublication
+    tags: [Product Catalog & Category]
+    summary: Publish, unpublish, or discontinue a product
+    description: >-
+      Publication is its own resource because publishing and unpublishing are
+      distinct audited actions with distinct authority, not incidental field
+      updates (`FR-ADM-01`, `FR-AUD-02`). Unpublishing removes the product from
+      browse, search, and recommendations but leaves placed orders untouched
+      (`BR-CAT-02`, `BR-ORD-06`).
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-01]
+      fr: [FR-ADM-01]
+      br: [BR-CAT-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/catalog.yaml#/PublicationChange' }
+    responses:
+      '200':
+        description: Publication state applied.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/Product' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+productVariants:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ProductId'
+  get:
+    operationId: listProductVariants
+    tags: [Product Catalog & Category]
+    summary: List a product's variants
+    description: >-
+      Resolves a variant from selected attribute values (`FR-CAT-02`). With a
+      **partial** selection the caller receives the matching variants and must
+      render a price range rather than a single price and cannot add to cart
+      (`UC-CAT-04` A1).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-CAT-04]
+      fr: [FR-CAT-02]
+      br: [BR-CAT-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: options
+        in: query
+        required: false
+        description: 'Attribute selection, e.g. `options=size:M&options=colour:blue`.'
+        schema: { type: array, items: { type: string, pattern: '^[a-zA-Z0-9_-]+:.+$' } }
+    responses:
+      '200':
+        description: Matching variants.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '../components/schemas/catalog.yaml#/Variant' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  post:
+    operationId: addProductVariant
+    tags: [Product Catalog & Category]
+    summary: Add a variant
+    description: 'SKU uniqueness is enforced platform-wide (`BR-CAT-01`).'
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-01]
+      fr: [FR-ADM-01, FR-CAT-02]
+      br: [BR-CAT-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/catalog.yaml#/VariantWrite' }
+    responses:
+      '201':
+        description: Variant added.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/Variant' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: The SKU is already in use, or was previously used and may not be reused.
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+productVariantById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ProductId'
+    - $ref: '../components/parameters.yaml#/VariantId'
+  get:
+    operationId: getProductVariant
+    tags: [Product Catalog & Category]
+    summary: Get one variant
+    description: 'The selected purchasable configuration, with its own SKU, price and availability (`FR-CAT-02`).'
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-CAT-04]
+      fr: [FR-CAT-02]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The variant.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/Variant' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  delete:
+    operationId: removeProductVariant
+    tags: [Product Catalog & Category]
+    summary: Remove a variant
+    description: >-
+      Refused with `409` while stock or open orders reference it
+      (`UC-ADM-01` E2). The SKU is retired, never reused (`BR-CAT-01`).
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-01]
+      fr: [FR-ADM-01]
+      br: [BR-CAT-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Removed, or already absent.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409':
+        description: Stock or open orders reference this variant.
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+productVariantPrice:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ProductId'
+    - $ref: '../components/parameters.yaml#/VariantId'
+  put:
+    operationId: changeVariantPrice
+    tags: [Product Catalog & Category]
+    summary: Change a variant's list price
+    description: >-
+      A price change is audited as its own action with a mandatory reason
+      (`FR-AUD-02`, `FR-ADM-01`), which is why it is a separate resource rather
+      than a field on the variant. **Placed orders are unaffected**: an order
+      freezes its prices at placement (`BR-ORD-06`).
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-01]
+      fr: [FR-ADM-01]
+      br: [BR-ORD-06]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/catalog.yaml#/PriceChange' }
+    responses:
+      '200':
+        description: New price applied.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/Variant' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+productImages:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ProductId'
+  post:
+    operationId: addProductImage
+    tags: [Product Catalog & Category]
+    summary: Add a product image
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-01]
+      fr: [FR-ADM-01, FR-CAT-01]
+      br: []
+    description: 'Adds an image to the product gallery (`FR-CAT-01`).'
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/catalog.yaml#/ProductImageWrite' }
+    responses:
+      '201':
+        description: Image added.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/ProductImage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+productImageById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ProductId'
+    - $ref: '../components/parameters.yaml#/ImageId'
+  delete:
+    operationId: removeProductImage
+    tags: [Product Catalog & Category]
+    summary: Remove a product image
+    description: 'Idempotent (`Integration Contract` §2.1).'
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-01]
+      fr: [FR-ADM-01]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Removed, or already absent.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+productBulkAmendments:
+  post:
+    operationId: amendProductsInBulk
+    tags: [Product Catalog & Category]
+    summary: Amend several products in one request
+    description: >-
+      Each item is evaluated independently and reports its own outcome: **one
+      rejection does not fail the batch** (`UC-ADM-01` A3). Returns `200` with
+      per-item results rather than a single status, because a partial success is
+      the expected case.
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-01]
+      fr: [FR-ADM-01]
+      br: [BR-CAT-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/catalog.yaml#/BulkProductAmendment' }
+    responses:
+      '200':
+        description: Per-item outcomes.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/BulkAmendmentResult' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

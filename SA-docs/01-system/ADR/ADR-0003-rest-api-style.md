@@ -1,7 +1,7 @@
 # ADR-0003 — REST as the Client-Facing API Style
 
 **Document type:** Architecture Decision Record
-**Status:** Accepted · versioning and contract generation are **Proposed**
+**Status:** Accepted · versioning is **Proposed** · the `Contract` row of §4 is **superseded by [ADR-0031](./ADR-0031-contract-first-openapi.md)**
 **Date:** 2026-09-06
 **Deciders:** Solution Architecture
 **Traces to:** `P3` · `P5` · `P16` · `NFR-SEC-01` · `NFR-SEC-04` · `NFR-REL-02`
@@ -59,6 +59,15 @@ Three supporting choices are recorded here as **Proposed**, since no upstream do
 | Contract | OpenAPI 3.1, generated from the controller layer and published under `04-shared/OpenAPI` | [`example-folder-structure.md`](../../example-folder-structure.md) already reserves `04-shared/OpenAPI` for exactly this. Generated rather than hand-written, so it cannot drift. |
 | Idempotency | `Idempotency-Key` request header on order placement and payment initiation | The mechanism `BR-ORD-03` and `NFR-REL-02` require; scoped to those endpoints rather than applied globally. |
 
+> **Superseded, in part.** The `Contract` row above is replaced by
+> [ADR-0031](./ADR-0031-contract-first-openapi.md), which keeps OpenAPI 3.1 and the
+> `04-shared/OpenAPI` location but makes the document **hand-authored and verified**
+> rather than generated: drift is prevented by a CI gate that diffs the generated
+> description against the published one and fails the build on divergence, instead of
+> by generation alone. The row is left as written — a record is never rewritten
+> ([ADR/README](./README.md) §2) — and the reasoning for the change is in ADR-0031 §1.
+> The `Versioning` and `Idempotency` rows are unaffected.
+
 A read endpoint may be served by any read model — PostgreSQL, Elasticsearch, MongoDB, or Redis — without that choice appearing in its URI. Which store answers a query is an infrastructure decision behind the API, not part of the contract.
 
 ## 5. Consequences
@@ -77,6 +86,7 @@ A read endpoint may be served by any read model — PostgreSQL, Elasticsearch, M
 ### Neutral / follow-on
 
 - The versioning, OpenAPI, and idempotency rows above stay `Proposed` until ratified in architecture review, per [ADR-0001](./ADR-0001-record-architecture-decisions.md).
+- The `Contract` row was subsequently superseded by [ADR-0031](./ADR-0031-contract-first-openapi.md) before it was ever ratified; see the note in §4. `Versioning` and `Idempotency` remain `Proposed` as stated.
 - Error-code taxonomy is not decided here; `04-shared/Error Codes` is reserved for it.
 
 ## 6. Related Decisions

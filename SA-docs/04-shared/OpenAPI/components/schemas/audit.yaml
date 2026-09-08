@@ -1,0 +1,71 @@
+# Audit & Access Control (`AUD`) — schemas
+# Append-only. Domain Model §8.11, Database.md §4.11, ADR-0017
+#
+# There is no write schema in this file, and that is the point: `BR-AUD-01` and
+# `NFR-OBS-02` require the trail to be unamendable *through any interface, by any
+# role*. `ADR-0017` grants the database role only INSERT and SELECT; this
+# contract exposes only GET. The absence is the enforcement.
+
+AuditEntry:
+  type: object
+  required: [id, action, entityType, module, occurredAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    actorId:
+      $ref: './common.yaml#/Id'
+      description: 'Null for a Scheduler-triggered entry, which has no human actor (`A-02`).'
+    actorRole:
+      type: string
+      description: Open vocabulary — the schema places no constraint on the value.
+    action:
+      type: string
+      description: >-
+        What happened. At minimum: product updated, price changed, inventory
+        adjusted, order cancelled, order state advanced, refund approved,
+        promotion created or amended, review moderated, account suspended, role
+        assigned or revoked (`FR-AUD-02`), plus reads of customer data and of the
+        audit trail itself (`UC-AUD-01` A3). Open vocabulary.
+    entityType: { type: string }
+    entityId: { $ref: './common.yaml#/Id' }
+    module: { type: string }
+    beforeValue:
+      type: object
+      additionalProperties: true
+      description: >-
+        Business fields only. **Never a credential, a token, a payment
+        instrument, or a raw request payload** (`NFR-SEC-07`).
+    afterValue:
+      type: object
+      additionalProperties: true
+    reason: { type: string }
+    correlationId:
+      $ref: './common.yaml#/CorrelationId'
+      description: >-
+        Ties this entry to every other entry from the same business transaction
+        across order, payment, inventory, and shipping (`NFR-OBS-03`).
+    occurredAt:
+      type: string
+      format: date-time
+      description: >-
+        When the business fact happened — separate from when the row was written
+        (`Integration Contract` §6.1).
+    recordedAt: { type: string, format: date-time }
+
+AuditEntryPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      required: [retentionBoundary]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/AuditEntry' }
+        retentionBoundary:
+          type: string
+          format: date-time
+          description: >-
+            The oldest date still retained (7 years — `A-13`, `FR-DAT-05`).
+            Present so that entries beyond retention are **declared missing
+            rather than silently omitted** (`UC-AUD-02` E2): a search that
+            quietly returns nothing for an out-of-range period is
+            indistinguishable from one that found nothing.

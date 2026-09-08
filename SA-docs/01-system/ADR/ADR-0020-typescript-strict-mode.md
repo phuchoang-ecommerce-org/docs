@@ -77,6 +77,7 @@ There is also a specific integration risk. The API is REST/JSON ([ADR-0003](./AD
 ### Neutral / follow-on
 
 - Generator choice, lint rule set, and formatter are for [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md).
+- **That input now exists.** [ADR-0031](./ADR-0031-contract-first-openapi.md) publishes a hand-authored, normative OpenAPI 3.1 description under [`04-shared/OpenAPI`](../../04-shared/OpenAPI/README.md), so generation is no longer blocked on the controller layer. The generation-and-fail-on-drift step this record requires is unchanged; only the source of the document changed, and it will itself be checked against the generated one once controllers exist.
 - This record stays `Proposed` until ratified, per [ADR-0001](./ADR-0001-record-architecture-decisions.md).
 
 ## 6. Related Decisions

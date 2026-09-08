@@ -1,0 +1,240 @@
+# Reporting & Analytics (`RPT`) — schemas
+# Pure read side; no aggregates. Database.md §7.2 (MongoDB), ADR-0013, ADR-0030
+#
+# Every report response carries `meta`. Reporting figures may lag transactional
+# state by up to 5 minutes (`A-11`, `NFR-PERF-06`), and a report that does not
+# say how fresh it is, or what it counted, is a number nobody can act on.
+
+ReportMeta:
+  type: object
+  description: >-
+    The provenance every report response carries (`BR-RPT-01`, `UC-RPT-01`).
+  required: [asOf, basis, periodIncomplete]
+  properties:
+    asOf:
+      type: string
+      format: date-time
+      description: >-
+        When the underlying read model was last updated. Reporting may lag
+        transactional state by up to 5 minutes (`A-11`, `NFR-PERF-06`).
+    basis:
+      type: string
+      description: >-
+        The counting basis, stated in the response rather than assumed: revenue
+        counts only orders at `PAID` or beyond, and refunds and returns are
+        deducted in the period they occur, never retrospectively adjusted into a
+        past period's gross (`BR-RPT-01`).
+    periodIncomplete:
+      type: boolean
+      description: >-
+        `true` when the requested period includes today. An incomplete period is
+        **explicitly marked**, never presented as final (`UC-RPT-01`).
+    currency: { type: string, pattern: '^[A-Z]{3}$' }
+
+ReportSeriesPoint:
+  type: object
+  description: >-
+    One period bucket. A zero is a real zero; **"could not compute" is `null`**,
+    and the two must stay distinguishable (`UC-RPT-01`).
+  required: [period]
+  properties:
+    period: { type: string, examples: ['2026-09-07'] }
+    orderCount: { type: integer, format: int64 }
+    grossAmount: { $ref: './common.yaml#/Money' }
+    discountAmount: { $ref: './common.yaml#/Money' }
+    refundedAmount: { $ref: './common.yaml#/Money' }
+    returnedAmount: { $ref: './common.yaml#/Money' }
+    netAmount: { $ref: './common.yaml#/Money' }
+
+RevenueReport:
+  type: object
+  required: [meta, series]
+  properties:
+    meta: { $ref: '#/ReportMeta' }
+    series:
+      type: array
+      items: { $ref: '#/ReportSeriesPoint' }
+    comparison:
+      type: array
+      description: The prior period, for comparison (`FR-RPT-02`).
+      items: { $ref: '#/ReportSeriesPoint' }
+    breakdown:
+      type: array
+      description: 'Optional split by category, payment method, or shipping destination (`FR-RPT-02`).'
+      items:
+        type: object
+        properties:
+          key: { type: string }
+          grossAmount: { $ref: './common.yaml#/Money' }
+          orderCount: { type: integer, format: int64 }
+
+ProductPerformanceReport:
+  type: object
+  required: [meta, items]
+  properties:
+    meta: { $ref: '#/ReportMeta' }
+    items:
+      type: array
+      items:
+        type: object
+        required: [productId]
+        properties:
+          productId: { $ref: './common.yaml#/Id' }
+          name: { type: string }
+          categoryPath: { type: string }
+          viewCount: { type: integer, format: int64 }
+          unitsSold: { type: integer, format: int64 }
+          grossAmount: { $ref: './common.yaml#/Money' }
+          returnCount: { type: integer, format: int64 }
+          returnRate: { type: number, format: double }
+          averageRating: { type: number, format: double }
+          conversionRate:
+            type: number
+            format: double
+            description: >-
+              **Derived at read time, never stored as truth** (`Database.md`
+              §7.2) — a stored ratio drifts from the counts it came from.
+
+CustomerReport:
+  type: object
+  description: >-
+    Access to this report is audited as personal-data access (`UC-RPT-03`,
+    `UC-AUD-01` A3). `aggregateOnly` suppresses per-customer rows entirely, for
+    the common case where the question is about a cohort rather than a person.
+  required: [meta]
+  properties:
+    meta: { $ref: '#/ReportMeta' }
+    registrations:
+      type: array
+      items: { $ref: '#/ReportSeriesPoint' }
+    topCustomers:
+      type: array
+      description: Absent when `aggregateOnly` was requested.
+      items:
+        type: object
+        properties:
+          customerId: { $ref: './common.yaml#/Id' }
+          orderCount: { type: integer, format: int64 }
+          lifetimeValue: { $ref: './common.yaml#/Money' }
+          firstOrderAt: { type: string, format: date-time }
+          lastOrderAt: { type: string, format: date-time }
+    retentionByCohort:
+      type: array
+      items:
+        type: object
+        properties:
+          cohort: { type: string }
+          customerCount: { type: integer, format: int64 }
+          retainedCount: { type: integer, format: int64 }
+
+InventoryReport:
+  type: object
+  required: [meta, positions]
+  properties:
+    meta: { $ref: '#/ReportMeta' }
+    positions:
+      type: array
+      items:
+        type: object
+        properties:
+          sku: { type: string }
+          warehouseId: { $ref: './common.yaml#/Id' }
+          quantityOnHand: { $ref: './common.yaml#/Quantity' }
+          quantityReserved: { $ref: './common.yaml#/Quantity' }
+          availableQuantity: { $ref: './common.yaml#/Quantity' }
+          reorderThreshold: { type: integer, format: int32 }
+          thresholdConfigured:
+            type: boolean
+            description: >-
+              `false` where none is set. An unconfigured threshold is **listed as
+              unconfigured, not omitted** (`UC-RPT-04`) — omitting it hides the
+              SKUs nobody is watching.
+          valuationAtCost: { $ref: './common.yaml#/Money' }
+          slowMoving: { type: boolean }
+    movements:
+      type: array
+      description: 'Receipts, sales, returns, and adjustments grouped by reason (`FR-RPT-06`).'
+      items:
+        type: object
+        properties:
+          period: { type: string }
+          reserved: { type: integer, format: int64 }
+          committed: { type: integer, format: int64 }
+          released: { type: integer, format: int64 }
+          adjusted: { type: integer, format: int64 }
+          reasonCode: { type: string }
+
+OrderStatisticsReport:
+  type: object
+  required: [meta]
+  properties:
+    meta: { $ref: '#/ReportMeta' }
+    countsByStatus:
+      type: object
+      additionalProperties: { type: integer, format: int64 }
+    averageOrderValue: { $ref: './common.yaml#/Money' }
+    cancellationRate: { type: number, format: double }
+    returnRate: { type: number, format: double }
+    conversionRate: { type: number, format: double }
+    funnel:
+      type: array
+      description: 'Search, product view, cart, checkout, placement (`FR-RPT-09`).'
+      items:
+        type: object
+        properties:
+          stage: { type: string }
+          count: { type: integer, format: int64 }
+    cancellationReasons:
+      type: array
+      items:
+        type: object
+        properties:
+          reason: { type: string }
+          count: { type: integer, format: int64 }
+
+ReportExportRequest:
+  type: object
+  description: >-
+    Requests a machine-readable export (`FR-RPT-10`, `UC-RPT-06`). Refused where
+    the caller cannot view the underlying report, and refused where the result
+    would exceed the size limit rather than being silently truncated.
+  required: [report, format]
+  additionalProperties: false
+  properties:
+    report:
+      type: string
+      x-extensible-enum: [REVENUE, PRODUCT_PERFORMANCE, CUSTOMER, INVENTORY, ORDER_STATISTICS, AUDIT]
+    format:
+      type: string
+      x-extensible-enum: [CSV, JSON]
+    periodFrom: { type: string, format: date-time }
+    periodTo: { type: string, format: date-time }
+    parameters:
+      type: object
+      additionalProperties: true
+
+ReportExport:
+  type: object
+  description: >-
+    An export job. Large exports are produced asynchronously with a completion
+    notification (`UC-RPT-06` A2), which is why this is a job resource rather
+    than a synchronous download.
+  required: [id, status, requestedAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    status:
+      type: string
+      x-extensible-enum: [PENDING, READY, FAILED, EXPIRED]
+    report: { type: string }
+    format: { type: string }
+    contentUrl:
+      type: string
+      format: uri-reference
+      description: Present once `status` is `READY`.
+    sizeBytes: { type: integer, format: int64 }
+    requestedAt: { type: string, format: date-time }
+    completedAt: { type: string, format: date-time }
+    expiresAt:
+      type: string
+      format: date-time
+      description: 'Export file retention is an open item: no document states a period.'

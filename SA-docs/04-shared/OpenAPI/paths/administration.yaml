@@ -1,0 +1,304 @@
+# Administration (`ADM`) — path items
+#
+# Permission matrix rows (Integration Contract §9):
+#   Customer & Identity: Support read · Admin manage
+#   Role management:     Admin manage only — every other cell is blank
+#
+# Only what has no other home lives here: account administration (`UC-ADM-03`)
+# and role management (`UC-ADM-06`). `UC-ADM-01`/`02` are in `catalog.yaml`,
+# `UC-ADM-04` in `ordering.yaml`, `UC-ADM-05` in `inventory.yaml` — a staff
+# operation acts on the resource it concerns and differs only in required role,
+# which is what keeps one endpoint mapped to one RBAC rule (`NFR-SEC-01`).
+
+# `GET /accounts` (searchAccounts, `UC-ADM-03`) is defined in `identity.yaml`
+# under the `accounts` key, not here. OpenAPI allows one path item per path and a
+# path item may only be `$ref`'d as a whole, so `GET /accounts` and
+# `POST /accounts` (registration) must live in the same file. It is tagged
+# `Administration` there. See `README.md` §4.
+
+accountById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/AccountId'
+  get:
+    operationId: getAccount
+    tags: [Administration]
+    summary: Inspect a customer account
+    description: >-
+      Profile, addresses, and roles (`FR-ADM-03`). **Never credentials and never
+      a payment instrument** — no such field exists in the schema
+      (`NFR-SEC-02`, `NFR-SEC-07`). The account's orders are reached through
+      `listOrders` with `customerId`.
+
+      This read is audited (`UC-AUD-01` A3).
+    x-ecp-roles: [CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-03]
+      fr: [FR-ADM-03, FR-AUD-02]
+      br: [BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The account.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/identity.yaml#/Account' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  patch:
+    operationId: correctAccountProfile
+    tags: [Administration]
+    summary: Correct a profile detail on the customer's request
+    description: >-
+      Corrects a profile detail at the customer's request (`FR-ADM-03`,
+      `UC-ADM-03` A3). Audited with before-and-after values (`FR-AUD-02`). A
+      password can never be set through this route — only the account holder
+      changes their own password (`FR-CUS-06`).
+
+      **Administrator only.** `UC-ADM-03` names Customer Support Agent as its
+      primary actor, but SRS §2.3 — which is *normative for `FR-AUD-05`* — grants
+      Support only `read` on Customer & Identity. The two disagree, so this
+      contract takes the narrower reading: a permission contract fails closed.
+      See `README.md` §5.1; widening this needs SRS §2.3 amended, not this file.
+    x-ecp-roles: [ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-03]
+      fr: [FR-ADM-03, FR-AUD-02]
+      br: [BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/ProfileUpdate' }
+    responses:
+      '200':
+        description: Updated account.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/identity.yaml#/Account' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  delete:
+    operationId: closeAccount
+    tags: [Administration]
+    summary: Close an account at the customer's request
+    description: >-
+      Closes the account and ends every session. **Orders are retained**
+      (`FR-ADM-03`, `FR-DAT-05`): a closed account does not erase the commercial
+      record, which the audit trail and reporting both depend on. Idempotent
+      (`Integration Contract` §2.1).
+    x-ecp-roles: [ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-03]
+      fr: [FR-ADM-03, FR-AUD-02]
+      br: [BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Closed, or already closed.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+accountStatus:
+  parameters:
+    - $ref: '../components/parameters.yaml#/AccountId'
+  put:
+    operationId: setAccountStatus
+    tags: [Administration]
+    summary: Suspend or reinstate an account
+    description: >-
+      Suspension **invalidates every session immediately** (`FR-ADM-03`,
+      `UC-ADM-03`): leaving a suspended account with a live session would make
+      the suspension advisory rather than effective. The reason is mandatory and
+      audited, and a suspension without one is refused (`FR-AUD-02`,
+      `UC-ADM-03` E3).
+
+      **Administrator only**, for the reason given on `correctAccountProfile`
+      and in `README.md` §5.1: SRS §2.3 grants Support only `read` here.
+    x-ecp-roles: [ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-03]
+      fr: [FR-ADM-03, FR-AUD-02]
+      br: [BR-AUD-01, BR-CUS-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/administration.yaml#/AccountStatusChange' }
+    responses:
+      '200':
+        description: Status applied; sessions ended where the account was suspended.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/identity.yaml#/Account' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+accountSessions:
+  parameters:
+    - $ref: '../components/parameters.yaml#/AccountId'
+  delete:
+    operationId: endAccountSessions
+    tags: [Administration]
+    summary: End every session held by an account
+    description: >-
+      Immediate session termination, for an urgent role revocation or a suspected
+      compromise (`UC-ADM-06` A1). Without it a revoked role would remain
+      effective until the target's next session renewal.
+    x-ecp-roles: [ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-06]
+      fr: [FR-ADM-09, FR-AUD-02]
+      br: [BR-CUS-03, BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Every session ended.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+roles:
+  get:
+    operationId: listRoles
+    tags: [Administration]
+    summary: List roles and the authority each confers
+    description: >-
+      The six roles of SRS §2.3, each with what it grants, so an Administrator
+      can see what they are about to hand over (`FR-ADM-09`, `UC-ADM-06`).
+    x-ecp-roles: [ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-06]
+      fr: [FR-ADM-09, FR-AUD-05]
+      br: [BR-AUD-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The roles.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '../components/schemas/administration.yaml#/Role' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+accountRoles:
+  parameters:
+    - $ref: '../components/parameters.yaml#/AccountId'
+  get:
+    operationId: listAccountRoles
+    tags: [Administration]
+    summary: List an account's roles
+    x-ecp-roles: [ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-06]
+      fr: [FR-ADM-09]
+      br: [BR-AUD-02]
+    description: 'The roles currently held (`FR-ADM-09`).'
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The account's roles.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '../components/schemas/administration.yaml#/Role' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  post:
+    operationId: grantAccountRole
+    tags: [Administration]
+    summary: Grant a role
+    description: >-
+      Grants a role with a mandatory reason (`FR-ADM-09`, `UC-ADM-06`).
+      **Self-elevation is refused with `403`** (`BR-AUD-03`): an Administrator
+      may not grant themselves authority they do not hold.
+
+      The change takes effect no later than the target's next session renewal;
+      use `endAccountSessions` to make it immediate.
+    x-ecp-roles: [ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-06]
+      fr: [FR-ADM-09, FR-AUD-02]
+      br: [BR-AUD-01, BR-AUD-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/administration.yaml#/RoleGrant' }
+    responses:
+      '200':
+        description: Role granted.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '../components/schemas/administration.yaml#/Role' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+accountRoleByCode:
+  parameters:
+    - $ref: '../components/parameters.yaml#/AccountId'
+    - $ref: '../components/parameters.yaml#/RoleCode'
+  delete:
+    operationId: revokeAccountRole
+    tags: [Administration]
+    summary: Revoke a role
+    description: >-
+      Revokes a role with a **mandatory reason**, which is why this `DELETE`
+      carries a body (`FR-ADM-09`, `UC-ADM-06`).
+
+      **Revoking the last Administrator is refused with `409`** (`BR-AUD-03`): a
+      platform with no administrator cannot be administered back into having one.
+    x-ecp-roles: [ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-ADM-06]
+      fr: [FR-ADM-09, FR-AUD-02]
+      br: [BR-AUD-01, BR-AUD-03]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/administration.yaml#/RoleRevocation' }
+    responses:
+      '204':
+        description: Role revoked, or not held.
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '409':
+        description: This is the last Administrator; the role may not be revoked (`BR-AUD-03`).
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

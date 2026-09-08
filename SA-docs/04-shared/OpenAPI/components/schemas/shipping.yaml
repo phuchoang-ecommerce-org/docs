@@ -1,0 +1,176 @@
+# Shipping (`SHP`) — schemas
+# Aggregate: Shipment (append-only child entity TrackingEvent). Domain Model §8.7, Database.md §4.7
+#
+# The shipping *fee* lives on the order, not here (`Database.md` §4.7): the fee
+# is part of what the customer agreed to at placement (`BR-ORD-06`).
+
+ShipmentStatus:
+  type: string
+  description: >-
+    Open vocabulary (`Integration Contract` §8.1). Progress is **monotonic**: an
+    out-of-order carrier update is retained in history but never moves a shipment
+    backwards (`BR-SHP-02`).
+  x-extensible-enum: [CREATED, DISPATCHED, IN_TRANSIT, OUT_FOR_DELIVERY, DELIVERED, FAILED, RETURNED]
+  examples: [IN_TRANSIT]
+
+ShippingOption:
+  type: object
+  description: >-
+    One quoted option. A delivery estimate is always a **range**, never a single
+    date (`FR-SHP-03`, `UC-SHP-02`).
+  required: [id, carrier, fee]
+  properties:
+    id: { type: string }
+    carrier:
+      type: string
+      description: >-
+        Open vocabulary — the schema constrains this to a string and defines no
+        value set, and `NFR-MAINT-03` forbids naming a provider.
+    serviceName: { type: string }
+    fee: { $ref: './common.yaml#/Money' }
+    estimatedDeliveryFrom: { type: string, format: date-time }
+    estimatedDeliveryTo: { type: string, format: date-time }
+    freeShippingApplied:
+      type: boolean
+      description: A threshold or promotional condition reduced the fee to zero (`FR-PRM-03`).
+
+ShippingQuote:
+  type: object
+  description: >-
+    Quoted options for a destination and contents. **The platform never estimates
+    a fee it could not obtain**: a quoting failure is reported as `503`, not
+    guessed (`UC-SHP-01` E2). An order split across warehouses is quoted per
+    shipment.
+  required: [options]
+  properties:
+    options:
+      type: array
+      items: { $ref: '#/ShippingOption' }
+    shipmentCount:
+      type: integer
+      format: int32
+      minimum: 1
+      description: Number of shipments the order would be split into.
+
+TrackingEvent:
+  type: object
+  description: >-
+    An append-only carrier event. `carrierOccurredAt` (when the carrier says it
+    happened) and `receivedAt` (when the platform got it) are separate: conflating
+    them computes wrong durations (`Integration Contract` §6.1).
+  required: [id, status, carrierOccurredAt, receivedAt, applied]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    status:
+      type: string
+      description: >-
+        Carrier-reported status. Open vocabulary — the schema places no
+        constraint on it.
+    description: { type: string }
+    location: { type: string }
+    carrierOccurredAt: { type: string, format: date-time }
+    receivedAt: { type: string, format: date-time }
+    applied:
+      type: boolean
+      description: >-
+        `false` for an out-of-order update that was **recorded but not applied**,
+        because progress may not move backwards (`BR-SHP-02`). Retaining it keeps
+        the carrier's account of events complete.
+
+Shipment:
+  type: object
+  required: [id, orderId, carrier, status, createdAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    orderId: { $ref: './common.yaml#/Id' }
+    carrier: { type: string }
+    trackingReference:
+      type: string
+      description: Business reference, never the path id (`Database.md` §2.2).
+    carrierTrackingUrl:
+      type: string
+      format: uri
+      description: >-
+        Offered **alongside** the platform's own tracking view, never instead of
+        it (`UC-SHP-05`).
+    status: { $ref: '#/ShipmentStatus' }
+    destinationPostalCode: { type: string }
+    destinationCountryCode: { type: string, pattern: '^[A-Z]{2}$' }
+    lineIds:
+      type: array
+      description: The order lines in this shipment; a split order gives each shipment its own set.
+      items: { $ref: './common.yaml#/Id' }
+    codAmount:
+      $ref: './common.yaml#/Money'
+      description: Declared to the carrier for a Cash On Delivery order (`FR-PAY-07`).
+    trackingEvents:
+      type: array
+      items: { $ref: '#/TrackingEvent' }
+    lastUpdateReceivedAt:
+      type: string
+      format: date-time
+      description: >-
+        When the platform last heard from the carrier. Shown so a customer can
+        tell "nothing has happened" from "we have not been told"
+        (`UC-SHP-05`).
+    dispatchedAt: { type: string, format: date-time }
+    deliveredAt: { type: string, format: date-time }
+    createdAt: { type: string, format: date-time }
+
+ShipmentPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/Shipment' }
+
+ShipmentWrite:
+  type: object
+  description: >-
+    Creates a shipment from a `PACKED` order (`FR-SHP-01`, `FR-SHP-04`). Carrier
+    selection is automatic unless overridden, and an override **requires a
+    recorded reason** (`UC-SHP-03` A1).
+  required: [orderId]
+  additionalProperties: false
+  properties:
+    orderId: { $ref: './common.yaml#/Id' }
+    carrier: { type: string }
+    carrierOverrideReason: { type: string }
+    lineIds:
+      type: array
+      description: Omit for the whole order; supply to create one shipment of a split.
+      items: { $ref: './common.yaml#/Id' }
+
+CarrierEvent:
+  type: object
+  description: >-
+    An inbound carrier tracking update (`UC-SHP-04`). Deduplicated on
+    `carrierEventId`; an out-of-order update is retained but not applied
+    (`BR-SHP-02`).
+  required: [trackingReference, status, carrierOccurredAt]
+  additionalProperties: false
+  properties:
+    trackingReference: { type: string }
+    carrier: { type: string }
+    carrierEventId:
+      type: string
+      description: >-
+        The carrier's own event id, used for at-most-once application however
+        many times it is delivered (`NFR-REL-04`).
+    status: { type: string }
+    description: { type: string }
+    location: { type: string }
+    carrierOccurredAt: { type: string, format: date-time }
+
+DeliveryConfirmation:
+  type: object
+  description: >-
+    Confirms delivery (`FR-SHP-07`). Starts the return window and triggers Cash
+    On Delivery settlement. **Applied once**: a duplicate confirmation must not
+    restart the return window (`UC-SHP-06` E1).
+  additionalProperties: false
+  properties:
+    deliveredAt: { type: string, format: date-time }
+    receivedBy: { type: string }

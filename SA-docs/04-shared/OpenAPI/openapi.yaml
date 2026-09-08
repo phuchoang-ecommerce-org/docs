@@ -1,0 +1,326 @@
+openapi: 3.1.0
+
+info:
+  title: Enterprise Commerce Platform API
+  version: 1.0.0
+  summary: The single REST/JSON API every ECP client class uses.
+  description: |
+    The client-facing contract for the Enterprise Commerce Platform (ECP).
+
+    **One API serves every client class** — web storefront, admin console, and
+    the future mobile application (SRS §8). A new client is a new *caller*, never
+    a new place rules are re-implemented (`P5`). Authorisation is applied once,
+    at the API/application boundary, and never assumed by a client
+    (`ADR-0003` §4, `ADR-0016`).
+
+    ## Status
+
+    **Proposed.** This document is hand-authored, contract-first, under
+    [`ADR-0031`](../../01-system/ADR/ADR-0031-contract-first-openapi.md), which
+    supersedes the `Contract` row of [`ADR-0003`](../../01-system/ADR/ADR-0003-rest-api-style.md)
+    §4. It is normative until the controller layer exists, at which point CI
+    diffs the generated document against it and fails the build on divergence.
+    See `README.md`.
+
+    ## What is normative elsewhere
+
+    Every rule this document encodes comes from
+    [`Integration Contract.md`](../Integration%20Contract.md). Where the two
+    disagree, the Integration Contract is right and this document is stale.
+
+    | Concern | Source |
+    |---|---|
+    | REST conventions, verbs, status codes | Integration Contract §2, §2.1 |
+    | Idempotency | Integration Contract §2.2, ADR-0003 §4 |
+    | Pagination, filtering, sorting | Integration Contract §3 |
+    | Error taxonomy | Integration Contract §4 |
+    | Authentication and authorisation | Integration Contract §5, ADR-0016, ADR-0025 |
+    | Schema evolution | Integration Contract §8 |
+    | Permission matrix | Integration Contract §9, SRS §2.3 (normative) |
+
+    ## Conventions that apply to every operation
+
+    - **Money is always an object**, never a bare number, and its `amount` is a
+      **string** so no client's JSON parser can turn it into a float.
+    - **Identifiers are opaque.** A client never parses, orders, or infers
+      meaning from one.
+    - **Every collection is paginated**, by cursor and never by offset. There is
+      no unpaginated list endpoint.
+    - **Every 4xx and 5xx carries a `code`** in an RFC 9457
+      `application/problem+json` body. There is no bare status-code error.
+    - **Status enums are open.** Adding a value is a non-breaking change
+      precisely because clients must tolerate unknown values, so status fields
+      are typed `string` with `x-extensible-enum` rather than a closed `enum`.
+    - **A resource the caller does not own returns `404`, not `403`** —
+      returning `403` would confirm it exists.
+    - **An unknown query parameter is `400`**, never silently ignored.
+    - Which store answers a query — PostgreSQL, Elasticsearch, MongoDB, or Redis
+      — never appears in a URI or a response.
+
+    ## Vendor extensions
+
+    | Extension | Meaning |
+    |---|---|
+    | `x-ecp-roles` | The roles permitted to call this operation, from the Integration Contract §9 permission matrix. Empty for a provider callback, which is authenticated by signature rather than by role. |
+    | `x-ecp-ownership` | `own` where the role grants the *capability* and a runtime ownership check grants the *instance*. |
+    | `x-ecp-traces` | The `UC`/`FR`/`BR` identifiers this operation realises. `UC-<D>-<nn>` and `US-<D>-<nn>` are the identity mapping, so citing the use case cites the user story too. |
+    | `x-ecp-actor` | The external actor that calls an inbound provider callback. |
+    | `x-extensible-enum` | The known values of an open vocabulary. Clients must tolerate values not listed. |
+  contact:
+    name: Solution Architecture
+  license:
+    name: Proprietary
+    identifier: LicenseRef-ECP-Proprietary
+
+servers:
+  - url: '{protocol}://{host}/api/v1'
+    description: >-
+      Versioning is a URI path prefix — visible in logs, cacheable, trivially
+      routable (`ADR-0003` §4). A breaking change ships as `/api/v2` served
+      concurrently, and `v1` then carries a `Deprecation` header
+      (`Integration Contract` §8.3).
+
+      **[ASSUMPTION]** No document names a host. The variables below are
+      placeholders to be set per environment.
+    variables:
+      protocol:
+        default: https
+        enum: [https]
+        description: HTTPS only. The session cookie is never sent over plain HTTP (`NFR-SEC-06`).
+      host:
+        default: api.ecp.example
+  - url: 'http://localhost:8080/api/v1'
+    description: Local development (`Deployment Diagram` — local topology).
+
+security:
+  - bearerAuth: []
+  - sessionCookie: []
+    csrfToken: []
+
+tags:
+  - name: Customer & Identity
+    description: >-
+      Registration, verification, sessions, profile, and the address book
+      (`CUS`, `UC-CUS-01`–`UC-CUS-10`).
+  - name: Product Catalog & Category
+    description: >-
+      Products, variants, images, and the category tree, plus the staff
+      operations that maintain them (`CAT`, `UC-CAT-01`–`UC-CAT-05`,
+      `UC-ADM-01`, `UC-ADM-02`).
+  - name: Search & Recommendation
+    description: >-
+      Keyword search, auto-complete, facets, keywords, and recommendations
+      (`SCH`, `UC-SCH-01`–`UC-SCH-07`). Served by a read model inside Catalog;
+      degrades rather than blocking browse or checkout (`NFR-AVAIL-02`).
+  - name: Inventory
+    description: >-
+      Stock levels, adjustments, and reservation commitment (`INV`,
+      `UC-INV-03`–`UC-INV-05`, `UC-ADM-05`). Reservation and release are
+      in-process and have no endpoint.
+  - name: Cart & Wishlist
+    description: >-
+      Guest and customer carts, merge-on-login, and the wishlist (`CRT`,
+      `UC-CRT-01`–`UC-CRT-05`, `UC-CRT-07`, `UC-CRT-08`).
+  - name: Checkout & Order
+    description: >-
+      Checkout, order placement, the order lifecycle, cancellation, and returns
+      (`ORD`, `UC-ORD-01`–`UC-ORD-10`, `UC-ADM-04`, `UC-CUS-10`).
+  - name: Payment
+    description: >-
+      Method eligibility, authorisation, provider callbacks, Cash On Delivery,
+      retries, and refunds (`PAY`, `UC-PAY-01`–`UC-PAY-06`). No operation here
+      accepts or returns a payment instrument.
+  - name: Shipping
+    description: >-
+      Quotes, shipments, carrier tracking, and delivery confirmation (`SHP`,
+      `UC-SHP-01`–`UC-SHP-06`).
+  - name: Promotion
+    description: >-
+      Promotions, vouchers, flash sales, and redemptions (`PRM`,
+      `UC-PRM-01`–`UC-PRM-05`).
+  - name: Review
+    description: >-
+      Submission by verified buyers, editing, reporting, and moderation (`REV`,
+      `UC-REV-01`–`UC-REV-05`).
+  - name: Notification
+    description: >-
+      The in-app inbox, preferences, and delivery outcomes (`NTF`, `UC-NTF-03`,
+      `UC-NTF-04`). Delivery itself is event-driven and has no endpoint.
+  - name: Administration
+    description: >-
+      Account administration and role management (`ADM`, `UC-ADM-03`,
+      `UC-ADM-06`). The other `ADM` use cases live on the resources they act on.
+  - name: Reporting & Analytics
+    description: >-
+      Revenue, product, customer, inventory, and conversion reporting, plus
+      exports (`RPT`, `UC-RPT-01`–`UC-RPT-06`). Figures may lag transactional
+      state by up to 5 minutes (`A-11`).
+  - name: Audit & Access Control
+    description: >-
+      Read-only search of the append-only audit trail (`AUD`, `UC-AUD-02`).
+      No role may amend it through any interface.
+
+paths:
+  # ------------------------------------------------ Customer & Identity (CUS)
+  /accounts:                                 { $ref: './paths/identity.yaml#/accounts' }
+  /account-verifications:                    { $ref: './paths/identity.yaml#/accountVerifications' }
+  /account-verification-requests:            { $ref: './paths/identity.yaml#/accountVerificationRequests' }
+  /sessions:                                 { $ref: './paths/identity.yaml#/sessions' }
+  /sessions/current:                         { $ref: './paths/identity.yaml#/sessionsCurrent' }
+  /session-renewals:                         { $ref: './paths/identity.yaml#/sessionRenewals' }
+  /password-reset-requests:                  { $ref: './paths/identity.yaml#/passwordResetRequests' }
+  /password-resets:                          { $ref: './paths/identity.yaml#/passwordResets' }
+  /accounts/me:                              { $ref: './paths/identity.yaml#/accountsMe' }
+  /accounts/me/password:                     { $ref: './paths/identity.yaml#/accountsMePassword' }
+  /accounts/me/addresses:                    { $ref: './paths/identity.yaml#/accountsMeAddresses' }
+  /accounts/me/addresses/{addressId}:        { $ref: './paths/identity.yaml#/accountsMeAddressById' }
+
+  # --------------------------------------- Product Catalog & Category (CAT)
+  /categories:                               { $ref: './paths/catalog.yaml#/categories' }
+  /featured-categories:                      { $ref: './paths/catalog.yaml#/featuredCategories' }
+  /categories/{categoryId}:                  { $ref: './paths/catalog.yaml#/categoryById' }
+  /categories/{categoryId}/products:         { $ref: './paths/catalog.yaml#/categoryProducts' }
+  /products:                                 { $ref: './paths/catalog.yaml#/products' }
+  /products/{productId}:                     { $ref: './paths/catalog.yaml#/productById' }
+  /products/{productId}/publication:         { $ref: './paths/catalog.yaml#/productPublication' }
+  /products/{productId}/variants:            { $ref: './paths/catalog.yaml#/productVariants' }
+  /products/{productId}/variants/{variantId}:
+    { $ref: './paths/catalog.yaml#/productVariantById' }
+  /products/{productId}/variants/{variantId}/price:
+    { $ref: './paths/catalog.yaml#/productVariantPrice' }
+  /products/{productId}/images:              { $ref: './paths/catalog.yaml#/productImages' }
+  /products/{productId}/images/{imageId}:    { $ref: './paths/catalog.yaml#/productImageById' }
+  /product-bulk-amendments:                  { $ref: './paths/catalog.yaml#/productBulkAmendments' }
+
+  # ----------------------------------------- Search & Recommendation (SCH)
+  /search/products:                          { $ref: './paths/search.yaml#/searchProducts' }
+  /search/suggestions:                       { $ref: './paths/search.yaml#/searchSuggestions' }
+  /search/popular-keywords:                  { $ref: './paths/search.yaml#/popularKeywords' }
+  /search/recent-keywords:                   { $ref: './paths/search.yaml#/recentKeywords' }
+  /search/recent-keywords/{keyword}:         { $ref: './paths/search.yaml#/recentKeywordByValue' }
+  /products/{productId}/related-products:    { $ref: './paths/search.yaml#/productRelatedProducts' }
+  /products/{productId}/frequently-bought-together:
+    { $ref: './paths/search.yaml#/productFrequentlyBoughtTogether' }
+  /carts/{cartId}/frequently-bought-together:
+    { $ref: './paths/search.yaml#/cartFrequentlyBoughtTogether' }
+  /recommendations/trending:                 { $ref: './paths/search.yaml#/trendingProducts' }
+  /recommendations/new-arrivals:             { $ref: './paths/search.yaml#/newArrivals' }
+  /recommendations/personalised:             { $ref: './paths/search.yaml#/personalisedRecommendations' }
+  /accounts/me/personalisation-preferences:  { $ref: './paths/search.yaml#/personalisationPreferences' }
+
+  # ------------------------------------------------------------ Inventory (INV)
+  /warehouses:                               { $ref: './paths/inventory.yaml#/warehouses' }
+  /stock-items:                              { $ref: './paths/inventory.yaml#/stockItems' }
+  /stock-items/{stockItemId}:                { $ref: './paths/inventory.yaml#/stockItemById' }
+  /stock-items/{stockItemId}/adjustments:    { $ref: './paths/inventory.yaml#/stockItemAdjustments' }
+  /stock-reservations/{reservationId}/commitments:
+    { $ref: './paths/inventory.yaml#/stockReservationCommitments' }
+
+  # ------------------------------------------------------ Cart & Wishlist (CRT)
+  /carts/current:                            { $ref: './paths/cart.yaml#/cartsCurrent' }
+  /carts/{cartId}:                           { $ref: './paths/cart.yaml#/cartById' }
+  /carts/{cartId}/lines:                     { $ref: './paths/cart.yaml#/cartLines' }
+  /carts/{cartId}/lines/{lineId}:            { $ref: './paths/cart.yaml#/cartLineById' }
+  /carts/{cartId}/merges:                    { $ref: './paths/cart.yaml#/cartMerges' }
+  /carts/{cartId}/wishlist-transfers:        { $ref: './paths/cart.yaml#/cartWishlistTransfers' }
+  /wishlists/current:                        { $ref: './paths/cart.yaml#/wishlistsCurrent' }
+  /wishlists/{wishlistId}/items:             { $ref: './paths/cart.yaml#/wishlistItems' }
+  /wishlists/{wishlistId}/items/{itemId}:    { $ref: './paths/cart.yaml#/wishlistItemById' }
+
+  # ----------------------------------------------------- Checkout & Order (ORD)
+  /checkouts:                                { $ref: './paths/ordering.yaml#/checkouts' }
+  /checkouts/current:                        { $ref: './paths/ordering.yaml#/checkoutsCurrent' }
+  /checkouts/{checkoutId}/shipping-address:  { $ref: './paths/ordering.yaml#/checkoutShippingAddress' }
+  /checkouts/{checkoutId}/billing-information:
+    { $ref: './paths/ordering.yaml#/checkoutBillingInformation' }
+  /checkouts/{checkoutId}/shipping-option:   { $ref: './paths/ordering.yaml#/checkoutShippingOption' }
+  /checkouts/{checkoutId}/voucher:           { $ref: './paths/ordering.yaml#/checkoutVoucher' }
+  /checkouts/{checkoutId}/summary:           { $ref: './paths/ordering.yaml#/checkoutSummary' }
+  /orders:                                   { $ref: './paths/ordering.yaml#/orders' }
+  /orders/{orderId}:                         { $ref: './paths/ordering.yaml#/orderById' }
+  /orders/{orderId}/lines:                   { $ref: './paths/ordering.yaml#/orderLines' }
+  /orders/{orderId}/tracking:                { $ref: './paths/ordering.yaml#/orderTracking' }
+  /orders/{orderId}/cancellation:            { $ref: './paths/ordering.yaml#/orderCancellation' }
+  /orders/{orderId}/return-request:          { $ref: './paths/ordering.yaml#/orderReturnRequest' }
+  /orders/{orderId}/return-request/resolution:
+    { $ref: './paths/ordering.yaml#/orderReturnResolution' }
+  /orders/{orderId}/status-transitions:      { $ref: './paths/ordering.yaml#/orderStatusTransitions' }
+  /orders/{orderId}/investigation-flag:      { $ref: './paths/ordering.yaml#/orderInvestigationFlag' }
+  /order-status-transition-batches:          { $ref: './paths/ordering.yaml#/orderStatusTransitionBatches' }
+
+  # -------------------------------------------------------------- Payment (PAY)
+  /orders/{orderId}/payment-methods:         { $ref: './paths/payment.yaml#/orderPaymentMethods' }
+  /orders/{orderId}/payment:                 { $ref: './paths/payment.yaml#/orderPayments' }
+  /checkouts/{checkoutId}/payment-method:    { $ref: './paths/payment.yaml#/checkoutPaymentMethod' }
+  /payments:                                 { $ref: './paths/payment.yaml#/payments' }
+  /payments/{paymentId}:                     { $ref: './paths/payment.yaml#/paymentById' }
+  /payments/{paymentId}/attempts:            { $ref: './paths/payment.yaml#/paymentAttempts' }
+  /payments/{paymentId}/refunds:             { $ref: './paths/payment.yaml#/paymentRefunds' }
+  /payments/{paymentId}/cash-collections:    { $ref: './paths/payment.yaml#/paymentCashCollections' }
+  /payment-provider-notifications:           { $ref: './paths/payment.yaml#/paymentProviderNotifications' }
+  /unmatched-payments:                       { $ref: './paths/payment.yaml#/unmatchedPayments' }
+
+  # ------------------------------------------------------------- Shipping (SHP)
+  /shipping-quotes:                          { $ref: './paths/shipping.yaml#/shippingQuotes' }
+  /shipments:                                { $ref: './paths/shipping.yaml#/shipments' }
+  /shipments/{shipmentId}:                   { $ref: './paths/shipping.yaml#/shipmentById' }
+  /shipments/{shipmentId}/tracking-events:   { $ref: './paths/shipping.yaml#/shipmentTrackingEvents' }
+  /shipments/{shipmentId}/delivery-confirmation:
+    { $ref: './paths/shipping.yaml#/shipmentDeliveryConfirmation' }
+  /orders/{orderId}/shipments:               { $ref: './paths/shipping.yaml#/orderShipments' }
+  /carrier-events:                           { $ref: './paths/shipping.yaml#/shipmentCarrierEvents' }
+
+  # ------------------------------------------------------------ Promotion (PRM)
+  /promotions:                               { $ref: './paths/promotion.yaml#/promotions' }
+  /promotions/{promotionId}:                 { $ref: './paths/promotion.yaml#/promotionById' }
+  /promotions/{promotionId}/status:          { $ref: './paths/promotion.yaml#/promotionStatus' }
+  /promotions/{promotionId}/vouchers:        { $ref: './paths/promotion.yaml#/promotionVouchers' }
+  /promotions/{promotionId}/redemptions:     { $ref: './paths/promotion.yaml#/promotionRedemptions' }
+  /voucher-validations:                      { $ref: './paths/promotion.yaml#/voucherValidations' }
+
+  # --------------------------------------------------------------- Review (REV)
+  /products/{productId}/reviews:             { $ref: './paths/review.yaml#/productReviews' }
+  /products/{productId}/rating-summary:      { $ref: './paths/review.yaml#/productRatingSummary' }
+  /reviews:                                  { $ref: './paths/review.yaml#/reviews' }
+  /reviews/{reviewId}:                       { $ref: './paths/review.yaml#/reviewById' }
+  /reviews/{reviewId}/images:                { $ref: './paths/review.yaml#/reviewImages' }
+  /reviews/{reviewId}/images/{imageId}:      { $ref: './paths/review.yaml#/reviewImageById' }
+  /reviews/{reviewId}/reports:               { $ref: './paths/review.yaml#/reviewReports' }
+  /reviews/{reviewId}/moderation:            { $ref: './paths/review.yaml#/reviewModeration' }
+
+  # --------------------------------------------------------- Notification (NTF)
+  /notifications:                            { $ref: './paths/notification.yaml#/notifications' }
+  /notifications/{notificationId}:           { $ref: './paths/notification.yaml#/notificationById' }
+  /notification-read-marks:                  { $ref: './paths/notification.yaml#/notificationReadMarks' }
+  /notification-unsubscriptions:             { $ref: './paths/notification.yaml#/notificationUnsubscriptions' }
+  /notification-deliveries:                  { $ref: './paths/notification.yaml#/notificationDeliveries' }
+  /accounts/me/notification-preferences:     { $ref: './paths/notification.yaml#/notificationPreferences' }
+
+  # ------------------------------------------------------- Administration (ADM)
+  /accounts/{accountId}:                     { $ref: './paths/administration.yaml#/accountById' }
+  /accounts/{accountId}/status:              { $ref: './paths/administration.yaml#/accountStatus' }
+  /accounts/{accountId}/sessions:            { $ref: './paths/administration.yaml#/accountSessions' }
+  /accounts/{accountId}/roles:               { $ref: './paths/administration.yaml#/accountRoles' }
+  /accounts/{accountId}/roles/{roleCode}:    { $ref: './paths/administration.yaml#/accountRoleByCode' }
+  /roles:                                    { $ref: './paths/administration.yaml#/roles' }
+
+  # ------------------------------------------------ Reporting & Analytics (RPT)
+  /reports/revenue:                          { $ref: './paths/reporting.yaml#/revenueReport' }
+  /reports/product-performance:              { $ref: './paths/reporting.yaml#/productPerformanceReport' }
+  /reports/customers:                        { $ref: './paths/reporting.yaml#/customerReport' }
+  /reports/inventory:                        { $ref: './paths/reporting.yaml#/inventoryReport' }
+  /reports/order-statistics:                 { $ref: './paths/reporting.yaml#/orderStatisticsReport' }
+  /report-exports:                           { $ref: './paths/reporting.yaml#/reportExports' }
+  /report-exports/{exportId}:                { $ref: './paths/reporting.yaml#/reportExportById' }
+  /report-exports/{exportId}/content:        { $ref: './paths/reporting.yaml#/reportExportContent' }
+
+  # ------------------------------------------------ Audit & Access Control (AUD)
+  /audit-entries:                            { $ref: './paths/audit.yaml#/auditEntries' }
+  /audit-entries/{auditEntryId}:             { $ref: './paths/audit.yaml#/auditEntryById' }
+
+components:
+  securitySchemes:
+    bearerAuth:        { $ref: './components/securitySchemes.yaml#/bearerAuth' }
+    sessionCookie:     { $ref: './components/securitySchemes.yaml#/sessionCookie' }
+    csrfToken:         { $ref: './components/securitySchemes.yaml#/csrfToken' }
+    providerSignature: { $ref: './components/securitySchemes.yaml#/providerSignature' }

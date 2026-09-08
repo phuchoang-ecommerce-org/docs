@@ -1,0 +1,169 @@
+# Inventory (`INV`, Core) — schemas
+# Aggregate: StockItem (identity = Sku + WarehouseId), child entity StockReservation.
+# Domain Model §8.3, Database.md §4.3, ADR-0011
+
+VariantAvailability:
+  type: object
+  description: |
+    Availability as a **shopper** may see it.
+
+    Quantities and warehouse structure are never exposed to a Guest or a
+    Customer: the permission matrix grants Customer "availability only"
+    (`Integration Contract` §9). Operator-facing quantities live on `StockItem`.
+
+    This figure is advisory. The binding availability check happens inside the
+    order-placement transaction against the command side, never against a
+    projection (`ADR-0008` §4, `Domain Model` §5.2).
+  required: [inStock]
+  properties:
+    inStock: { type: boolean }
+    lowStock:
+      type: boolean
+      description: Below the configured reorder threshold — a display hint, not a quantity.
+
+ReservationStatus:
+  type: string
+  description: >-
+    A reservation is terminal in exactly one of two ways: `HELD` becomes
+    `COMMITTED` or `RELEASED`, never both and never neither (`BR-INV-02`).
+    Open vocabulary (`Integration Contract` §8.1).
+  x-extensible-enum: [HELD, COMMITTED, RELEASED]
+  examples: [HELD]
+
+Warehouse:
+  type: object
+  required: [id, code, name, active]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    code: { type: string }
+    name: { type: string }
+    countryCode: { type: string, pattern: '^[A-Z]{2}$' }
+    active: { type: boolean }
+
+StockItem:
+  type: object
+  description: >-
+    Stock for one SKU in one warehouse. The three figures are reported
+    **separately** — an operator needs to see reserved stock to understand why
+    available stock is lower than what is physically present (`FR-INV-01`,
+    `UC-INV-05`).
+  required: [id, sku, warehouseId, quantityOnHand, quantityReserved, availableQuantity]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    sku: { type: string }
+    warehouseId: { $ref: './common.yaml#/Id' }
+    warehouseCode: { type: string }
+    quantityOnHand: { $ref: './common.yaml#/Quantity' }
+    quantityReserved: { $ref: './common.yaml#/Quantity' }
+    availableQuantity:
+      allOf: [{ $ref: './common.yaml#/Quantity' }]
+      readOnly: true
+      description: >-
+        **Derived**, never stored and never writable:
+        `quantityOnHand - quantityReserved` (`ADR-0011` §4). This is the quantity
+        the platform may still sell.
+    reorderThreshold:
+      type: integer
+      format: int32
+      minimum: 0
+      description: >-
+        Null where none is configured. A report lists an unconfigured threshold
+        as unconfigured rather than omitting the SKU (`UC-RPT-04`).
+    updatedAt: { type: string, format: date-time }
+
+StockItemPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/StockItem' }
+        aggregate:
+          type: object
+          description: >-
+            Totals across every warehouse in the filtered set, alongside the
+            per-warehouse breakdown in `items` (`UC-INV-05` A1).
+          properties:
+            quantityOnHand: { $ref: './common.yaml#/Quantity' }
+            quantityReserved: { $ref: './common.yaml#/Quantity' }
+            availableQuantity: { $ref: './common.yaml#/Quantity' }
+
+StockReservation:
+  type: object
+  description: >-
+    A hold placed on stock at order placement, later either committed on
+    fulfilment or released on cancellation, payment failure, or expiry
+    (`ADR-0011` §4). A single order line may hold several reservations when it is
+    satisfied from more than one warehouse.
+  required: [id, stockItemId, quantity, status, expiresAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    stockItemId: { $ref: './common.yaml#/Id' }
+    orderId: { $ref: './common.yaml#/Id' }
+    orderLineId: { $ref: './common.yaml#/Id' }
+    quantity: { type: integer, format: int32, minimum: 1 }
+    status: { $ref: '#/ReservationStatus' }
+    expiresAt: { type: string, format: date-time }
+    resolvedAt:
+      type: string
+      format: date-time
+      description: Null exactly while `status` is `HELD`.
+
+StockAdjustment:
+  type: object
+  required: [id, stockItemId, delta, reasonCode, reason, actorId, occurredAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    stockItemId: { $ref: './common.yaml#/Id' }
+    delta:
+      type: integer
+      format: int32
+      description: Non-zero. Negative to write stock off, positive to receive it.
+    reasonCode:
+      type: string
+      description: >-
+        Open vocabulary — the schema constrains this to a string and defines no
+        value set, so no closed enum is asserted here either.
+    reason: { type: string }
+    quantityBefore: { $ref: './common.yaml#/Quantity' }
+    quantityAfter: { $ref: './common.yaml#/Quantity' }
+    stockCountReference:
+      type: string
+      description: Groups adjustments made under one stock count (`UC-ADM-05` A2).
+    actorId: { $ref: './common.yaml#/Id' }
+    occurredAt: { type: string, format: date-time }
+
+StockAdjustmentPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/StockAdjustment' }
+
+StockAdjustmentWrite:
+  type: object
+  description: >-
+    `reason` is mandatory: an unexplained inventory movement is exactly what
+    `FR-AUD-02` and `UC-INV-04` exist to prevent.
+  required: [delta, reasonCode, reason]
+  additionalProperties: false
+  properties:
+    delta: { type: integer, format: int32 }
+    reasonCode: { type: string }
+    reason: { type: string, minLength: 1 }
+    stockCountReference: { type: string }
+
+ReservationCommitment:
+  type: object
+  additionalProperties: false
+  properties:
+    quantity:
+      type: integer
+      format: int32
+      minimum: 1
+      description: >-
+        Omit to commit the whole reservation. A partial commit is a legal
+        outcome for a line split across warehouses (`ADR-0011` §4).

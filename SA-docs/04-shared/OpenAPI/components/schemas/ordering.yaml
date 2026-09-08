@@ -1,0 +1,380 @@
+# Checkout & Order (`ORD`, Core / flagship) — schemas
+# Aggregate: Order (child entity OrderLine). Domain Model §8.5, Database.md §4.5
+
+OrderStatus:
+  type: string
+  description: |
+    The order lifecycle state (`FR-ORD-10`).
+
+    **Legal transitions (`BR-ORD-01`, SRS §5.3).** The state set is bounded by a
+    database constraint; the *edges* are enforced by the aggregate's single
+    status mutator, because a row-level constraint cannot see the previous value
+    (`Database.md` §4.5):
+
+    | From | To |
+    |---|---|
+    | `DRAFT` | `PENDING_PAYMENT`, `CANCELLED` |
+    | `PENDING_PAYMENT` | `PAID`, `PAYMENT_FAILED`, `CANCELLED` |
+    | `PAYMENT_FAILED` | `PENDING_PAYMENT` (retry), `CANCELLED` |
+    | `PAID` | `PROCESSING`, `CANCELLED` |
+    | `PROCESSING` | `PACKED`, `CANCELLED` |
+    | `PACKED` | `SHIPPING` |
+    | `SHIPPING` | `DELIVERED` |
+    | `DELIVERED` | `COMPLETED`, `RETURNED` |
+    | `CANCELLED` | `REFUNDED` |
+    | `RETURNED` | `REFUNDED` |
+    | `COMPLETED`, `REFUNDED` | terminal |
+
+    **There is no `CANCELLED` edge from `PACKED` or any later state**
+    (`BR-ORD-04`). An illegal transition is `409 ECP-ORD-4091` for every role,
+    **including Administrator** (`UC-ORD-10`).
+
+    Open vocabulary (`Integration Contract` §8.1) — clients must tolerate an
+    unknown value rather than failing.
+  x-extensible-enum:
+    - DRAFT
+    - PENDING_PAYMENT
+    - PAID
+    - PAYMENT_FAILED
+    - PROCESSING
+    - PACKED
+    - SHIPPING
+    - DELIVERED
+    - COMPLETED
+    - CANCELLED
+    - RETURNED
+    - REFUNDED
+  examples: [PAID]
+
+OrderLine:
+  type: object
+  description: >-
+    A line of a placed order. Product name, variant name, and unit price are
+    **snapshots frozen at placement** — they do not follow later catalog changes
+    (`BR-ORD-06`).
+  required: [id, variantId, sku, productName, quantity, unitPriceAtOrder, lineTotal]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    variantId: { $ref: './common.yaml#/Id' }
+    sku: { type: string }
+    productName: { type: string }
+    variantName: { type: string }
+    quantity: { type: integer, format: int32, minimum: 1 }
+    unitPriceAtOrder: { $ref: './common.yaml#/Money' }
+    lineDiscount: { $ref: './common.yaml#/Money' }
+    lineTotal:
+      $ref: './common.yaml#/Money'
+      description: '`unitPriceAtOrder * quantity - lineDiscount`, enforced by a database constraint.'
+    reservations:
+      type: array
+      description: >-
+        The stock reservations satisfying this line. More than one when the line
+        is filled from several warehouses (`ADR-0011` §4). Operator-visible only.
+      items: { $ref: './inventory.yaml#/StockReservation' }
+
+Order:
+  type: object
+  description: >-
+    A placed order. Every monetary figure and both addresses are recorded **as at
+    placement** and never re-derived from current catalog or profile data
+    (`BR-ORD-06`, `UC-ORD-06`).
+  required: [id, orderNumber, status, currency, lines, subtotal, total, createdAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    orderNumber:
+      type: string
+      description: >-
+        Human-facing reference. A separate business key, never the path id
+        (`Database.md` §2.2).
+    customerId: { $ref: './common.yaml#/Id' }
+    status: { $ref: '#/OrderStatus' }
+    currency: { type: string, pattern: '^[A-Z]{3}$' }
+    lines:
+      type: array
+      items: { $ref: '#/OrderLine' }
+    subtotal: { $ref: './common.yaml#/Money' }
+    discount:
+      $ref: './common.yaml#/Money'
+      description: Never exceeds `subtotal` (`BR-PRM-02`, database constraint).
+    shippingFee: { $ref: './common.yaml#/Money' }
+    tax: { $ref: './common.yaml#/Money' }
+    total:
+      $ref: './common.yaml#/Money'
+      description: '`subtotal - discount + shippingFee + tax`, enforced by a database constraint.'
+    promotionId: { $ref: './common.yaml#/Id' }
+    promotionCode: { type: string }
+    shippingAddress: { $ref: './common.yaml#/Address' }
+    billingAddress: { $ref: './common.yaml#/Address' }
+    placedAt: { type: string, format: date-time }
+    paidAt: { type: string, format: date-time }
+    deliveredAt: { type: string, format: date-time }
+    returnWindowEndsAt:
+      type: string
+      format: date-time
+      description: '14 days from delivery (`A-06`, `BR-ORD-05`).'
+    cancelledReason: { type: string }
+    permittedTransitions:
+      type: array
+      description: >-
+        The transitions the **calling role** may perform from the current state
+        (`UC-ORD-06`). A convenience for rendering; the server re-evaluates on
+        every attempt and never trusts it.
+      items: { $ref: '#/OrderStatus' }
+    createdAt: { type: string, format: date-time }
+
+OrderPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/Order' }
+
+# ------------------------------------------------------------------- checkout
+Checkout:
+  type: object
+  description: >-
+    The Draft order a checkout is building (`UC-ORD-01`). Checkout has no
+    identity of its own: initiating it creates or **resumes** a Draft order and
+    never a second one.
+  required: [order, ready]
+  properties:
+    order: { $ref: '#/Order' }
+    shippingOptions:
+      type: array
+      items: { $ref: './shipping.yaml#/ShippingOption' }
+    selectedShippingOptionId: { type: string }
+    paymentMethod: { $ref: './payment.yaml#/PaymentMethod' }
+    ready:
+      type: boolean
+      description: >-
+        Every precondition for placement is satisfied. Re-evaluated on every
+        read; a client must not cache it.
+    blockers:
+      type: array
+      description: What still prevents placement, as stable error codes.
+      items:
+        type: object
+        required: [code]
+        properties:
+          code: { type: string, pattern: '^ECP-[A-Z]{3}-[0-9]{4}$' }
+          detail: { type: string }
+
+OrderSummary:
+  type: object
+  description: |
+    The pre-placement summary (`FR-ORD-06`, `FR-ORD-07`).
+
+    Producing it **re-prices the cart, re-checks availability, re-validates the
+    voucher, and re-confirms the shipping fee**. Where any of those changed since
+    the customer last looked, `changed` is `true` and placement requires explicit
+    re-confirmation (`UC-ORD-04` A1) — this is the mechanism that keeps
+    `BR-ORD-06`'s "the customer agreed to these numbers" honest.
+  required: [order, changed, confirmationToken]
+  properties:
+    order: { $ref: '#/Order' }
+    changed: { type: boolean }
+    changes:
+      type: array
+      items:
+        type: object
+        required: [field]
+        properties:
+          field: { type: string }
+          previous: { type: string }
+          current: { type: string }
+    confirmationToken:
+      type: string
+      description: >-
+        Opaque token identifying the exact figures presented. Passed back on
+        placement so the server can prove the customer confirmed *these* numbers.
+
+ShippingAddressSelection:
+  type: object
+  description: >-
+    Either an existing address-book entry or a new address, which is also stored
+    in the book (`FR-ORD-02`, `UC-ORD-02` A1).
+  additionalProperties: false
+  properties:
+    addressId: { $ref: './common.yaml#/Id' }
+    address: { $ref: './common.yaml#/Address' }
+    saveToAddressBook: { type: boolean, default: true }
+
+BillingInformation:
+  type: object
+  description: 'May differ from the shipping address (`FR-ORD-03`).'
+  additionalProperties: false
+  properties:
+    addressId: { $ref: './common.yaml#/Id' }
+    address: { $ref: './common.yaml#/Address' }
+    sameAsShipping: { type: boolean, default: false }
+
+ShippingOptionSelection:
+  type: object
+  required: [shippingOptionId]
+  additionalProperties: false
+  properties:
+    shippingOptionId: { type: string }
+
+VoucherApplication:
+  type: object
+  required: [code]
+  additionalProperties: false
+  properties:
+    code:
+      type: string
+      description: >-
+        Replacing an applied voucher validates the new code **before** dropping
+        the old one, so a bad replacement never leaves the customer with neither
+        (`UC-ORD-03` A2).
+
+PlaceOrderRequest:
+  type: object
+  required: [confirmationToken]
+  additionalProperties: false
+  properties:
+    confirmationToken:
+      type: string
+      description: The token from the order summary the customer confirmed.
+
+# ----------------------------------------------------------- post-placement
+OrderTracking:
+  type: object
+  description: 'Order state plus carrier progress (`FR-ORD-13`).'
+  required: [orderId, status]
+  properties:
+    orderId: { $ref: './common.yaml#/Id' }
+    orderNumber: { type: string }
+    status: { $ref: '#/OrderStatus' }
+    shipments:
+      type: array
+      items: { $ref: './shipping.yaml#/Shipment' }
+    estimatedDeliveryFrom: { type: string, format: date-time }
+    estimatedDeliveryTo: { type: string, format: date-time }
+    returnWindowEndsAt: { type: string, format: date-time }
+
+OrderCancellation:
+  type: object
+  description: >-
+    Cancels the whole order, or only the lines named. Cancelling releases the
+    stock reservation and, where payment was captured, initiates a refund
+    (`FR-ORD-14`, `UC-ORD-08`).
+  required: [reason]
+  additionalProperties: false
+  properties:
+    reason: { type: string, minLength: 1 }
+    lineIds:
+      type: array
+      description: Omit to cancel the whole order; supply for a partial cancellation.
+      items: { $ref: './common.yaml#/Id' }
+
+ReturnRequest:
+  type: object
+  required: [lines, reason]
+  additionalProperties: false
+  properties:
+    lines:
+      type: array
+      minItems: 1
+      items:
+        type: object
+        required: [lineId, quantity]
+        properties:
+          lineId: { $ref: './common.yaml#/Id' }
+          quantity: { type: integer, format: int32, minimum: 1 }
+    reason: { type: string, minLength: 1 }
+
+Return:
+  type: object
+  required: [id, orderId, status, lines, requestedAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    orderId: { $ref: './common.yaml#/Id' }
+    status:
+      type: string
+      description: Open vocabulary (`Integration Contract` §8.1).
+      x-extensible-enum: [REQUESTED, ACCEPTED, REJECTED, WRITTEN_OFF]
+    lines:
+      type: array
+      items:
+        type: object
+        properties:
+          lineId: { $ref: './common.yaml#/Id' }
+          quantity: { type: integer, format: int32 }
+    reason: { type: string }
+    resolutionReason: { type: string }
+    requestedAt: { type: string, format: date-time }
+    resolvedAt: { type: string, format: date-time }
+
+ReturnResolution:
+  type: object
+  description: >-
+    Accept or reject a return on inspection, or write damaged goods off
+    (`UC-ORD-09` A2, A3). A write-off records an inventory adjustment rather than
+    returning stock to sale.
+  required: [outcome, reason]
+  additionalProperties: false
+  properties:
+    outcome:
+      type: string
+      x-extensible-enum: [ACCEPTED, REJECTED, WRITTEN_OFF]
+    reason: { type: string, minLength: 1 }
+    lineIds:
+      type: array
+      description: Omit to resolve every requested line; supply for a partial return.
+      items: { $ref: './common.yaml#/Id' }
+
+StatusTransition:
+  type: object
+  description: >-
+    Requests one step of the `BR-ORD-01` state machine. The state change, its
+    side effect, and its audit entry are applied atomically (`UC-ORD-10`).
+  required: [targetStatus]
+  additionalProperties: false
+  properties:
+    targetStatus: { $ref: '#/OrderStatus' }
+    reason: { type: string }
+
+BulkStatusTransition:
+  type: object
+  description: >-
+    Advances several orders. **Each is evaluated independently** — an illegal
+    transition on one order does not fail the others (`UC-ORD-10` A1).
+  required: [orderIds, targetStatus]
+  additionalProperties: false
+  properties:
+    orderIds:
+      type: array
+      minItems: 1
+      items: { $ref: './common.yaml#/Id' }
+    targetStatus: { $ref: '#/OrderStatus' }
+    reason: { type: string }
+
+BulkStatusTransitionResult:
+  type: object
+  required: [results]
+  properties:
+    results:
+      type: array
+      items:
+        type: object
+        required: [orderId, applied]
+        properties:
+          orderId: { $ref: './common.yaml#/Id' }
+          applied: { type: boolean }
+          status: { $ref: '#/OrderStatus' }
+          code: { type: string }
+          detail: { type: string }
+
+InvestigationFlag:
+  type: object
+  description: >-
+    Flags an order for investigation **without changing its state**
+    (`UC-ADM-04` A2) — the operator needs to mark a problem without advancing a
+    lifecycle they are not ready to advance.
+  required: [flagged, reason]
+  additionalProperties: false
+  properties:
+    flagged: { type: boolean }
+    reason: { type: string, minLength: 1 }

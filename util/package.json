@@ -10,7 +10,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "docs:diagrams": "node toSvg.js",
     "docs:html": "node toHtml.js",
-    "docs:build": "npm run docs:diagrams && npm run docs:html"
+    "docs:build": "npm run docs:diagrams && npm run docs:html",
+    "docs:openapi:lint": "npx -y @redocly/cli@2 lint --config ../docs/SA-docs/04-shared/OpenAPI/redocly.yaml",
+    "docs:openapi:bundle": "npx -y @redocly/cli@2 bundle ecp@v1 --config ../docs/SA-docs/04-shared/OpenAPI/redocly.yaml -o ../docs/SA-docs/04-shared/OpenAPI/dist/openapi.bundled.yaml"
   },
   "repository": {
     "type": "git",

@@ -1,0 +1,452 @@
+# Search & Recommendation (`SCH`) — path items
+#
+# Permission matrix row (Integration Contract §9):
+#   Guest use · Customer use · Staff use · Warehouse — · Support use · Admin use
+#
+# `search` appears as a path segment as a **noun** — the search resource — not as
+# a verb. `Integration Contract` §2 forbids a verb in a path; it does not forbid
+# a resource whose name happens to be a nominalised action.
+
+searchProducts:
+  get:
+    operationId: searchProducts
+    tags: [Search & Recommendation]
+    summary: Search products by keyword
+    description: |
+      Full-text search over name, description, brand, and attributes
+      (`FR-SCH-01`). Unpublished products are excluded (`BR-CAT-02`).
+
+      Relevance-ordered by default. Supplying both `q` and `sort` is `422`:
+      the two orderings are mutually exclusive (`Integration Contract` §3.3).
+      Sortable fields are `price`, `createdAt`, and `rating`.
+
+      The query is recorded against the caller's recent keywords and the
+      platform-wide popular list (`FR-SCH-05`, `FR-SCH-06`). This endpoint is
+      rate-limited per caller (`NFR-SEC-05`) and targets p95 <= 500 ms
+      (`NFR-PERF-03`).
+
+      Results are eventually consistent, within seconds (`ADR-0008` §4). If the
+      search capability is unavailable the response is `503` and browse, cart and
+      checkout are unaffected (`NFR-AVAIL-02`).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-SCH-01, UC-SCH-03]
+      fr: [FR-SCH-01, FR-SCH-03, FR-SCH-04]
+      br: [BR-CAT-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Query'
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: categoryId
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+      - name: brand
+        in: query
+        required: false
+        schema: { type: array, items: { type: string } }
+      - name: attribute
+        in: query
+        required: false
+        description: 'Attribute filter as `name:value`, repeatable.'
+        schema: { type: array, items: { type: string, pattern: '^[a-zA-Z0-9_-]+:.+$' } }
+      - name: priceFrom
+        in: query
+        required: false
+        description: >-
+          Inclusive lower bound. An inverted range (`priceFrom` above `priceTo`)
+          is normalised rather than rejected (`UC-SCH-03` A2).
+        schema: { type: string, pattern: '^[0-9]{1,15}(\.[0-9]{1,4})?$' }
+      - name: priceTo
+        in: query
+        required: false
+        schema: { type: string, pattern: '^[0-9]{1,15}(\.[0-9]{1,4})?$' }
+      - name: inStock
+        in: query
+        required: false
+        schema: { type: boolean }
+    responses:
+      '200':
+        description: Matching products, with facets and the filters actually applied.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/search.yaml#/SearchResultPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '422':
+        description: '`q` and `sort` were supplied together (`Integration Contract` §3.3).'
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+      '503': { $ref: '../components/responses.yaml#/DependencyUnavailable' }
+
+searchSuggestions:
+  get:
+    operationId: getSearchSuggestions
+    tags: [Search & Recommendation]
+    summary: Auto-complete a search term
+    description: >-
+      Suggestions for a partial term (`FR-SCH-02`). Below the configured minimum
+      term length the result is empty rather than an error (`UC-SCH-02` A1). For
+      a signed-in customer the caller's own recent keywords are blended in.
+      Targets p95 <= 150 ms (`NFR-PERF-04`); a late answer is abandoned rather
+      than served stale.
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-SCH-02]
+      fr: [FR-SCH-02]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/Query'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: limit
+        in: query
+        required: false
+        schema: { type: integer, format: int32, minimum: 1, maximum: 20, default: 10 }
+    responses:
+      '200':
+        description: Suggestions, possibly empty.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '../components/schemas/search.yaml#/Suggestion' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+      '503': { $ref: '../components/responses.yaml#/DependencyUnavailable' }
+
+popularKeywords:
+  get:
+    operationId: listPopularKeywords
+    tags: [Search & Recommendation]
+    summary: List platform-wide popular keywords
+    description: 'Aggregate search behaviour, never attributable to a customer (`FR-SCH-05`).'
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-SCH-04]
+      fr: [FR-SCH-05]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: Popular keywords.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/search.yaml#/KeywordPage' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+      '503': { $ref: '../components/responses.yaml#/DependencyUnavailable' }
+
+recentKeywords:
+  get:
+    operationId: listOwnRecentKeywords
+    tags: [Search & Recommendation]
+    summary: List the caller's recent keywords
+    description: 'Strictly the caller''s own search history (`FR-SCH-06`, `BR-SCH-01`).'
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-SCH-04]
+      fr: [FR-SCH-06]
+      br: [BR-SCH-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The caller's recent keywords.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/search.yaml#/KeywordPage' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  delete:
+    operationId: clearOwnRecentKeywords
+    tags: [Search & Recommendation]
+    summary: Clear the caller's recent keywords
+    description: 'Idempotent (`Integration Contract` §2.1). Retention policy is an open item: no document states one.'
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-SCH-04]
+      fr: [FR-SCH-06]
+      br: [BR-SCH-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Cleared.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+recentKeywordByValue:
+  parameters:
+    - name: keyword
+      in: path
+      required: true
+      schema: { type: string }
+  delete:
+    operationId: removeOwnRecentKeyword
+    tags: [Search & Recommendation]
+    summary: Remove one recent keyword
+    description: 'Idempotent — removing an absent keyword is `204`, not `404`.'
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-SCH-04]
+      fr: [FR-SCH-06]
+      br: [BR-SCH-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '204':
+        description: Removed, or already absent.
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+productRelatedProducts:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ProductId'
+  get:
+    operationId: listRelatedProducts
+    tags: [Search & Recommendation]
+    summary: Related products
+    description: >-
+      Products related to this one (`FR-SCH-07`). Unpublished products are
+      excluded (`BR-CAT-02`). Degrades to an empty list rather than failing the
+      caller's page (`NFR-AVAIL-02`).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-SCH-05]
+      fr: [FR-SCH-07]
+      br: [BR-CAT-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: Related products, possibly empty.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '../components/schemas/catalog.yaml#/ProductSummary' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+productFrequentlyBoughtTogether:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ProductId'
+  get:
+    operationId: listFrequentlyBoughtTogetherForProduct
+    tags: [Search & Recommendation]
+    summary: Frequently bought together with this product
+    description: 'Excludes unpublished products (`FR-SCH-08`, `BR-CAT-02`).'
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-SCH-05]
+      fr: [FR-SCH-08]
+      br: [BR-CAT-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: Recommendations, possibly empty.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '../components/schemas/catalog.yaml#/ProductSummary' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+cartFrequentlyBoughtTogether:
+  parameters:
+    - $ref: '../components/parameters.yaml#/CartId'
+  get:
+    operationId: listFrequentlyBoughtTogetherForCart
+    tags: [Search & Recommendation]
+    summary: Frequently bought together with the whole cart
+    description: >-
+      Recommendations for the cart as a whole, **excluding items already in it**
+      (`FR-SCH-08`, `UC-SCH-05`). A cart the caller does not own returns `404`,
+      never `403` (`Integration Contract` §2.1).
+    x-ecp-roles: [GUEST, CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-SCH-05]
+      fr: [FR-SCH-08]
+      br: [BR-CAT-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: Recommendations, possibly empty.
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '../components/schemas/catalog.yaml#/ProductSummary' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+trendingProducts:
+  get:
+    operationId: listTrendingProducts
+    tags: [Search & Recommendation]
+    summary: Trending products
+    description: >-
+      Trending platform-wide or within a category (`FR-SCH-09`). Items in an
+      active flash sale are flagged by their `promotionalPrice` (`FR-PRM-06`).
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-SCH-06]
+      fr: [FR-SCH-09]
+      br: [BR-CAT-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: categoryId
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+    responses:
+      '200':
+        description: Trending products.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/ProductSummaryPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+newArrivals:
+  get:
+    operationId: listNewArrivals
+    tags: [Search & Recommendation]
+    summary: Recently published products
+    description: 'Newly published products, most recent first (`FR-SCH-10`).'
+    security: []
+    x-ecp-roles: [GUEST, CUSTOMER, STAFF, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-SCH-06]
+      fr: [FR-SCH-10]
+      br: [BR-CAT-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: categoryId
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+    responses:
+      '200':
+        description: New arrivals.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/catalog.yaml#/ProductSummaryPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+personalisedRecommendations:
+  get:
+    operationId: listPersonalisedRecommendations
+    tags: [Search & Recommendation]
+    summary: Personalised recommendations
+    description: >-
+      Derived strictly from the caller's **own** activity, never from another
+      customer's data (`FR-SCH-11`, `BR-SCH-01`). When the caller has opted out,
+      or there is too little history, the response falls back to trending
+      products and says so via `personalised: false` — never to another
+      customer's data and never to nothing (`UC-SCH-07` A1).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-SCH-07]
+      fr: [FR-SCH-11]
+      br: [BR-SCH-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: Recommendations, personalised or the trending fallback.
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/catalog.yaml#/ProductSummaryPage'
+                - type: object
+                  properties:
+                    personalised:
+                      type: boolean
+                      description: '`false` when this is the trending fallback.'
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+personalisationPreferences:
+  get:
+    operationId: getOwnPersonalisationPreference
+    tags: [Search & Recommendation]
+    summary: Get the caller's personalisation preference
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-SCH-07]
+      fr: [FR-SCH-11]
+      br: [BR-SCH-01]
+    description: 'Whether recommendations are personalised for this caller (`UC-SCH-07` A2).'
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The preference.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/search.yaml#/PersonalisationPreference' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  put:
+    operationId: setOwnPersonalisationPreference
+    tags: [Search & Recommendation]
+    summary: Opt in or out of personalisation
+    description: >-
+      Opting out falls back to trending recommendations (`UC-SCH-07` A2).
+      Idempotent (`Integration Contract` §2.1).
+    x-ecp-roles: [CUSTOMER]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-SCH-07]
+      fr: [FR-SCH-11]
+      br: [BR-SCH-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/search.yaml#/PersonalisationPreference' }
+    responses:
+      '200':
+        description: Preference applied.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/search.yaml#/PersonalisationPreference' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

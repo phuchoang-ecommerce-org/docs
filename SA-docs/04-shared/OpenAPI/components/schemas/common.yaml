@@ -1,0 +1,209 @@
+# Shared primitives — Enterprise Commerce Platform (ECP)
+#
+# Every schema here is transcribed from a normative source:
+#   Money          Integration Contract §2, Database.md §2.2
+#   Address        Database.md §4.1 (identity_address = the shared-kernel Address VO)
+#   PageEnvelope   Integration Contract §3.1
+#   Problem        Integration Contract §4.1 (RFC 9457)
+#   FieldError     Integration Contract §4.3
+
+Id:
+  type: string
+  format: uuid
+  description: >-
+    An opaque resource identifier. Stored as a time-ordered UUIDv7
+    (`Database.md` §2.2), but a client **must not** parse it, order by it, or
+    infer any meaning from it (`Integration Contract` §2). The `uuid` format is
+    declared so generated clients can validate and type it — not so they can
+    interpret it.
+  examples:
+    - 018f3c2a-7b41-7c9e-9f10-2a4b6c8d0e12
+
+CorrelationId:
+  type: string
+  format: uuid
+  description: >-
+    Identifies one business transaction across every hop it touches — HTTP
+    request, application service, domain event, outbox row, Kafka envelope, and
+    every downstream consumer's logs (`Integration Contract` §6.2, `NFR-OBS-03`).
+  examples:
+    - 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+
+Money:
+  type: object
+  description: >-
+    A monetary value. **Never a bare number** (`Integration Contract` §2,
+    `Solution Architecture` §10). `amount` is a JSON *string* so that no client's
+    JSON parser can silently convert it to a binary float — `BR-PAY-02`
+    ("cumulative refund never exceeds captured") is an exact decimal comparison.
+    The scale matches the `NUMERIC(19,4)` storage type in `Database.md` §2.2.
+  required: [amount, currency]
+  additionalProperties: false
+  properties:
+    amount:
+      type: string
+      pattern: '^-?[0-9]{1,15}(\.[0-9]{1,4})?$'
+      description: Decimal amount, up to 15 integer digits and 4 fractional digits.
+      examples: ['129.99']
+    currency:
+      type: string
+      pattern: '^[A-Z]{3}$'
+      description: >-
+        ISO 4217 alphabetic code. A single currency is in force for this release
+        (`A-10`); multi-currency is deferred (SRS §8).
+      examples: ['VND']
+
+Quantity:
+  type: integer
+  format: int32
+  minimum: 0
+  description: A whole number of units. Never negative (`BR-INV-01`).
+
+Address:
+  type: object
+  description: >-
+    A postal address. This is the shared-kernel `Address` value object
+    (`Domain Model` §5.3); the same shape is a customer address-book entry and
+    the immutable snapshot frozen onto an order at placement (`BR-ORD-06`).
+  required: [recipientName, line1, city, postalCode, countryCode]
+  additionalProperties: false
+  properties:
+    label:
+      type: string
+      description: Customer-chosen name for an address-book entry ("Home", "Office").
+    recipientName: { type: string }
+    line1: { type: string }
+    line2: { type: string }
+    city: { type: string }
+    region: { type: string }
+    postalCode: { type: string }
+    countryCode:
+      type: string
+      pattern: '^[A-Z]{2}$'
+      description: ISO 3166-1 alpha-2.
+    phone: { type: string }
+
+Page:
+  type: object
+  description: Pagination metadata (`Integration Contract` §3.1).
+  required: [size]
+  additionalProperties: false
+  properties:
+    size:
+      type: integer
+      format: int32
+      minimum: 1
+      maximum: 100
+      default: 20
+      description: >-
+        Number of items in this page. A request for more than 100 is **clamped**
+        to 100, not rejected.
+    next:
+      type: string
+      description: >-
+        Opaque cursor for the following page. **Absent when there are no further
+        pages.** A client never constructs, parses, or stores meaning into one.
+      examples: ['eyJvIjoxMjM0fQ']
+    total:
+      type: integer
+      format: int64
+      minimum: 0
+      description: >-
+        Total matching items. **Optional** — present only where counting is
+        cheap. Always absent on Elasticsearch-backed collections, where an exact
+        deep count would breach `NFR-PERF-03`. Clients must render correctly
+        without it.
+
+PageEnvelope:
+  type: object
+  description: >-
+    The envelope every collection endpoint returns. There is no unpaginated
+    list endpoint anywhere in this API: adding one later would be a breaking
+    change for every client that assumed it returned everything
+    (`Integration Contract` §3).
+  required: [items, page]
+  properties:
+    items:
+      type: array
+      items: {}
+    page:
+      $ref: '#/Page'
+
+FieldError:
+  type: object
+  description: One failing field in a validation failure (`Integration Contract` §4.3).
+  required: [field, code]
+  additionalProperties: false
+  properties:
+    field:
+      type: string
+      description: >-
+        Dotted path to the offending field, with bracket indexing for array
+        members. Not an RFC 6901 JSON Pointer.
+      examples: ['shippingAddress.postalCode', 'lines[0].quantity']
+    code:
+      type: string
+      pattern: '^ECP-[A-Z]{3}-[0-9]{4}$'
+      examples: ['ECP-GEN-4002']
+    detail:
+      type: string
+      description: Developer-facing context. Not user-facing copy.
+      examples: ['Required.']
+
+Problem:
+  type: object
+  description: >-
+    RFC 9457 `application/problem+json` — **one shape for every error this API
+    returns** (`Integration Contract` §4.1). There is no bare status-code error:
+    every 4xx and 5xx carries a `code` (§4.5 rule 2).
+  required: [type, title, status, code, instance, errors]
+  additionalProperties: false
+  properties:
+    type:
+      type: string
+      format: uri
+      description: 'Stable URI for the error code: `https://ecp.example/errors/<CODE>`.'
+      examples: ['https://ecp.example/errors/ECP-INV-4091']
+    title:
+      type: string
+      description: >-
+        Short human-readable summary. **Not stable, not for branching, and not
+        for display to an end user** — the client maps `code` to its own
+        localised message, which is what keeps the deferred multi-language
+        capability (SRS §8) a client concern.
+      examples: ['Insufficient available stock']
+    status:
+      type: integer
+      format: int32
+      minimum: 400
+      maximum: 599
+    code:
+      type: string
+      pattern: '^ECP-[A-Z]{3}-[0-9]{4}$'
+      description: >-
+        **The contract.** A stable machine-readable string clients branch on;
+        never reworded, reused, or removed within a major version
+        (`Integration Contract` §4.5 rule 1). `<DOMAIN>` is an SRS §2.2 domain
+        code or `GEN`. Clients match the whole code, never a substring.
+      examples: ['ECP-INV-4091']
+    detail:
+      type: string
+      description: >-
+        Context for a developer or a log. **Never** contains a credential, a
+        token, a payment detail, or a raw request payload (`NFR-SEC-07`), and on
+        a 5xx never an exception type, stack frame, or SQL fragment (§4.5 rule 3).
+      examples: ['SKU TS-BLU-M has 2 units available; 5 were requested.']
+    instance:
+      type: string
+      description: The request path that produced this error.
+      examples: ['/api/v1/orders']
+    correlationId:
+      $ref: '#/CorrelationId'
+    errors:
+      type: array
+      description: >-
+        Field-level detail. Always present; empty except on validation failures,
+        where **every** failing field is reported in one response rather than
+        only the first (`Integration Contract` §4.3).
+      items:
+        $ref: '#/FieldError'

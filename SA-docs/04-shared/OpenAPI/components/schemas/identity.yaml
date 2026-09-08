@@ -1,0 +1,229 @@
+# Identity & Access (`CUS`) — schemas
+# Aggregate: Account (child entity Address). Source: Domain Model §8.1, Database.md §4.1
+#
+# NEVER exposed by any schema here: identity_account.credential_hash,
+# identity_token.token_hash. NFR-SEC-07 / NFR-SEC-02.
+
+AccountStatus:
+  type: string
+  description: |
+    Lifecycle state of an account.
+
+    **Open vocabulary.** `Integration Contract` §8.1 makes adding an enum value a
+    non-breaking change *because* clients must tolerate unknown values, so this
+    is declared as a string with `x-extensible-enum` rather than a closed `enum`
+    that would make a generated client reject a future value.
+  x-extensible-enum: [ACTIVE, SUSPENDED, CLOSED]
+  examples: [ACTIVE]
+
+VerificationStatus:
+  type: string
+  description: >-
+    Whether ownership of the registered email address has been proven
+    (`FR-CUS-02`, `BR-CUS-02`). Open vocabulary — see `AccountStatus`.
+  x-extensible-enum: [UNVERIFIED, VERIFIED]
+  examples: [VERIFIED]
+
+Account:
+  type: object
+  description: >-
+    A customer or operator account. Credentials are never represented here in any
+    form (`NFR-SEC-02`, `NFR-SEC-07`).
+  required: [id, email, status, verificationStatus, roles, createdAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    email:
+      type: string
+      format: email
+      description: >-
+        Unique case-insensitively across the platform (`BR-CUS-01`).
+    displayName: { type: string }
+    status: { $ref: '#/AccountStatus' }
+    verificationStatus: { $ref: '#/VerificationStatus' }
+    pendingEmail:
+      type: string
+      format: email
+      description: >-
+        A requested new address awaiting verification. The current address stays
+        in force until the new one is proven (`UC-CUS-08` A2), so a client must
+        show this separately rather than as `email`.
+    roles:
+      type: array
+      items: { $ref: './administration.yaml#/RoleCode' }
+    verifiedAt: { type: string, format: date-time }
+    lastLoginAt: { type: string, format: date-time }
+    createdAt: { type: string, format: date-time }
+
+AccountPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/Account' }
+
+RegistrationRequest:
+  type: object
+  required: [email, password]
+  additionalProperties: false
+  properties:
+    email: { type: string, format: email }
+    password:
+      type: string
+      format: password
+      description: >-
+        Stored only as a one-way, salted, computationally adaptive hash, and
+        never logged in any form (`NFR-SEC-02`, `NFR-SEC-07`). Strength policy is
+        an open item: no document states one.
+    displayName: { type: string }
+
+CredentialsRequest:
+  type: object
+  required: [email, password]
+  additionalProperties: false
+  properties:
+    email: { type: string, format: email }
+    password: { type: string, format: password }
+    guestCartId:
+      $ref: './common.yaml#/Id'
+      description: >-
+        Optional. When present, the guest cart is merged into the customer's cart
+        as part of establishing the session (`UC-CRT-05`, `FR-CRT-06`). A merge
+        failure never fails the login.
+
+Session:
+  type: object
+  description: >-
+    An established session. The refresh token is held server-side and rotated on
+    every use; it is returned to a non-browser caller only, and to a browser
+    caller it is set as an `httpOnly` cookie and is absent from this body
+    (`ADR-0016` §4, `ADR-0025` §4).
+  required: [accessToken, expiresIn, account]
+  properties:
+    accessToken:
+      type: string
+      description: Short-lived JWT. Never written to `localStorage` by any client.
+    refreshToken:
+      type: string
+      description: >-
+        Present only for a non-browser caller authenticating with
+        `bearerAuth`. Rotated on every use; presenting a consumed one
+        invalidates the whole session chain (`BR-CUS-03`).
+    expiresIn:
+      type: integer
+      format: int32
+      description: Seconds until `accessToken` expires.
+    restricted:
+      type: boolean
+      description: >-
+        `true` when the account is not yet verified. A restricted session may
+        browse and build a cart but may not check out (`UC-CUS-03` A2).
+    account: { $ref: '#/Account' }
+    cartMerge: { $ref: './cart.yaml#/CartMergeOutcome' }
+
+SessionRenewalRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    refreshToken:
+      type: string
+      description: >-
+        Required for a non-browser caller. Omitted by a browser caller, whose
+        refresh token travels in the `httpOnly` cookie.
+
+EmailVerificationRequest:
+  type: object
+  required: [token]
+  additionalProperties: false
+  properties:
+    token:
+      type: string
+      description: Single-use, time-limited token from the verification email (`BR-CUS-02`).
+
+VerificationResendRequest:
+  type: object
+  required: [email]
+  additionalProperties: false
+  properties:
+    email: { type: string, format: email }
+
+PasswordChangeRequest:
+  type: object
+  required: [currentPassword, newPassword]
+  additionalProperties: false
+  properties:
+    currentPassword:
+      type: string
+      format: password
+      description: Re-confirmation of the current password is mandatory (`FR-CUS-06`).
+    newPassword: { type: string, format: password }
+    endOtherSessions:
+      type: boolean
+      default: true
+      description: >-
+        Other sessions are ended by default. `UC-CUS-06` also allows ending the
+        current one; set `false` only when the caller has chosen to keep others.
+
+PasswordResetRequest:
+  type: object
+  required: [email]
+  additionalProperties: false
+  properties:
+    email: { type: string, format: email }
+
+PasswordReset:
+  type: object
+  required: [token, newPassword]
+  additionalProperties: false
+  properties:
+    token:
+      type: string
+      description: >-
+        Single-use, time-limited token. **Not consumed** when the submitted
+        password fails the strength policy, so the customer can try again
+        (`UC-CUS-07` E3).
+    newPassword: { type: string, format: password }
+
+ProfileUpdate:
+  type: object
+  description: >-
+    Partial update of the caller's own profile. Requesting a new email address
+    starts a verification cycle and populates `pendingEmail`; the current address
+    remains in force until the new one is proven (`UC-CUS-08` A2).
+  additionalProperties: false
+  properties:
+    displayName: { type: string }
+    email: { type: string, format: email }
+
+CustomerAddress:
+  allOf:
+    - $ref: './common.yaml#/Address'
+    - type: object
+      required: [id]
+      properties:
+        id: { $ref: './common.yaml#/Id' }
+        isDefaultShipping:
+          type: boolean
+          description: >-
+            Exactly one address may be the default (`BR-CUS-05`). Nominating a
+            new default clears the previous one server-side; there is no separate
+            endpoint for it.
+        isDefaultBilling: { type: boolean }
+
+CustomerAddressWrite:
+  allOf:
+    - $ref: './common.yaml#/Address'
+    - type: object
+      properties:
+        isDefaultShipping: { type: boolean, default: false }
+        isDefaultBilling: { type: boolean, default: false }
+
+CustomerAddressPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/CustomerAddress' }

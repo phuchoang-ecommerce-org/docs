@@ -1,0 +1,239 @@
+# Inventory (`INV`, Core) — path items
+#
+# Permission matrix row (Integration Contract §9):
+#   Guest — · Customer availability only · Staff read · Warehouse manage
+#   Support read · Admin manage
+#
+# Customer-facing availability is a boolean carried inside catalog and search
+# responses (`VariantAvailability`), not an endpoint here: quantities and
+# warehouse structure are never exposed to a Guest or a Customer.
+#
+# `UC-INV-01` (Reserve Stock) and `UC-INV-02` (Release Reserved Stock) have no
+# endpoint **of their own**. They are in-process `StockReservationPort` calls
+# made inside the order-placement transaction, by order cancellation, and by the
+# Scheduler on expiry (`Module Dependency Diagram` §3.1). They are therefore
+# traced on `placeOrder` and `cancelOrder` in `ordering.yaml`, which is where a
+# caller actually triggers them.
+
+warehouses:
+  get:
+    operationId: listWarehouses
+    tags: [Inventory]
+    summary: List warehouses
+    description: 'Operator-facing. Never reachable by a Guest or a Customer (`Integration Contract` §9).'
+    x-ecp-roles: [STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-INV-05]
+      fr: [FR-INV-01]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: Warehouses.
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/PageEnvelope'
+                - type: object
+                  properties:
+                    items:
+                      type: array
+                      items: { $ref: '../components/schemas/inventory.yaml#/Warehouse' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+stockItems:
+  get:
+    operationId: listStockItems
+    tags: [Inventory]
+    summary: View inventory levels
+    description: >-
+      Stock on hand, reserved, and available, reported as **three separate
+      figures** per SKU and warehouse, with an aggregate across warehouses
+      alongside the breakdown (`FR-INV-01`, `FR-INV-06`, `UC-INV-05`).
+
+      Served from the command side: stock availability has no permitted lag
+      (`ADR-0008` §4, `NFR-PERF-06`). Filter `lowStock=true` for items below
+      their reorder threshold.
+    x-ecp-roles: [STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-INV-05]
+      fr: [FR-INV-01, FR-INV-06]
+      br: [BR-INV-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/Sort'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: sku
+        in: query
+        required: false
+        schema: { type: string }
+      - name: warehouseId
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+      - name: lowStock
+        in: query
+        required: false
+        schema: { type: boolean }
+    responses:
+      '200':
+        description: Inventory levels.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockItemPage' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+stockItemById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/StockItemId'
+  get:
+    operationId: getStockItem
+    tags: [Inventory]
+    summary: Get one stock item
+    description: 'Stock for one SKU in one warehouse (`FR-INV-01`).'
+    x-ecp-roles: [STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-INV-05]
+      fr: [FR-INV-01]
+      br: [BR-INV-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The stock item.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockItem' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+stockItemAdjustments:
+  parameters:
+    - $ref: '../components/parameters.yaml#/StockItemId'
+  get:
+    operationId: listStockAdjustments
+    tags: [Inventory]
+    summary: Review a SKU's adjustment history
+    description: >-
+      Who adjusted, by how much, why, and the level before and after
+      (`FR-INV-05`, `UC-ADM-05`). Append-only: adjustments are never amended or
+      deleted.
+    x-ecp-roles: [STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-INV-04, UC-ADM-05]
+      fr: [FR-INV-05, FR-ADM-05]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: Adjustment history, most recent first.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockAdjustmentPage' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+  post:
+    operationId: adjustStock
+    tags: [Inventory]
+    summary: Adjust inventory
+    description: |
+      Applies a non-zero delta with a **mandatory reason** (`FR-INV-05`,
+      `UC-INV-04`).
+
+      Refused with `409` where the adjustment would push **available** stock
+      negative — the response states the reserved quantity and the orders holding
+      it, so the operator can see what blocks the write-off (`UC-INV-04` E2,
+      `BR-INV-01`).
+
+      The audit entry is a **precondition** of the change, not a consequence of
+      it: if the entry cannot be written, the adjustment does not happen
+      (`UC-INV-04`, `FR-AUD-02`, `BR-AUD-01`).
+    x-ecp-roles: [WAREHOUSE_OPERATOR, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-INV-04, UC-ADM-05]
+      fr: [FR-INV-05, FR-ADM-05, FR-AUD-02]
+      br: [BR-INV-01, BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/inventory.yaml#/StockAdjustmentWrite' }
+    responses:
+      '201':
+        description: Adjustment recorded and applied.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockAdjustment' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409': { $ref: '../components/responses.yaml#/InsufficientStock' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+stockReservationCommitments:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ReservationId'
+  post:
+    operationId: commitStockReservation
+    tags: [Inventory]
+    summary: Commit reserved stock on fulfilment
+    description: |
+      Converts a `HELD` reservation to `COMMITTED`, decrementing stock on hand
+      (`FR-INV-04`, `UC-INV-03`). Normally triggered as a side effect of the
+      Processing to Packed transition; this endpoint is the Warehouse Operator's
+      direct route for a line picked ahead of the order-level transition.
+
+      **Idempotent**: committing an already-committed reservation is a no-op that
+      reports success, and a partial commit is legal for a line satisfied from
+      several warehouses (`ADR-0011` §4). Committing a `RELEASED` reservation is
+      `409` — the two terminal states are mutually exclusive (`BR-INV-02`).
+    x-ecp-roles: [WAREHOUSE_OPERATOR, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-INV-03]
+      fr: [FR-INV-04]
+      br: [BR-INV-01, BR-INV-02]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/inventory.yaml#/ReservationCommitment' }
+    responses:
+      '200':
+        description: Reservation committed, or already committed.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/inventory.yaml#/StockReservation' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: The reservation is already `RELEASED` and cannot be committed (`BR-INV-02`).
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

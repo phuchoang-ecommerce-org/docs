@@ -1,0 +1,367 @@
+# Reporting & Analytics (`RPT`) — path items
+#
+# Permission matrix row (Integration Contract §9):
+#   Guest — · Customer — · Staff commercial reports · Warehouse inventory reports
+#   Support — · Admin all
+#
+# Note the two blank cells that are enforced here: a Customer has no reporting
+# access at all, and Support has none either. Every report carries `meta` with
+# its as-at time and counting basis (`BR-RPT-01`), and reporting reads never
+# degrade the transactional path (`NFR-PERF-05`).
+
+revenueReport:
+  get:
+    operationId: getRevenueReport
+    tags: [Reporting & Analytics]
+    summary: View the revenue report
+    description: >-
+      Revenue over a period at daily or monthly granularity, with prior-period
+      comparison and optional breakdown (`FR-RPT-01`, `FR-RPT-02`,
+      `FR-ADM-08`).
+
+      **Counts only orders at `PAID` or beyond**, and deducts refunds and returns
+      in the period they occur rather than adjusting a past period's gross
+      (`BR-RPT-01`) — the basis is stated in `meta.basis` rather than assumed. A
+      period including today is marked `periodIncomplete`.
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-RPT-01]
+      fr: [FR-RPT-01, FR-RPT-02, FR-ADM-08]
+      br: [BR-RPT-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: periodFrom
+        in: query
+        required: true
+        schema: { type: string, format: date-time }
+      - name: periodTo
+        in: query
+        required: true
+        schema: { type: string, format: date-time }
+      - name: granularity
+        in: query
+        required: false
+        schema: { type: string, x-extensible-enum: [DAILY, MONTHLY], default: DAILY }
+      - name: breakdownBy
+        in: query
+        required: false
+        schema: { type: string, x-extensible-enum: [CATEGORY, PAYMENT_METHOD, SHIPPING_DESTINATION] }
+      - name: compareToPriorPeriod
+        in: query
+        required: false
+        schema: { type: boolean, default: false }
+    responses:
+      '200':
+        description: The revenue report.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reporting.yaml#/RevenueReport' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+productPerformanceReport:
+  get:
+    operationId: getProductPerformanceReport
+    tags: [Reporting & Analytics]
+    summary: View the product performance report
+    description: >-
+      Views, orders, units, revenue, returns, and average rating per product
+      (`FR-RPT-03`, `FR-RPT-05`). Rankable by units **or** by revenue — the two
+      answer different questions and neither substitutes for the other.
+      `conversionRate` is derived at read time, never stored as truth
+      (`Database.md` §7.2).
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-RPT-02]
+      fr: [FR-RPT-03, FR-RPT-05]
+      br: [BR-RPT-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: periodFrom
+        in: query
+        required: true
+        schema: { type: string, format: date-time }
+      - name: periodTo
+        in: query
+        required: true
+        schema: { type: string, format: date-time }
+      - name: rankBy
+        in: query
+        required: false
+        schema: { type: string, x-extensible-enum: [UNITS, REVENUE], default: REVENUE }
+      - name: categoryId
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+      - name: brand
+        in: query
+        required: false
+        schema: { type: string }
+      - name: variantBreakdown
+        in: query
+        required: false
+        schema: { type: boolean, default: false }
+    responses:
+      '200':
+        description: The product performance report.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reporting.yaml#/ProductPerformanceReport' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+customerReport:
+  get:
+    operationId: getCustomerReport
+    tags: [Reporting & Analytics]
+    summary: View the customer report
+    description: >-
+      Registrations and first purchases over time, customers ranked by purchase
+      value, and retention by registration cohort (`FR-RPT-04`, `FR-RPT-07`).
+
+      **Access is audited as personal-data access** (`UC-RPT-03`,
+      `UC-AUD-01` A3). Set `aggregateOnly=true` to suppress per-customer rows
+      where the question is about a cohort rather than a person.
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-RPT-03]
+      fr: [FR-RPT-04, FR-RPT-07, FR-AUD-02]
+      br: [BR-RPT-01, BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: periodFrom
+        in: query
+        required: true
+        schema: { type: string, format: date-time }
+      - name: periodTo
+        in: query
+        required: true
+        schema: { type: string, format: date-time }
+      - name: aggregateOnly
+        in: query
+        required: false
+        schema: { type: boolean, default: false }
+    responses:
+      '200':
+        description: The customer report.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reporting.yaml#/CustomerReport' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+inventoryReport:
+  get:
+    operationId: getInventoryReport
+    tags: [Reporting & Analytics]
+    summary: View the inventory report
+    description: >-
+      Position, movement, low-stock exposure, slow-moving stock, shrinkage
+      grouped by reason, and stock valued at cost (`FR-RPT-06`). **A SKU with no
+      reorder threshold configured is listed as unconfigured, not omitted**
+      (`UC-RPT-04`) — omitting it hides exactly the items nobody is watching.
+
+      This is the one report a Warehouse Operator may read (`Integration
+      Contract` §9).
+    x-ecp-roles: [STAFF, WAREHOUSE_OPERATOR, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-RPT-04]
+      fr: [FR-RPT-06]
+      br: [BR-RPT-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/Cursor'
+      - $ref: '../components/parameters.yaml#/PageSize'
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: warehouseId
+        in: query
+        required: false
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+      - name: lowStockOnly
+        in: query
+        required: false
+        schema: { type: boolean, default: false }
+      - name: periodFrom
+        in: query
+        required: false
+        schema: { type: string, format: date-time }
+      - name: periodTo
+        in: query
+        required: false
+        schema: { type: string, format: date-time }
+    responses:
+      '200':
+        description: The inventory report.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reporting.yaml#/InventoryReport' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+orderStatisticsReport:
+  get:
+    operationId: getOrderStatisticsReport
+    tags: [Reporting & Analytics]
+    summary: View order and conversion statistics
+    description: >-
+      Counts by state, average order value, cancellation and return rates,
+      conversion, and the funnel from search through product view, cart, and
+      checkout to placement (`FR-RPT-08`, `FR-RPT-09`). Scopable to a flash-sale
+      window, which is the case the funnel is most often asked about.
+    x-ecp-roles: [STAFF, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-RPT-05]
+      fr: [FR-RPT-08, FR-RPT-09]
+      br: [BR-RPT-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+      - name: periodFrom
+        in: query
+        required: true
+        schema: { type: string, format: date-time }
+      - name: periodTo
+        in: query
+        required: true
+        schema: { type: string, format: date-time }
+      - name: promotionId
+        in: query
+        required: false
+        description: Scope to a flash-sale or campaign window.
+        schema: { $ref: '../components/schemas/common.yaml#/Id' }
+    responses:
+      '200':
+        description: Order and conversion statistics.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reporting.yaml#/OrderStatisticsReport' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+reportExports:
+  post:
+    operationId: requestReportExport
+    tags: [Reporting & Analytics]
+    summary: Export a report
+    description: |
+      Requests a machine-readable export (`FR-RPT-10`, `UC-RPT-06`). Large
+      exports are produced asynchronously, so this returns `202` with a
+      `Location` pointing at the job; completion is notified (`UC-RPT-06` A2).
+
+      The file carries its parameters, counting basis, and as-at time **inside
+      it**, so an exported number remains interpretable once separated from this
+      API.
+
+      **Refused with `403` if the caller cannot view the underlying report** —
+      export is not a way around a report's authorisation. Refused with `422`
+      where the result would exceed the size limit, rather than being silently
+      truncated. Credentials and payment instruments never appear in an export
+      (`NFR-SEC-07`). The export itself is audited (`FR-AUD-02`).
+    x-ecp-roles: [STAFF, WAREHOUSE_OPERATOR, ADMINISTRATOR]
+    x-ecp-traces:
+      uc: [UC-RPT-06, UC-AUD-02]
+      fr: [FR-RPT-10, FR-AUD-02, FR-AUD-04]
+      br: [BR-RPT-01, BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/reporting.yaml#/ReportExportRequest' }
+    responses:
+      '202':
+        description: Export accepted. Poll the job, or wait for the completion notification.
+        headers:
+          Location: { $ref: '../components/headers.yaml#/Location' }
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reporting.yaml#/ReportExport' }
+      '400': { $ref: '../components/responses.yaml#/ValidationFailed' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '422':
+        description: The export would exceed the size limit. Narrow the period or the filters.
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+reportExportById:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ExportId'
+  get:
+    operationId: getReportExport
+    tags: [Reporting & Analytics]
+    summary: Get an export job's status
+    description: 'The job, with `contentUrl` present once `status` is `READY` (`UC-RPT-06` A2).'
+    x-ecp-roles: [STAFF, WAREHOUSE_OPERATOR, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-RPT-06]
+      fr: [FR-RPT-10]
+      br: []
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The export job.
+        content:
+          application/json:
+            schema: { $ref: '../components/schemas/reporting.yaml#/ReportExport' }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }
+
+reportExportContent:
+  parameters:
+    - $ref: '../components/parameters.yaml#/ExportId'
+  get:
+    operationId: downloadReportExport
+    tags: [Reporting & Analytics]
+    summary: Download an export
+    description: >-
+      Downloads a `READY` export (`FR-RPT-10`). The download is audited, like the
+      request that produced it (`FR-AUD-02`). `409` while the job is still
+      running; `410` once it has expired.
+    x-ecp-roles: [STAFF, WAREHOUSE_OPERATOR, ADMINISTRATOR]
+    x-ecp-ownership: own
+    x-ecp-traces:
+      uc: [UC-RPT-06]
+      fr: [FR-RPT-10, FR-AUD-02]
+      br: [BR-AUD-01]
+    parameters:
+      - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    responses:
+      '200':
+        description: The export file.
+        content:
+          text/csv:
+            schema: { type: string }
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      '401': { $ref: '../components/responses.yaml#/Unauthenticated' }
+      '403': { $ref: '../components/responses.yaml#/Forbidden' }
+      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '409':
+        description: The export is not ready yet.
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '410':
+        description: The export has expired and is no longer retained.
+        content:
+          application/problem+json:
+            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+      '429': { $ref: '../components/responses.yaml#/RateLimited' }

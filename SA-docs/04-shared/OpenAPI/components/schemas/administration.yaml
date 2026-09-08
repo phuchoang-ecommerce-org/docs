@@ -1,0 +1,74 @@
+# Administration (`ADM`) — schemas
+#
+# `ADM` is not a bounded context. `Domain Model` §3 dissolves it into Identity &
+# Access (role management, account suspension) plus operator authority over other
+# contexts' resources. This file therefore holds only account administration
+# (`UC-ADM-03`) and role management (`UC-ADM-06`).
+#
+# `UC-ADM-01`/`02` live in `catalog.yaml`, `UC-ADM-04` in `ordering.yaml`, and
+# `UC-ADM-05` in `inventory.yaml` — see `README.md` §4.
+
+RoleCode:
+  type: string
+  description: >-
+    The six roles of SRS §2.3, as the literals the schema stores
+    (`Database.md` §4.1). Open vocabulary (`Integration Contract` §8.1): adding a
+    role is a non-breaking change and clients must tolerate an unknown value.
+
+    Whether these six need finer-grained permissions **within** a role is an open
+    question the traceability matrix records; this contract expresses the six.
+  x-extensible-enum: [GUEST, CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
+  examples: [CUSTOMER]
+
+Role:
+  type: object
+  required: [code]
+  properties:
+    code: { $ref: '#/RoleCode' }
+    description:
+      type: string
+      description: >-
+        What authority the role confers, so an Administrator granting it can see
+        what they are granting (`UC-ADM-06`).
+
+AccountStatusChange:
+  type: object
+  description: >-
+    Suspends or reinstates an account (`FR-ADM-03`). **Suspension invalidates
+    every session immediately** (`UC-ADM-03`) — leaving a suspended account with
+    a live session would make the suspension advisory. The reason is mandatory
+    and audited.
+  required: [status, reason]
+  additionalProperties: false
+  properties:
+    status: { $ref: './identity.yaml#/AccountStatus' }
+    reason: { type: string, minLength: 1 }
+
+RoleGrant:
+  type: object
+  description: >-
+    Grants a role (`FR-ADM-09`). **Self-elevation is refused**, and the change
+    takes effect no later than the target's next session renewal
+    (`UC-ADM-06`, `BR-AUD-03`).
+  required: [roleCode, reason]
+  additionalProperties: false
+  properties:
+    roleCode: { $ref: '#/RoleCode' }
+    reason: { type: string, minLength: 1 }
+
+RoleRevocation:
+  type: object
+  description: >-
+    Revokes a role with a mandatory reason. **Revoking the last Administrator is
+    refused** (`BR-AUD-03`) — a system with no administrator cannot be
+    administered back into one.
+  required: [reason]
+  additionalProperties: false
+  properties:
+    reason: { type: string, minLength: 1 }
+    endSessions:
+      type: boolean
+      default: false
+      description: >-
+        End the target's sessions immediately rather than waiting for the next
+        renewal. For an urgent revocation (`UC-ADM-06` A1).

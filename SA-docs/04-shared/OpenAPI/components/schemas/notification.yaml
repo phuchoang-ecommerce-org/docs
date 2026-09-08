@@ -1,0 +1,135 @@
+# Notification (`NTF`) — schemas
+# Domain Model §8.10, Database.md §4.10
+#
+# Delivery itself is event-driven and has no endpoint (`UC-NTF-01`, `UC-NTF-02`)
+# — see `README.md` §5. What is exposed here is the customer's in-app inbox, the
+# preference surface, and an operational read of delivery outcomes.
+
+NotificationChannel:
+  type: string
+  description: 'Open vocabulary (`Integration Contract` §8.1).'
+  x-extensible-enum: [EMAIL, SMS, IN_APP]
+  examples: [IN_APP]
+
+NotificationCategory:
+  type: string
+  description: >-
+    `TRANSACTIONAL` messages concern something the customer did — an order, a
+    payment, a shipment. `PROMOTIONAL` messages are marketing. **Only
+    `PROMOTIONAL` can be switched off** (`BR-NTF-02`); see
+    `NotificationPreference`.
+  x-extensible-enum: [TRANSACTIONAL, PROMOTIONAL]
+
+DeliveryStatus:
+  type: string
+  description: >-
+    Open vocabulary (`Integration Contract` §8.1). A message is recorded before
+    dispatch, retried with backoff, and finally marked `UNDELIVERABLE` — it is
+    **never silently dropped** (`BR-NTF-01`).
+  x-extensible-enum: [PENDING, SENT, FAILED, UNDELIVERABLE, SUPPRESSED]
+
+Notification:
+  type: object
+  description: >-
+    One in-app notification. Triggering events are order created, payment
+    succeeded, shipment status changed, refund issued, and promotion announced
+    (`FR-NTF-03`).
+  required: [id, category, read, createdAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    category: { $ref: '#/NotificationCategory' }
+    templateCode:
+      type: string
+      description: Open vocabulary — the schema places no constraint on the value.
+    title: { type: string }
+    body: { type: string }
+    read: { type: boolean }
+    relatedEntityType: { type: string }
+    relatedEntityId: { $ref: './common.yaml#/Id' }
+    createdAt: { type: string, format: date-time }
+
+NotificationPage:
+  allOf:
+    - $ref: './common.yaml#/PageEnvelope'
+    - type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/Notification' }
+        unreadCount: { type: integer, format: int64, minimum: 0 }
+
+NotificationUpdate:
+  type: object
+  description: 'Marks one notification read or unread (`FR-NTF-04`).'
+  required: [read]
+  additionalProperties: false
+  properties:
+    read: { type: boolean }
+
+NotificationReadMark:
+  type: object
+  description: 'Marks every notification read in one action (`UC-NTF-03` A1).'
+  additionalProperties: false
+  properties:
+    category:
+      $ref: '#/NotificationCategory'
+      description: Restrict to one category; omit to mark everything read.
+
+NotificationPreference:
+  type: object
+  description: >-
+    A per-channel promotional opt-in. **There is no way to suppress a
+    transactional message** — the schema offers only a promotional opt-in, and
+    `BR-NTF-02` is enforced by that shape rather than by a runtime check
+    (`Database.md` §4.10).
+  required: [channel, promotionalOptIn]
+  additionalProperties: false
+  properties:
+    channel: { $ref: '#/NotificationChannel' }
+    promotionalOptIn: { type: boolean }
+    transactionalOptional:
+      type: boolean
+      readOnly: true
+      description: Always `false`. Present so a client can render the control as disabled and say why.
+
+NotificationPreferences:
+  type: object
+  required: [preferences]
+  additionalProperties: false
+  properties:
+    preferences:
+      type: array
+      items: { $ref: '#/NotificationPreference' }
+
+UnsubscribeRequest:
+  type: object
+  description: >-
+    Unsubscribes from promotional messages using a single-use token from an
+    email footer, **without signing in** (`UC-NTF-04` A1). Transactional
+    messages are unaffected (`BR-NTF-02`).
+  required: [token]
+  additionalProperties: false
+  properties:
+    token: { type: string }
+    channel: { $ref: '#/NotificationChannel' }
+
+NotificationDelivery:
+  type: object
+  description: >-
+    The operational record of one delivery attempt sequence — what Support needs
+    to answer "was the customer told?" (`FR-NTF-06`).
+  required: [id, channel, category, status, createdAt]
+  properties:
+    id: { $ref: './common.yaml#/Id' }
+    recipientAccountId: { $ref: './common.yaml#/Id' }
+    channel: { $ref: '#/NotificationChannel' }
+    category: { $ref: '#/NotificationCategory' }
+    templateCode: { type: string }
+    triggeringEventType: { type: string }
+    status: { $ref: '#/DeliveryStatus' }
+    attemptCount: { type: integer, format: int32, minimum: 0 }
+    lastError:
+      type: string
+      description: Platform-owned wording; never a provider credential or a recipient's payload (`NFR-SEC-07`).
+    dispatchedAt: { type: string, format: date-time }
+    createdAt: { type: string, format: date-time }
