@@ -15,6 +15,7 @@ This folder holds the solution architecture for the Enterprise Commerce Platform
 | [`01-system/`](./01-system) | [`Technology Stack.md`](./01-system/Technology%20Stack.md) | Backend/frontend technology shortlist |
 | [`01-system/`](./01-system) | [`Deployment Diagram.md`](./01-system/Deployment%20Diagram.md) | Physical topology — nodes, containers, networks, ports, volumes; which quality targets the topology meets and which it does not; local development topology; operational concerns |
 | [`01-system/`](./01-system) | [`Security.md`](./01-system/Security.md) | The consolidated security specification — trust boundaries and attack surface, identity and session, the authorisation model, input validation, rate limiting, data classification and protection, provider callback authenticity, audit and security events, the verification matrix, threat model, and residual risk |
+| [`01-system/`](./01-system) | [`Testing and Benchmark Strategy.md`](./01-system/Testing%20and%20Benchmark%20Strategy.md) | The test strategy — the seven test layers and what each verifies, the fast/slow suite split, test data rules, the contract-test shape, the frontend suite, a **quick smoke benchmark** against the `NFR-PERF-*` targets (and what it deliberately cannot tell you), the gap between the current scaffold and what the strategy needs, CI stages, and coverage policy |
 | [`01-system/ADR/`](./01-system/ADR) | [`README.md`](./01-system/ADR/README.md) | Architecture Decision Records — index, status rules, and how to add one |
 | [`01-system/ADR/`](./01-system/ADR) | `ADR-0001`–`ADR-0003`, `ADR-0005`–`ADR-0031` | One record per decision: context, alternatives considered, outcome, consequences — 5 cross-cutting, 17 backend, 8 frontend. `ADR-0004` is retired, not reused ([why](./01-system/ADR/README.md)) |
 | [`02-backend/`](./02-backend) | [`Backend Architecture.md`](./02-backend/Backend%20Architecture.md) | Backend architecture plan *(stub)* |
@@ -49,6 +50,8 @@ Folders are organized by concern, following the target layout in [`example-folde
 01-system/Security.md                the trust boundaries that topology draws, and what guards each one
 04-shared/Integration Contract.md    the rules every boundary crossing obeys
 04-shared/OpenAPI/                   the endpoints written under those rules
+      ↓
+01-system/Testing and Benchmark Strategy.md   how every claim above is verified, and what is not yet verified
 ```
 
 [`Solution Architecture.md`](./01-system/Solution%20Architecture.md) is the companion to [Business Problem Analysis](../BA-docs/general-approach.md): every technology decision in this folder traces back to a specific, named business problem defined there. Where `Solution Architecture.md` records *what* was decided, [`01-system/ADR/`](./01-system/ADR/README.md) records *why that decision and not another one* — the alternatives weighed, the trade-offs accepted, and whether the choice is settled or still awaiting review.
