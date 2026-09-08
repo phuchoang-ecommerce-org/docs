@@ -172,6 +172,8 @@ Two transports coexist, and which one an interaction uses is fixed by [`ADR-0012
 | Outbox + Kafka | Must survive a restart, fan out to multiple asynchronous consumers, or eventually cross a service boundary | **No** — see §5 |
 | Synchronous port call | Not an event at all; `BR-ORD-02` requires atomicity | **Yes** — §3.1 |
 
+The message-by-message view of that flow — the outbox write inside the business transaction, the relay poll, the fan-out, and each consumer's idempotency obligation — is [`Sequence/00-Overview.md`](./Sequence/00-Overview.md) §3.
+
 The dashed future consumers are `P2` and `AC-03` working as intended: loyalty subscribes to `OrderPaid` without checkout changing by a line, and without appearing anywhere in §3's graph.
 
 ---

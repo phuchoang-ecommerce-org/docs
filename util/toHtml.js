@@ -102,14 +102,29 @@ ${bodyHtml}
   const blocks = Array.from(document.querySelectorAll('pre.mermaid'))
     .map((el) => ({ el, source: el.textContent }));
 
+  let renderPass = 0;
+
   async function render() {
     const theme = media.matches ? 'dark' : 'default';
+    renderPass += 1;
     mermaid.initialize({ startOnLoad: false, theme });
-    for (const block of blocks) {
+    // Render one diagram at a time rather than batching through mermaid.run().
+    // On a page with more than about three diagrams, the batched call leaves the
+    // later SVGs without a viewBox, and an SVG with width="100%" and no viewBox
+    // collapses to an empty box. Rendering individually also isolates a failure
+    // to the one diagram that caused it.
+    for (let i = 0; i < blocks.length; i += 1) {
+      const block = blocks[i];
       block.el.removeAttribute('data-processed');
-      block.el.textContent = block.source;
+      try {
+        const result = await mermaid.render('mermaid-' + i + '-' + renderPass, block.source);
+        block.el.innerHTML = result.svg;
+        if (result.bindFunctions) result.bindFunctions(block.el);
+      } catch (error) {
+        block.el.textContent = block.source;
+        console.error('Mermaid diagram ' + (i + 1) + ' failed to render', error);
+      }
     }
-    if (blocks.length) await mermaid.run({ nodes: blocks.map((b) => b.el) });
     blocks.forEach((block) => {
       const svg = block.el.querySelector('svg');
       if (svg) zoom.attach(svg);

@@ -77,6 +77,8 @@ flowchart LR
     Kafka --> Future[Loyalty · CRM — future]
 ```
 
+The runtime picture of this decision is [`Sequence/00-Overview.md`](../../02-backend/Sequence/00-Overview.md) §3, and [`Sequence/01-Ordering.md`](../../02-backend/Sequence/01-Ordering.md) §6 shows the outbox row being written inside the same transaction frame as the business change — which is the whole of what this record decides.
+
 **The transport rule.** An interaction uses Kafka when it must survive a process restart, fan out to multiple asynchronous consumers, or eventually cross a service boundary. Otherwise it is an in-process Spring Modulith event. Applying `Domain Model.md` §9:
 
 | Interaction | Transport | Why |

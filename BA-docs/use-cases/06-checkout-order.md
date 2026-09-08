@@ -206,6 +206,8 @@ Two rules dominate:
 
 ![Place order activity flow](../diagrams/checkout-activity.svg)
 
+The technical realisation — the one transaction, the two ports, and the three failure paths — is [`SA-docs/02-backend/Sequence/01-Ordering.md`](../../SA-docs/02-backend/Sequence/01-Ordering.md) §6–§9.
+
 **Main success scenario**
 
 1. Customer confirms the summary.

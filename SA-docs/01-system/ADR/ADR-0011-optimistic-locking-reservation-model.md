@@ -73,6 +73,8 @@ flowchart TB
     Hold --> Cancel[Cancelled / expired] --> Release[Released<br/>quantityReserved -= n]
 ```
 
+The mechanism is drawn message by message in [`Sequence/02-Inventory.md`](../../02-backend/Sequence/02-Inventory.md) §2, and the contended case — two placements racing for the last unit, the zero-row update, the bounded retry — in [`Sequence/01-Ordering.md`](../../02-backend/Sequence/01-Ordering.md) §7.
+
 **Reservation lifecycle** (`BR-INV-02`, `Domain Model.md` §8.3): `Held` on order placement; `Committed` when payment succeeds and stock physically leaves; `Released` on cancellation, payment failure, or expiry. A Scheduler-driven sweep publishes `StockReservationExpired` for holds that outlive their window — and per `Solution Architecture.md` §4, the Scheduler is a first-class trigger the domain model accepts exactly as it accepts an API call, so expiry is not a rule that lives only behind a human action (`P5`).
 
 **Multi-warehouse lines are multiple independent reservations.** There is no cross-warehouse aggregate; the `Order` side holds a plain set of `(StockItemId, StockReservationId)` references (`Domain Model.md` §8.3, §8.5), and partial commit or release is a legal outcome.
