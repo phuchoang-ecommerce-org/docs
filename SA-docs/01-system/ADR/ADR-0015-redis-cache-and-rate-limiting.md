@@ -84,7 +84,7 @@ Separately, `NFR-SEC-05` requires per-caller rate limiting with a stricter limit
 ### Neutral / follow-on
 
 - CDN/HTTP caching in front of anonymous catalog responses is complementary and undecided.
-- Redis topology (standalone, sentinel, cluster), eviction policy, and memory sizing are for [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md).
+- Redis topology (standalone, sentinel, cluster), eviction policy, and memory sizing are for [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md). **Now settled** by [ADR-0034](./ADR-0034-redis-two-instance-topology.md): **two** standalone instances rather than one, because `maxmemory-policy` is instance-wide and the four roles above do not tolerate the same policy — an evictable `redis-cache` (`allkeys-lru`) and a non-evictable `redis-state` (`noeviction`) holding the rate-limit, flash-sale, and session keys. Sizing, client configuration, the limiter's algorithm, and the degradation matrix are [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md) §5.
 
 ## 6. Related Decisions
 

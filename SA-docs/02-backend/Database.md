@@ -1,9 +1,9 @@
 # Database — Enterprise Commerce Platform (ECP)
 
 **Document type:** Backend architecture specification — data model & physical schema
-**Status:** Accepted where it renders an existing ADR; **Proposed** for §5 (outbox and consumer-idempotency tables) and §7.3 (Redis key schema), which are decided here for the first time
+**Status:** Accepted where it renders an existing ADR; **Proposed** for §5 (outbox and consumer-idempotency tables), §7.3 (Redis key schema), and the projection guards rendered from [`CQRS.md`](./CQRS.md) — `catalog_product.rating_last_event_at` (§4.2) and §7.1's three event-mark fields
 **Audience:** Backend Engineering, Architecture Review, Database Review
-**Related documents:** [Domain Model](./Domain%20Model.md) · [Module Dependency Diagram](./Module%20Dependency%20Diagram.md) · [Integration Contract](../04-shared/Integration%20Contract.md) · [Solution Architecture](../01-system/Solution%20Architecture.md) · [ADR-0009](../01-system/ADR/ADR-0009-postgresql-source-of-truth.md) · [ADR-0010](../01-system/ADR/ADR-0010-jpa-write-model-jdbc-read-models.md) · [ADR-0011](../01-system/ADR/ADR-0011-optimistic-locking-reservation-model.md) · [ADR-0029](../01-system/ADR/ADR-0029-flyway-versioned-schema-migrations.md)
+**Related documents:** [Domain Model](./Domain%20Model.md) · [CQRS](./CQRS.md) · [Module Dependency Diagram](./Module%20Dependency%20Diagram.md) · [Integration Contract](../04-shared/Integration%20Contract.md) · [Solution Architecture](../01-system/Solution%20Architecture.md) · [ADR-0009](../01-system/ADR/ADR-0009-postgresql-source-of-truth.md) · [ADR-0010](../01-system/ADR/ADR-0010-jpa-write-model-jdbc-read-models.md) · [ADR-0011](../01-system/ADR/ADR-0011-optimistic-locking-reservation-model.md) · [ADR-0029](../01-system/ADR/ADR-0029-flyway-versioned-schema-migrations.md)
 
 ---
 
@@ -403,6 +403,9 @@ CREATE TABLE catalog_product (
     attributes          JSONB       NOT NULL DEFAULT '{}'::jsonb,
     average_rating      NUMERIC(3,2),
     review_count        INTEGER     NOT NULL DEFAULT 0,
+    -- The rating projection's ordering guard (CQRS.md §5.1, §6.2). Carries the
+    -- envelope's occurredAt, never the write time.
+    rating_last_event_at TIMESTAMPTZ,
     version             BIGINT      NOT NULL DEFAULT 0,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     created_by          UUID,
@@ -466,6 +469,22 @@ CREATE INDEX ix_catalog_product_image_product_id ON catalog_product_image (produ
 ```
 
 **`average_rating` and `review_count` are a denormalisation, and they are the one place in this schema where a module stores data another module owns.** They are written by Catalog's own `ReviewPublished`/`ReviewModerated` event handler ([`Integration Contract.md`](../04-shared/Integration%20Contract.md) §7), never by Review, and they are non-authoritative — the authoritative rating data is `review_review`. Their justification is `NFR-PERF-01`: a product list page showing ratings for 24 products cannot issue a cross-module aggregate per product. Both columns are fully rebuildable from Kafka, which is [ADR-0008](../01-system/ADR/ADR-0008-cqrs-command-query-separation.md)'s test for whether a projection is a projection or an accidental second source of truth.
+
+**`rating_last_event_at` is what makes that projection safe, and it is the reason these two columns are not simply a cache.** `catalog_processed_event` (§5.2) excludes a *redelivered* envelope; it does nothing about an *older* one. Without the guard, a `ReviewModerated` event arriving after a newer `ReviewPublished` — routine, since the two travel Review's topic while Catalog's own events travel another ([`Integration Contract.md`](../04-shared/Integration%20Contract.md) §6.3) — overwrites the newer average, and a rating that silently goes backwards is invisible in the data. The guard therefore lives in the `UPDATE`'s own `WHERE` clause, the same place and for the same reason as §7.2.3's high-water mark:
+
+```sql
+UPDATE catalog_product
+   SET average_rating       = :avg,
+       review_count         = :count,
+       rating_last_event_at = :occurredAt,
+       updated_at           = now()
+ WHERE id = :productId
+   AND (rating_last_event_at IS NULL OR rating_last_event_at < :occurredAt);
+```
+
+Zero rows updated means already applied or superseded — acknowledge the message, do not retry. [`CQRS.md`](./CQRS.md) §5.1 is the record; `average_rating`/`review_count` are read model **R3** of its §5 catalogue, and a rebuild sets the guard back to `NULL` before replaying, or every event is skipped as superseded.
+
+**There is deliberately no equivalent column pair for availability.** `CQRS.md` §5.1 resolves the product page's per-variant badge as a **live** advisory read of `inventory_stock_item` through `inventory.api`, on `ix_inventory_stock_item_sku` (§4.3) — the route Cart's `BR-CRT-02` check already uses. The only projected availability in the platform is Elasticsearch's `variants.inStock` (§7.1), which exists because a search filter must evaluate its predicate locally. Adding a Catalog-side availability table would duplicate a fact one indexed lookup away, which is what [ADR-0008](../01-system/ADR/ADR-0008-cqrs-command-query-separation.md) §4 means by declining to route a query through a projection *"for the sake of symmetry."*
 
 **`owner_id` is reserved and unused.** [`Domain Model.md`](./Domain%20Model.md) §7's multi-vendor forward-compatibility commitment, stated in the schema so it is not silently forgotten. Nullable, no FK, no index until there is a query.
 
@@ -1542,6 +1561,12 @@ Definition, identical for every publishing module (shown for `ordering`):
 
 ```sql
 CREATE TABLE ordering_outbox (
+    -- The relay's total order. Backend Architecture.md §3.4.3: occurred_at is a
+    -- business timestamp and two events emitted in one transaction can share it,
+    -- so ordering the relay's poll by occurred_at can invert an aggregate's
+    -- lifecycle on one poll and not the next. BIGSERIAL gives a total order per
+    -- table, which is what the relay actually needs.
+    sequence_no     BIGSERIAL   NOT NULL,
     -- The envelope of Integration Contract §6.1, column for column.
     event_id        UUID        NOT NULL,
     event_type      VARCHAR(64) NOT NULL,
@@ -1568,14 +1593,21 @@ CREATE TABLE ordering_outbox (
 -- platform. Indexing only the former keeps the relay's poll O(backlog) rather
 -- than O(events ever published), and keeps the index small enough to stay
 -- cached — which is the difference between a relay that keeps up and one that
--- falls behind under NFR-SCAL-06's 10x peak.
+-- falls behind under NFR-SCAL-06's 10x peak. It is keyed on sequence_no because
+-- that is the order the relay reads in (Backend Architecture.md §3.4.2).
 CREATE INDEX ix_ordering_outbox_unpublished
-    ON ordering_outbox (occurred_at) WHERE published_at IS NULL;
+    ON ordering_outbox (sequence_no) WHERE published_at IS NULL;
+
+-- Replay reads published rows in the same total order (Backend Architecture.md
+-- §3.4.5), so the sequence is unique per table rather than merely monotonic.
+ALTER TABLE ordering_outbox
+    ADD CONSTRAINT ux_ordering_outbox_sequence_no UNIQUE (sequence_no);
 ```
 
 | Property | Detail |
 |---|---|
 | **Written in the business transaction** | The insert happens in the same local transaction as the `ordering_order` write ([ADR-0012](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §4). This is the whole mechanism: there is no window in which the order exists and the event does not. |
+| **`sequence_no` is the relay's read order** | [`Backend Architecture.md`](./Backend%20Architecture.md) §3.4.3. `occurred_at` is not a total order — two events emitted in one transaction share a timestamp, and an arbitrary tie-break there publishes an aggregate's lifecycle inverted on some polls and not others. It is also the order a replay reads in (§3.4.5), which is what makes a replay reproduce the original publication rather than approximate it |
 | **`event_id` is the primary key** | It is also the idempotency key every consumer keys on ([`Integration Contract.md`](../04-shared/Integration%20Contract.md) §6.1), so the same identifier is unique at both ends of the pipe. |
 | **`aggregate_id` is the Kafka partition key** | [`Integration Contract.md`](../04-shared/Integration%20Contract.md) §6.3 — *"partitioning by `aggregateId` is not a tuning choice"*; a consumer must not observe `OrderPaid` before `OrderCreated`. |
 | **`published_at IS NULL` means unpublished** | A nullable timestamp rather than a boolean status: it records *when* as well as *whether*, and the gap between `occurred_at` and `published_at` is outbox lag, which is a metric worth having (`NFR-OBS-04`). |
@@ -1726,6 +1758,9 @@ Catalog's search read model ([ADR-0014](../01-system/ADR/ADR-0014-elasticsearch-
         }
       },
       "popularityScore": { "type": "float" },
+      "catalogEventAt":      { "type": "date" },
+      "availabilityEventAt": { "type": "date" },
+      "ratingEventAt":       { "type": "date" },
       "indexedAt":       { "type": "date" }
     }
   }
@@ -1740,6 +1775,7 @@ Catalog's search read model ([ADR-0014](../01-system/ADR/ADR-0014-elasticsearch-
 | `inStock` is a boolean, not a count | Search shows *advisory* availability ([ADR-0014](../01-system/ADR/ADR-0014-elasticsearch-search-read-model.md)); indexing an exact count invites treating it as authoritative, and `NFR-PERF-06` gives availability no permitted lag on the binding path. The binding check is §6.1's versioned update. |
 | `listPrice` is `scaled_float` | Never a float for money, even in a display-only store — a rounding artefact in a search result is a support ticket |
 | Versioned index name + alias | `ecp-products-v1` behind an `ecp-products` alias, so a mapping change is a reindex-and-swap with no coordinated outage ([ADR-0014](../01-system/ADR/ADR-0014-elasticsearch-search-read-model.md)'s rebuildable requirement) |
+| Three event marks, one per field group | `catalogEventAt`, `availabilityEventAt`, `ratingEventAt` each hold the **envelope's `occurredAt`** for the writer that owns that group — Catalog's events, Inventory's, and Review's respectively. One document has three writers consuming three topics with no comparable ordering between them, so the ordering guard is per group, not per document ([`CQRS.md`](./CQRS.md) §6.2.1). `indexedAt` remains the write time and is **not** a guard. `dynamic: strict` is exactly why these must be declared here: without the mapping, the guard is a rejected document rather than a no-op |
 
 ### 7.2 MongoDB — reporting collections
 
@@ -1788,7 +1824,7 @@ Three properties, each of which is a rule that would otherwise be re-derived at 
 
 1. **The guard and the increment are one statement.** A single-document update is atomic in MongoDB, so `appliedEvents: { $ne: eventId }` and the `$inc` cannot interleave. A preceding `findOne` to check for the id leaves exactly the read-check-write window §6.1's first property rejects on the transactional path, for the same reason.
 2. **`modifiedCount == 0` means already applied** — acknowledge the message, do not retry. On a *first* write racing another consumer the upsert instead raises a duplicate-key error on `_id`; that is also "already applied," and it is the one case where a normal outcome appears in the log as an exception ([ADR-0030](../01-system/ADR/ADR-0030-spring-data-mongodb-read-model-access.md) §4).
-3. **`RING` must exceed Kafka's maximum redelivery horizon.** Past the ring's rotation, a redelivered event is no longer recognised and double-counts. That horizon is deferred to `Backend Architecture.md` (§11 item 3), so the ring size is deferred with it — recorded here as a dependency, not left as a number someone guesses.
+3. **`RING` must exceed Kafka's maximum redelivery horizon.** Past the ring's rotation, a redelivered event is no longer recognised and double-counts. That horizon is now fixed in [`Backend Architecture.md`](./Backend%20Architecture.md) §4.3, and it is far smaller than this dependency assumed: redelivery arises from an uncommitted offset after a crash or a rebalance, so it is bounded by `max.poll.interval.ms` (5 min) plus the consumer's retry budget (7 s) — **minutes, not the topic's retention.** A ring of a few hundred entries clears it with room to spare.
 
 `report_inventory_movement` takes the identical shape on `_id: "sku|warehouseId|day"` with `$inc` over `reserved`, `committed`, `released`, `adjusted`.
 
@@ -1833,24 +1869,26 @@ The same rule as `ix_…_processed_at`'s deliberate absence in §5.2 applies: an
 
 ### 7.3 Redis — key schema
 
-**Status: Proposed.** [ADR-0015](../01-system/ADR/ADR-0015-redis-cache-and-rate-limiting.md) fixes the four roles and their rules; the key-level schema is decided here.
+**Status: Proposed.** [ADR-0015](../01-system/ADR/ADR-0015-redis-cache-and-rate-limiting.md) fixes the four roles and their rules; the key-level schema is decided here. The **Instance** column is [ADR-0034](../01-system/ADR/ADR-0034-redis-two-instance-topology.md)'s: `maxmemory-policy` is instance-wide, so a key whose loss changes *behaviour* cannot share an instance with one whose loss costs only *latency*. Configuration and sizing are [`Backend Architecture.md`](./Backend%20Architecture.md) §5.
 
-| Key pattern | Type | Value | TTL | Invalidated by | Role |
-|---|---|---|---|---|---|
-| `cat:product:{productId}` | String (JSON) | Product detail projection | 15 min | `ProductPriceChanged`, `ProductDiscontinued`, `ProductPublished` | Catalog cache |
-| `cat:category:{slug}:page:{n}` | String (JSON) | Category listing page | 5 min | `CategoryChanged`, `ProductPublished` | Catalog cache |
-| `cat:variant:price:{sku}` | String | `amount|currency` | 15 min | `ProductPriceChanged` | Catalog cache — the live price Cart reads at display time |
-| `sess:{sessionId}` | Hash | Session attributes | sliding, = session window | logout, `AccountSuspended` | Session hot data |
-| `cart:{cartId}` | String (JSON) | Cart line projection | 30 min | any `cart_` write | Cart hot copy — **PostgreSQL remains the record** |
-| `rl:{callerId}:{bucket}` | String (counter) | Request count in window | = window | — | Rate limiting (`NFR-SEC-05`) |
-| `rl:auth:{callerId}` | String (counter) | Auth-endpoint count; stricter bucket | = window | — | Rate limiting — **fails closed** |
-| `flash:{sku}` | String (counter) | Remaining flash-sale allowance | = sale window | sale end | Flash-sale pre-filter |
+| Key pattern | Instance | Type | Value | TTL | Invalidated by | Role |
+|---|---|---|---|---|---|---|
+| `cat:product:{productId}` | `cache` | String (JSON) | Product detail projection | 15 min | `ProductPriceChanged`, `ProductDiscontinued`, `ProductPublished` | Catalog cache |
+| `cat:category:{slug}:page:{n}` | `cache` | String (JSON) | Category listing page | 5 min | `CategoryChanged`, `ProductPublished` | Catalog cache |
+| `cat:variant:price:{sku}` | `cache` | String | `amount|currency` | 15 min | `ProductPriceChanged` | Catalog cache — the live price Cart reads at display time |
+| `sess:{sessionId}` | **`state`** | Hash | Session attributes | sliding, = session window | logout, `AccountSuspended` | Session hot data |
+| `cart:{cartId}` | `cache` | String (JSON) | Cart line projection | 30 min | any `cart_` write | Cart hot copy — **PostgreSQL remains the record** |
+| `rl:{callerId}:{bucket}` | **`state`** | Sorted set | Sliding-window request timestamps | = window | — | Rate limiting (`NFR-SEC-05`) |
+| `rl:auth:{callerId}` | **`state`** | Sorted set | Auth-endpoint window; stricter bucket | = window | — | Rate limiting — **fails closed** |
+| `flash:{sku}` | **`state`** | String (counter) | Remaining flash-sale allowance | = sale window | sale end | Flash-sale pre-filter |
+| `lock:cachefill:{key}` | `cache` | String | Stampede mutex holder | 5 s | released by the filler | Cache-fill lock ([`Backend Architecture.md`](./Backend%20Architecture.md) §5.6) |
 
 Three rules, restated at the key level because that is where they get broken:
 
 1. **Every key is reconstructible.** Flushing Redis entirely costs latency and nothing else ([ADR-0015](../01-system/ADR/ADR-0015-redis-cache-and-rate-limiting.md) §4). No key above holds a fact that exists nowhere else.
 2. **`flash:{sku}` may reject; it may never authorise.** A request the counter permits still passes §6.1's versioned update. This is the one-directional contract [ADR-0011](../01-system/ADR/ADR-0011-optimistic-locking-reservation-model.md) §5 notes is enforced by review rather than by a type — so it is written into the schema, where a reviewer will see it.
 3. **Nothing with a zero-lag requirement is cached.** `NFR-PERF-06` gives inventory availability and payment state no permitted lag: there is no `inv:available:{sku}` key and no `pay:status:{orderId}` key in this table, and their absence is the design.
+4. **A `state` key is never written through the cache connection.** [ADR-0034](../01-system/ADR/ADR-0034-redis-two-instance-topology.md): under `allkeys-lru` the rate-limit counters would be evicted by catalog traffic — during the 10× peak at which `NFR-SEC-05` matters most. [`Backend Architecture.md`](./Backend%20Architecture.md) §9 rule B4 checks the prefix against the connection factory, because nothing in Redis does.
 
 `cart:{cartId}` is the one entry worth a second look. Cart contents are transactional ([ADR-0009](../01-system/ADR/ADR-0009-postgresql-source-of-truth.md)) and `cart_cart` is the record; this key makes reads cheap. `BR-CRT-01`'s configurable expiry window maps to the TTL for convenience, but the authoritative expiry is the scheduled domain action against `cart_cart.expires_at` (§4.4) — a key evicted early must not expire a customer's cart.
 
@@ -1867,7 +1905,8 @@ Three rules, restated at the key level because that is where they get broken:
   ├── V202609071406__identity_create_role.sql             §4.1  role, account_role
   ├── V202609071407__identity_create_token.sql            §4.1  BR-CUS-03
   ├── V202609071410__catalog_create_category.sql          §4.2  self-FK, path index — BR-CAT-03
-  ├── V202609071411__catalog_create_product.sql           §4.2  partial browse index — BR-CAT-02
+  ├── V202609071411__catalog_create_product.sql           §4.2  partial browse index — BR-CAT-02,
+  │                                                              rating projection guard — CQRS §5.1
   ├── V202609071412__catalog_create_variant.sql           §4.2  unique sku — BR-CAT-01
   ├── V202609071415__inventory_create_warehouse.sql       §4.3
   ├── V202609071416__inventory_create_stock_item.sql      §4.3  version, GENERATED available — ADR-0011
@@ -2004,7 +2043,7 @@ Recorded so that silence does not read as settlement.
 |---|---|---|
 | 1 | **High availability, backup, and restore** for the single PostgreSQL instance | [ADR-0009](../01-system/ADR/ADR-0009-postgresql-source-of-truth.md) §5 names it a real gap: `NFR-AVAIL-01` rests on an instance no record covers. This schema makes the exposure concrete — every table above is on one instance. |
 | 2 | **Retention and archival for `audit_entry`** | [ADR-0017](../01-system/ADR/ADR-0017-append-only-audit-log.md) states expiry is an operational archival process the platform can never perform as a delete. The retention period, the archive target, and who runs it are unspecified. |
-| 3 | **Outbox and `*_processed_event` pruning** | §5.1 retains published rows deliberately; §5.2's tables grow with every event consumed. Both need a retention window longer than the maximum Kafka redelivery horizon, which is itself deferred to `Backend Architecture.md`. |
+| 3 | **Outbox and `*_processed_event` pruning** | **Answered, and the two turn out to be different questions** — [`Backend Architecture.md`](./Backend%20Architecture.md) §3.4.6. §5.2's tables are a dedupe window and are pruned at **24 hours**, against a redelivery horizon of minutes (§4.3 there). §5.1's rows are **not pruned at all**: §3.4.5 makes them the permanent replay source of record, so the table is *partitioned* monthly on `created_at` rather than trimmed — which is what `P10` actually needed, since the cost being managed is the unpublished-row index, not the row count. What remains open is narrower: an archival tier for detached partitions, since partitioning bounds query cost and not disk. |
 | 4 | **Table partitioning thresholds** | `ordering_order`, `audit_entry`, and the outbox tables are the three that grow without bound. Declarative range partitioning on `created_at` is the obvious answer; the volume at which it becomes worth its complexity is not knowable before production data exists. |
 | 5 | **Personal-data erasure** | §9 notes personal data is snapshotted onto orders by design (`BR-ORD-06`), so an erasure request cannot be satisfied by deleting `identity_account` alone. No requirement in the SRS specifies erasure or retention, so no policy is invented here. |
 | 6 | **Reference-data seeding** | [ADR-0029](../01-system/ADR/ADR-0029-flyway-versioned-schema-migrations.md)'s own open question. `identity_role` and `inventory_warehouse` need rows before the platform functions; whether those arrive as a versioned migration, a repeatable one, or an application bootstrap is undecided. |
@@ -2018,6 +2057,7 @@ Recorded so that silence does not read as settlement.
 flowchart TB
     DM["Domain Model.md — aggregates, entities, BR-* invariants"] --> This
     ADR["ADR-0009 · 0010 · 0011 · 0012 · 0013 · 0014 · 0015 · 0017 · 0029"] --> This
+    CQ["CQRS.md — read models, projection guards"] --> This
     This["Database.md — tables, columns, constraints, indexes<br/>+ Elasticsearch · MongoDB · Redis schemas"]
     This --> FW["app/src/main/resources/db/migration/ — Flyway scripts"]
     This --> JPA["JPA entities (validated against this schema)"]

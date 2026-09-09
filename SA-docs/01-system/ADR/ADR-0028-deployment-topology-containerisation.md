@@ -104,7 +104,7 @@ The concrete node inventory, networks, ports, volumes, and operational procedure
 
 ### Neutral / follow-on
 
-- The relay-implementation choice ([ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md) §5) and the scheduler-contention mitigation are both deferred to `Backend Architecture.md`. This record only fixes where they run.
+- The relay-implementation choice ([ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md) §5) and the scheduler-contention mitigation are both deferred to `Backend Architecture.md`. This record only fixes where they run. **The relay's half is now settled** by [ADR-0033](./ADR-0033-polling-outbox-relay.md): a polling relay in-process in `ecp-api`, single-runner per publishing module via a PostgreSQL advisory lock — so §4's topology gains no container, and neither of the two candidates this record's §6 offered was needed. The **scheduler's half remains open**, and deliberately so: an advisory lock suits a continuous loop and a periodic job suits a lease.
 - CI provider, image registry, and hosting location remain open, as does the question of whether `NFR-AVAIL-01`'s assumption **[A-12]** becomes a ratified commitment. If it does, Option 2 should be revisited immediately — the reason for rejecting it was proportionality, and a ratified availability target changes what is proportionate.
 - Container image hardening, base-image patch cadence, and network-level access to `data-01` are security-operational concerns no record covers yet.
 

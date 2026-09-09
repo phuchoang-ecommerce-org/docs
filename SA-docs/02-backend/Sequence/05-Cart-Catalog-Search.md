@@ -258,7 +258,7 @@ sequenceDiagram
   participant Ctl as ProductController
   participant Query as ProductQueryService
   participant Redis
-  participant Availability as AvailabilityReadModel
+  participant Availability as InventoryQueryService
   participant Rating as RatingSummaryReadModel
   participant PG as PostgreSQL
 
@@ -278,13 +278,13 @@ sequenceDiagram
   end
   Note over Query: BR-CAT-02 — an unpublished product is not served here at<br/>all. Publication status is part of the query, not a filter<br/>applied afterwards by the client.
 
-  Query->>Availability: per-variant availability
+  Query->>Availability: per-variant availability (inventory.api)
   Availability-->>Query: in stock, low stock, or out of stock
-  Note over Availability: A read model projected from Inventory's Kafka events (§8).<br/>DISPLAY DATA — it may lag, and BR-INV-01 is enforced only<br/>by the versioned check at 01-Ordering.md §6. Showing "in<br/>stock" for a unit someone else takes a second later is<br/>expected behaviour, not a defect.
+  Note over Availability: A LIVE advisory read of inventory_stock_item on<br/>ix_inventory_stock_item_sku, through inventory.api — not a<br/>projection (CQRS.md §5.1). The projected copy is only the<br/>search index's inStock flag (§8), which a facet must<br/>evaluate locally. DISPLAY DATA either way: BR-INV-01 is<br/>enforced only by the versioned check at 01-Ordering.md §6.<br/>Showing "in stock" for a unit someone else takes a second<br/>later is expected behaviour, not a defect.
 
   Query->>Rating: rating summary for this product
   Rating-->>Query: average and count
-  Note over Rating: Projected from Review's ReviewPublished events. Catalog<br/>DISPLAYS ratings without owning them — Review is its own<br/>bounded context with its own moderation lifecycle.
+  Note over Rating: Projected into catalog_product.average_rating and<br/>review_count from Review's ReviewPublished / ReviewModerated<br/>events, guarded by rating_last_event_at so an older event<br/>cannot move the average backwards (CQRS.md §5.1). Catalog<br/>DISPLAYS ratings without owning them — Review is its own<br/>bounded context with its own moderation lifecycle.
 
   Query-->>Ctl: product detail
   Ctl-->>Next: product resource

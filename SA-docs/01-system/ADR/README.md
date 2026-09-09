@@ -61,10 +61,13 @@ A `Proposed` record is never quietly promoted. Promotion is its own commit.
 | [0015](./ADR-0015-redis-cache-and-rate-limiting.md) | Redis for cache-aside, hot data, rate limiting, flash-sale pre-filter | Accepted | `P9` · `CON-05` · `NFR-SCAL-06` · `NFR-SEC-05` |
 | [0016](./ADR-0016-jwt-refresh-rotation-rbac.md) | JWT access tokens, rotating refresh tokens, RBAC at the boundary | Accepted | `P16` · `NFR-SEC-01` · `NFR-SEC-03` · `BR-CUS-03` |
 | [0017](./ADR-0017-append-only-audit-log.md) | Append-only audit log projected from domain events | Accepted | `P17` · `BR-AUD-01` · `NFR-OBS-02` |
-| [0018](./ADR-0018-architecture-governance-ci-gate.md) | Architecture governance as a CI gate; test strategy | Accepted · test stack **Proposed** | `P15` · `NFR-MAINT-05` · `AC-04` |
+| [0018](./ADR-0018-architecture-governance-ci-gate.md) | Architecture governance as a CI gate; test strategy | Accepted · test stack **Proposed** · §4.1 CQRS rules **Proposed** | `P15` · `NFR-MAINT-05` · `AC-04` |
 | [0027](./ADR-0027-java-21-spring-boot-4-gradle.md) | Java 21 (LTS) on Spring Boot 4.1.1, built with Gradle (multi-module) | **Proposed** | `P15` · `NFR-SCAL-04` · `NFR-MAINT-05` |
 | [0029](./ADR-0029-flyway-versioned-schema-migrations.md) | Flyway for versioned schema migrations; Hibernate restricted to `validate` | Accepted (Flyway) · rules **Proposed** | `P15` · `NFR-MAINT-05` · `NFR-REL-01` · `NFR-OBS-02` |
 | [0030](./ADR-0030-spring-data-mongodb-read-model-access.md) | Spring Data MongoDB as the read-model access technology | **Proposed** | `P13` · `CON-06` · `NFR-PERF-05` · `NFR-PERF-06` |
+| [0032](./ADR-0032-json-event-serialisation-and-schema-contract.md) | JSON event serialisation with a repository-held schema contract; no schema registry | **Proposed** | `P2` · `P6` · `P15` · `NFR-REL-06` · `NFR-SEC-07` · `AC-03` |
+| [0033](./ADR-0033-polling-outbox-relay.md) | A polling outbox relay over per-module outbox tables, not Spring Modulith externalisation | **Proposed** | `P2` · `P6` · `P10` · `NFR-REL-05` · `NFR-REL-06` · `NFR-OBS-04` |
+| [0034](./ADR-0034-redis-two-instance-topology.md) | Two Redis instances: an evictable cache and a non-evictable state store | **Proposed** | `P8` · `P9` · `NFR-SCAL-06` · `NFR-SEC-05` · `NFR-AVAIL-01` |
 
 ### Frontend
 
@@ -92,11 +95,14 @@ A `Proposed` record is never quietly promoted. Promotion is its own commit.
 0028                     where that one deployable physically runs
   ↓
 0027, 0005 → 0018,       backend — runtime, structure, data, events, security, governance
-0029 → 0030
+0029 → 0030,
+0032 → 0034              backend — the event backbone's wire format, relay, and cache topology
 0019 → 0026              frontend — rendering, language, design system, data, session, motion
 ```
 
 `0027` is out of numeric order with its siblings: it is the backend's runtime/framework/build record and belongs first in the reading order, but was written after the frontend records because it supersedes and absorbs what was originally ADR-0004 (deleted; see §2).
+
+`0032`–`0034` come last for the same kind of reason as `0027` comes first: they are the operational half of decisions `0012` and `0015` already made, and they only make sense after those. Each discharges a deferral that [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md) collects.
 
 Two records carry more weight than the rest and are worth reading first if time is short: [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md), which is how the platform avoids selling stock it does not have, and [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md), without which the "modular" in modular monolith is only a claim.
 
@@ -104,7 +110,7 @@ Two records carry more weight than the rest and are worth reading first if time 
 
 ## 5. Adding a Record
 
-1. Take the next number in the sequence — currently **`ADR-0032`**. Numbers are never reused, including for superseded records.
+1. Take the next number in the sequence — currently **`ADR-0035`**. Numbers are never reused, including for superseded records.
 2. Name the file `ADR-00NN-<kebab-case-title>.md`.
 3. Copy the structure from any existing record: metadata block, then the six numbered sections.
 4. Give `Considered Options` at least one option that was genuinely rejected, with real trade-offs. If there isn't one, the decision probably didn't need a record.

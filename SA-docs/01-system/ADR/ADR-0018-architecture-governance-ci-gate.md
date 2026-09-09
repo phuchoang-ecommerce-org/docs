@@ -1,11 +1,11 @@
 # ADR-0018 — Architecture Governance as a CI Gate: ArchUnit, Modulith Verification, and the Test Strategy
 
 **Document type:** Architecture Decision Record
-**Status:** Accepted · the test-stack selection is **Proposed**
+**Status:** Accepted · the test-stack selection is **Proposed** · §4.1's eleven CQRS rules are **Proposed**, pending ratification of [`CQRS.md`](../../02-backend/CQRS.md)
 **Date:** 2026-09-06
 **Deciders:** Solution Architecture
 **Traces to:** `P15` · `P5` · `NFR-MAINT-01` · `NFR-MAINT-02` · `NFR-MAINT-03` · `NFR-MAINT-05` · `NFR-REL-03` · `AC-04`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Technology Stack](../Technology%20Stack.md)
+**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Technology Stack](../Technology%20Stack.md) · [CQRS](../../02-backend/CQRS.md)
 
 ---
 
@@ -76,6 +76,26 @@ The authorisation rule is the single highest-value entry: a missing call is a si
 
 The last MongoDB rule is the second-least-obvious. It is a **narrowing** of the `@QueryService` row above, not a contradiction of it: a PostgreSQL query service is read-only *and* transactional, a MongoDB one is read-only and carries no transaction at all. The failure it prevents — a transactional connection held for the duration of every dashboard request — appears only as pool pressure under load, never as a failing test, so an assertion is the only thing that catches it ([ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md) §5).
 
+### 4.1 Rules added by `CQRS.md` §11.1
+
+**Status: `Proposed`.** [`CQRS.md`](../../02-backend/CQRS.md) renders [ADR-0008](./ADR-0008-cqrs-command-query-separation.md) into a command/query contract, a read-model catalogue, and per-store projection guards. Eleven of its rules are assertions this gate can carry, and they are listed here — the gate's rule set is one table, not one per document — rather than in the document that decided them. They are `Proposed` for as long as `CQRS.md` is: the [ADR index](./README.md) §2 forbids quiet promotion, so these become `Accepted` in the commit that ratifies it, not in the one that wrote it.
+
+| # | Rule | Enforces | Catches |
+|---|---|---|---|
+| G1 | An `@ApplicationService` must not reference a `@QueryService`, nor any read-store client (`MongoTemplate`, an Elasticsearch client, a Redis template) | `CQRS.md` §2.2 — a command never decides against a read model | The highest-value rule of the eleven, for the same reason the authorisation rule leads the table above: a command that reads a projection returns a wrong decision under load and a correct one in every test that is not concurrent |
+| G2 | A `@QueryService` must not reference a JMolecules `@Repository`, `@AggregateRoot`, `@Entity`, or `@DomainService` type | `CQRS.md` §4.2 | The N+1 and lazy-loading path [ADR-0010](./ADR-0010-jpa-write-model-jdbc-read-models.md) §3 rejects, reintroduced on the read side |
+| G3 | A `@QueryService` method's return type must not be annotated `@AggregateRoot` or `@Entity` | `CQRS.md` §4.1 | A domain type reaching the wire, and with it an ORM or Jackson annotation reaching the domain (`CON-03`) |
+| G4 | A view record must not reference a domain or JPA type | `CQRS.md` §4.1 | The same leak by composition rather than by return type |
+| G5 | A write to Elasticsearch occurs only inside an `@EventHandler` | `CQRS.md` §6.1; [ADR-0014](./ADR-0014-elasticsearch-search-read-model.md) §4 | A dual write with no transaction spanning it — the mirror of the MongoDB rule above, for the store that already required this in prose |
+| G6 | No Elasticsearch client type outside a module's `infrastructure` package | `CON-03`, `NFR-MAINT-03` | The mirror of the `spring-data-mongodb` rule above |
+| G7 | A `@QueryService` reaching Elasticsearch or MongoDB carries no PostgreSQL transaction | `NFR-PERF-05`, `CON-06` | Widens the MongoDB row above to Elasticsearch. Same failure, same invisibility: a transactional connection held for every search request shows up as pool pressure under load and never as a failing test |
+| G8 | An `@EventHandler` that writes a read store must not publish an event nor call another module's application service | `CQRS.md` §6.5; [`Domain Model.md`](../../02-backend/Domain%20Model.md) §5.2's zero-upstream-influence rule | A read model becoming a participant in the write side, and a runtime edge the module graph does not show |
+| G9 | No cache client type in a module's `application` or `domain` package | `CQRS.md` §6.3 | Cache invalidation drifting into the application layer, where it becomes a second lifetime mechanism competing with the TTL |
+| G10 | The `reporting` and `audit` modules declare no `@ApplicationService` with a mutating command method | [`Domain Model.md`](../../02-backend/Domain%20Model.md) §8.12; [ADR-0017](./ADR-0017-append-only-audit-log.md) | A write path appearing in a pure read side or an append-only log. Strengthens the Audit row above from "no update or delete" to "no command at all" |
+| G11 | A command type is declared in `application`, never in `api` | `CQRS.md` §3.2 | A command reachable only over HTTP, which makes the Scheduler and event-handler entry points second-class and `BR-AUD-02`'s "same decision regardless of entry point" untestable |
+
+G5, G6, and G7 are deliberately the Elasticsearch twins of rules this record already carried for MongoDB. The asymmetry was an artefact of [ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md) existing while no equivalent record covered the search index, not a decision that the search index needed less protection.
+
 **Test strategy — `Proposed`**, since the repository names no framework:
 
 | Layer | Stack | Verifies |
@@ -113,4 +133,4 @@ The last MongoDB rule is the second-least-obvious. It is a **narrowing** of the 
 
 ## 6. Related Decisions
 
-[ADR-0005](./ADR-0005-clean-architecture-ports-and-adapters.md) · [ADR-0006](./ADR-0006-spring-modulith-module-boundaries.md) · [ADR-0007](./ADR-0007-jmolecules-tactical-ddd.md) · [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md) · [ADR-0016](./ADR-0016-jwt-refresh-rotation-rbac.md) · [ADR-0017](./ADR-0017-append-only-audit-log.md)
+[ADR-0005](./ADR-0005-clean-architecture-ports-and-adapters.md) · [ADR-0006](./ADR-0006-spring-modulith-module-boundaries.md) · [ADR-0007](./ADR-0007-jmolecules-tactical-ddd.md) · [ADR-0008](./ADR-0008-cqrs-command-query-separation.md) · [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md) · [ADR-0016](./ADR-0016-jwt-refresh-rotation-rbac.md) · [ADR-0017](./ADR-0017-append-only-audit-log.md) · [ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md)

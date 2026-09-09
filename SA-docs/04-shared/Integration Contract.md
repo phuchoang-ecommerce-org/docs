@@ -223,7 +223,7 @@ One code was added to this catalogue by [`04-shared/OpenAPI/`](./OpenAPI/README.
 
 ## 6. Event Envelope and Topic Naming
 
-**Status: `Proposed`.** [`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §5 defers topic naming, partition counts, retention, and serialisation format to `Backend Architecture.md`. The parts that are a *contract* — what a consumer can rely on — are decided here; the operational parameters remain deferred.
+**Status: `Proposed`.** [`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §5 deferred topic naming, partition counts, retention, and serialisation format to `Backend Architecture.md`. The parts that are a *contract* — what a consumer can rely on — are decided here. The operational parameters are now settled in [`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) §4, and the serialisation format in [`ADR-0032`](../01-system/ADR/ADR-0032-json-event-serialisation-and-schema-contract.md).
 
 Everything in this section applies to **Kafka-transported events only**. In-process Modulith events are an internal mechanism, not a contract ([`Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md) §5).
 
@@ -265,7 +265,7 @@ A correlation id is issued at the edge and threaded through: HTTP request → ap
 | Topic naming | `ecp.<context>.<aggregate>.v<major>` — e.g. `ecp.ordering.order.v1`, `ecp.payment.payment.v1`. Lowercase, dot-separated. |
 | Granularity | One topic per aggregate type, not per event type. All `Order*` events share `ecp.ordering.order.v1`, which is what makes ordering between them meaningful. |
 | Partition key | **`aggregateId`, always.** |
-| Retention, partition count, replication | Deferred to `Backend Architecture.md`. |
+| Retention, partition count, replication | [`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) §4.2–§4.3 — 30-day retention, `cleanup.policy=delete`, partitions per topic, `RF=1` on the single-broker topology. A **partition-count increase rehashes keys and breaks ordering for every aggregate in flight**, so it is a versioned change, not a tuning knob. |
 
 **Partitioning by `aggregateId` is not a tuning choice.** [`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §5 states the hazard directly: *"Event ordering holds only within a partition. Order lifecycle events must be partitioned by order id, or a consumer can observe `OrderPaid` before `OrderCreated`."* Any other key makes the order lifecycle unobservable in order.
 
@@ -335,7 +335,11 @@ Applies identically to REST responses and event payloads. The rule is **additive
 
 ### 8.4 The standing risk
 
-[`Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md) §5 deliberately removes the compile-time link between a Kafka publisher and its consumers — that is what keeps the module graph acyclic and future extraction cheap. The price is paid here: **nothing in the compiler catches a consumer that misreads a field.** Contract tests against the schema published in `04-shared/Event Contract` are the only mechanism that does, and [`ADR-0018`](../01-system/ADR/ADR-0018-architecture-governance-ci-gate.md)'s test stack does not yet name a tool for them. This is an open gap, not a solved problem.
+[`Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md) §5 deliberately removes the compile-time link between a Kafka publisher and its consumers — that is what keeps the module graph acyclic and future extraction cheap. The price is paid here: **nothing in the compiler catches a consumer that misreads a field.** Contract tests against the schema published in `04-shared/Event Contract` are the only mechanism that does.
+
+[`ADR-0032`](../01-system/ADR/ADR-0032-json-event-serialisation-and-schema-contract.md) §4 now names them: JSON Schema 2020-12 files at `04-shared/Event Contract/<context>/<EventType>.v<N>.json`, and **two** L3 tests rather than one — a publisher-side test validating a real outbox row against the schema, and a **consumer-side** test asserting that every field the consumer binds exists in the publisher's schema and is `required` there. The second is the one that closes this paragraph's gap, because it is the only test that looks across the boundary the compiler no longer spans. [`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) §9 rules B8 and B9 make a *missing* schema or a *missing* test a build failure, since a contract test nobody wrote protects nothing.
+
+What remains open is smaller but real: enforcement is CI-time, not publish-time. A registry would refuse an incompatible schema at the broker; this arrangement does not, and [`ADR-0032`](../01-system/ADR/ADR-0032-json-event-serialisation-and-schema-contract.md) §5 records that as the standing cost of avoiding one.
 
 ---
 

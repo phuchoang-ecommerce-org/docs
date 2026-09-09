@@ -118,8 +118,8 @@ The runtime picture of this decision is [`Sequence/00-Overview.md`](../../02-bac
 
 ### Neutral / follow-on
 
-- Relay implementation (Spring Modulith's event publication registry versus a bespoke poller), topic naming, partition counts, and retention are for [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md).
-- Schema registry and serialisation format are undecided.
+- Relay implementation (Spring Modulith's event publication registry versus a bespoke poller), topic naming, partition counts, and retention are for [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md). **Now settled:** the relay is a polling relay over the per-module outbox tables, single-runner per module via a PostgreSQL advisory lock ([ADR-0033](./ADR-0033-polling-outbox-relay.md)); topics, partitions, and a 30-day retention are [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md) §4.2–§4.3.
+- Schema registry and serialisation format are undecided. **Now settled:** UTF-8 JSON on the wire with JSON Schema held in `04-shared/Event Contract/` and no registry ([ADR-0032](./ADR-0032-json-event-serialisation-and-schema-contract.md)).
 
 ## 6. Related Decisions
 

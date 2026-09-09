@@ -33,7 +33,8 @@ Two virtual machines, each running a Docker Compose project. The split is not ar
 | | `ecp-web` `{1..N}` | Next.js standalone output | Storefront and admin console ([ADR-0019](./ADR/ADR-0019-nextjs-app-router-rendering-strategy.md)) |
 | | `ecp-api` `{1..N}` | `ecp-app.jar` on a JRE 21 base | The entire modular monolith — all thirteen modules, one process ([ADR-0002](./ADR/ADR-0002-modular-monolith-deployment-unit.md), [ADR-0027](./ADR/ADR-0027-java-21-spring-boot-4-gradle.md)) |
 | **VM `data-01`** | PostgreSQL | `postgres:16` | Transactional source of truth **and** the outbox table — they must share one transaction ([ADR-0009](./ADR/ADR-0009-postgresql-source-of-truth.md), [ADR-0012](./ADR/ADR-0012-transactional-outbox-and-kafka.md)) |
-| | Redis | `redis:7` | Cache-aside, hot data, rate limiting, flash-sale pre-filter ([ADR-0015](./ADR/ADR-0015-redis-cache-and-rate-limiting.md)) |
+| | `redis-cache` | `redis:7` | Catalog and cart cache-aside. `allkeys-lru`, no persistence, **freely flushable** ([ADR-0015](./ADR/ADR-0015-redis-cache-and-rate-limiting.md), [ADR-0034](./ADR/ADR-0034-redis-two-instance-topology.md)) |
+| | `redis-state` | `redis:7` | Rate-limit counters, flash-sale allowances, session hot data. `noeviction`, append-only. **Separate because `maxmemory-policy` is instance-wide**: on one instance, catalog traffic would evict the rate limiter during the peak `NFR-SEC-05` exists for ([ADR-0034](./ADR/ADR-0034-redis-two-instance-topology.md)) |
 | | Kafka (KRaft) | `confluentinc/cp-kafka` | Event backbone. KRaft mode — no ZooKeeper node to operate ([ADR-0012](./ADR/ADR-0012-transactional-outbox-and-kafka.md)) |
 | | Elasticsearch | `elasticsearch:8` | Catalog's event-fed search read model ([ADR-0014](./ADR/ADR-0014-elasticsearch-search-read-model.md)) |
 | | MongoDB | `mongo:7` | Reporting and flexible read models only ([ADR-0013](./ADR/ADR-0013-mongodb-scoped-to-read-models.md)) |
@@ -67,7 +68,9 @@ Thirteen Spring Modulith modules whose boundaries are verified at build time ([`
 | Next.js standalone bundle | `next build` with `output: "standalone"` | Node 22 container image |
 | Schema migrations | Flyway versioned SQL scripts in the `app` subproject ([ADR-0029](./ADR/ADR-0029-flyway-versioned-schema-migrations.md)) | Run on `ecp-api` startup, before the application context is ready — see §8 |
 
-**The outbox relay runs in-process inside `ecp-api`, not as a separate container.** [`ADR-0012`](./ADR/ADR-0012-transactional-outbox-and-kafka.md) §5 leaves the relay's implementation to `Backend Architecture.md`; this topology only requires that wherever it runs, it can reach both PostgreSQL and Kafka. Keeping it in-process means one fewer deployable, at the cost of tying relay throughput to application scaling. Because the relay must not publish the same row from N replicas, it is subject to the same single-runner constraint as the scheduler (§6).
+**The outbox relay runs in-process inside `ecp-api`, not as a separate container.** [`ADR-0012`](./ADR/ADR-0012-transactional-outbox-and-kafka.md) §5 left the relay's implementation to `Backend Architecture.md`; this topology only requires that wherever it runs, it can reach both PostgreSQL and Kafka. Keeping it in-process means one fewer deployable, at the cost of tying relay throughput to application scaling.
+
+**Its single-runner constraint is now resolved, and differently from the scheduler's.** [`ADR-0033`](./ADR/ADR-0033-polling-outbox-relay.md) gives each publishing module a **PostgreSQL advisory lock**: one worker per module holds it across the whole cluster, seven modules distribute across replicas, and a killed replica releases its claim when its connection dies — so there is no lease duration to guess at and no lock table. Neither of §6's two candidates was needed. The consequence for this topology is concrete and worth stating: **adding `ecp-api` replicas does not increase any single module's publication rate**, because one module is relayed by exactly one worker. The `ordering` module's throughput ceiling is one worker's throughput, and [`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) §8 makes measuring it an L7 item rather than an assumption. §6's question remains open **for the scheduler**, which is a periodic job and suits a lease rather than a held lock.
 
 ---
 
@@ -86,9 +89,9 @@ Three Compose networks, so that a container can only reach what it is meant to r
 | `nginx` | 443, 80 (redirect only) | **Yes** — the sole ingress |
 | `ecp-web` | 3000 | No |
 | `ecp-api` | 8080; 8081 management/actuator | No |
-| PostgreSQL · Redis · Kafka · Elasticsearch · MongoDB | 5432 · 6379 · 9092 · 9200 · 27017 | No — reachable only over `data` |
+| PostgreSQL · `redis-cache` · `redis-state` · Kafka · Elasticsearch · MongoDB | 5432 · 6379 · 6380 · 9092 · 9200 · 27017 | No — reachable only over `data` |
 
-Every stateful service gets a named volume on `data-01` (`pgdata`, `redisdata`, `kafkadata`, `esdata`, `mongodata`). `app-01` holds no persistent state at all, which is what makes replacing an `ecp-api` container a safe, routine operation.
+Every stateful service gets a named volume on `data-01` (`pgdata`, `redisstatedata`, `kafkadata`, `esdata`, `mongodata`) — **except `redis-cache`, which is deliberately volumeless**: it holds only reconstructible data, and persisting a cache buys nothing while adding fork latency to a hot path ([ADR-0034](./ADR/ADR-0034-redis-two-instance-topology.md)). `redis-state` does get one, because without it a restart hands every caller a fresh rate-limit budget at once. `app-01` holds no persistent state at all, which is what makes replacing an `ecp-api` container a safe, routine operation.
 
 **`ecp-api` is stateless by construction.** Session state lives in a rotating refresh token held server-side and an httpOnly cookie held by the browser ([ADR-0016](./ADR/ADR-0016-jwt-refresh-rotation-rbac.md), [ADR-0025](./ADR/ADR-0025-httponly-cookie-session.md)), and hot data lives in Redis — so no replica owns anything another replica would miss, and `nginx` needs no sticky sessions.
 
@@ -175,9 +178,9 @@ Integration tests do not use this long-running stack. They use Testcontainers fo
 | **Logs** | Structured JSON to stdout, collected by the Docker logging driver. One log stream per container | `NFR-OBS-01` |
 | **Tracing** | A correlation id is issued at `nginx`, carried through the REST call, and propagated onto the Kafka event envelope ([Integration Contract](../04-shared/Integration%20Contract.md) §6) so one business transaction is followable across every module it touches | `NFR-OBS-03` |
 | **Metrics** | Actuator/Micrometer on the management port: throughput, latency, error rate, and business event volume, all without a code change | `NFR-OBS-04` |
-| **Backup** | PostgreSQL: continuous WAL archiving off-VM plus a nightly full backup, with a scheduled restore drill. Redis, Elasticsearch, MongoDB: not backed up — all are derived state, rebuildable from Kafka | `NFR-REL-01`, §6 |
+| **Backup** | PostgreSQL: continuous WAL archiving off-VM plus a nightly full backup, with a scheduled restore drill. Redis, Elasticsearch, MongoDB: not backed up — all are derived state. **Rebuildable from the retained outbox rows in PostgreSQL, replayed by the relay** ([`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) §3.4.5, §4.3) — Kafka's own retention is 30 days and is not the history, which makes PostgreSQL's backup the only one that matters even more than before | `NFR-REL-01`, §6 |
 | **Deployment** | Rolling restart of `ecp-api` replicas one at a time. At `N = 1` this is user-visible downtime; at `N > 1` it is not | `NFR-AVAIL-01` |
-| **Outbox pruning** | The outbox table is write-heavy and shares the transactional database. It needs a partial index on unpublished rows and a pruning policy, or it becomes a performance problem of its own | [ADR-0012](./ADR/ADR-0012-transactional-outbox-and-kafka.md) §5, `P10` |
+| **Outbox growth** | The outbox table is write-heavy and shares the transactional database. It has the partial index; it is **not pruned**, because [`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) §3.4.5 makes its rows the permanent replay source of record. It is **partitioned monthly** instead (§3.4.6 there) — which addresses the actual performance concern, since the cost being managed is the unpublished-row index rather than the row count. Disk growth remains unbounded and an archival tier is still open | [ADR-0012](./ADR/ADR-0012-transactional-outbox-and-kafka.md) §5, `P10` |
 
 ---
 

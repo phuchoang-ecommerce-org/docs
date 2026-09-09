@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Compiles every Markdown file in the repo to a styled, standalone HTML file
+ * Compiles every Markdown file under docs/ to a styled, standalone HTML file
  * sitting right next to its source (e.g. docs/SA-docs/SOLUTION-ARCHITECTURE.md
  * -> docs/SA-docs/SOLUTION-ARCHITECTURE.html).
  *
  * Usage:
- *   node util/toHtml.js              # convert every .md file in the repo
+ *   node util/toHtml.js              # convert every .md file under docs/
  *   node util/toHtml.js a.md b.md    # convert only the given file(s)
  */
 
@@ -14,6 +14,7 @@ const path = require('path');
 const { marked } = require('marked');
 
 const ROOT = path.resolve(__dirname, '..');
+const DOCS_DIR = path.join(ROOT, 'docs');
 const IGNORED_DIRS = new Set(['node_modules', '.git', '.github']);
 
 function findMarkdownFiles(dir, results = []) {
@@ -30,7 +31,7 @@ function findMarkdownFiles(dir, results = []) {
 }
 
 function resolveTargets(args) {
-  if (args.length === 0) return findMarkdownFiles(ROOT);
+  if (args.length === 0) return findMarkdownFiles(DOCS_DIR);
   return args.map((p) => path.resolve(process.cwd(), p));
 }
 
