@@ -186,6 +186,8 @@ Testcontainers Kafka with the broker stopped mid-relay. Assert: no accepted busi
 
 **The E2E suite stays small on purpose.** Every behaviour reachable by a cheaper test belongs in that cheaper test; `NFR-SEC-01` in particular is a backend property and is verified by the §12.1 matrix, never by driving a browser — [ADR-0019](./ADR/ADR-0019-nextjs-app-router-rendering-strategy.md) §4 is explicit that *"the frontend enforces nothing."*
 
+[`Frontend Architecture.md`](../03-frontend/Frontend%20Architecture.md) §8 maps its own claims onto these layers and names the four it puts in the E2E and integration suites specifically: that no token reaches the browser, that CSRF is required on every cookie-authenticated write, that refresh is serialised under concurrency, and that the CSP is served unwidened per route group.
+
 Per-route-class performance budgets follow [ADR-0019](./ADR/ADR-0019-nextjs-app-router-rendering-strategy.md) §4's classification, with the static catalog routes carrying the tightest. Measuring them is §7.9's second trigger, not part of the smoke run.
 
 ---
@@ -332,7 +334,7 @@ The load rig stops being deferrable when any one of these is true. Each is obser
 | Assumption **[A-03]**, **[A-04]**, or **[A-12]** is ratified by the Product Owner | Until then the targets are assumptions ([`traceability-matrix.md`](../../BA-docs/traceability-matrix.md) §7) and the expense of measuring precisely against them is not yet justified. Once ratified they are commitments |
 | A promotional event is scheduled | `NFR-SCAL-06`'s 10× and `BR-INV-01` meet on the same path. Discovering the ceiling during the event is the `P8` failure the architecture exists to prevent |
 | The `NFR-AVAIL-01` decision of [Deployment](./Deployment%20Diagram.md) §9 is taken | That section makes a peak-load test the evidence for moving beyond the current topology |
-| Frontend route budgets are set | [ADR-0019](./ADR/ADR-0019-nextjs-app-router-rendering-strategy.md) §4 requires per-route-class budgets; Lighthouse CI and Web Vitals are a separate apparatus from §7 |
+| Frontend route budgets are **measured** | [ADR-0019](./ADR/ADR-0019-nextjs-app-router-rendering-strategy.md) §4 requires per-route-class budgets, and [`Performance.md`](../03-frontend/Performance.md) §2 now sets them for the four classes. Lighthouse CI and Web Vitals stay a separate apparatus from §7 — [`Performance.md`](../03-frontend/Performance.md) §1 explains why they are not `NFR-PERF-01` |
 
 ---
 
@@ -351,7 +353,7 @@ Checked against the repository as it stands. The scaffold is a single Gradle pro
 | MapStruct | No | — | Listed in the stack; not a test concern, noted for completeness |
 | `spring-boot-starter-restdocs` + Asciidoctor | Yes | Nothing in this strategy | Points opposite to [ADR-0031](./ADR/ADR-0031-contract-first-openapi.md) — see §6.6. Keep for examples or remove |
 | Multi-project Gradle build | No — `rootProject.name = "ecommerce"`, one project | §4's source-set split | The fast/slow split is per-project; a single project makes it a source-set configuration instead |
-| Frontend test tooling | **None** — `package.json` has `eslint` only | §6.7 | No Vitest, no Testing Library, no axe, no Playwright |
+| Frontend test tooling | **None** — `package.json` has `eslint` only | §6.7 | No Vitest, no Testing Library, no axe, no Playwright. Also absent: the boundary lint of [ADR-0035](./ADR/ADR-0035-feature-sliced-frontend-structure.md), the codegen-drift step of [`Frontend Architecture.md`](../03-frontend/Frontend%20Architecture.md) §6.3, and the budget gate of [ADR-0039](./ADR/ADR-0039-frontend-performance-budgets-ci-gate.md) |
 | CI provider and pipeline | No | §9 | [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) §5 lists this as undecided; §9 proposes the stages, not the provider |
 | `bench/` directory | No | §7 | The script of §7.6 has nowhere to live yet |
 | Compose data tier | Partial — Elasticsearch, MongoDB, Redis | §7.5 | **No PostgreSQL and no Kafka**, which are the two the deployment topology is built on |

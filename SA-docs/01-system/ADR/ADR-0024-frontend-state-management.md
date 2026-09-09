@@ -85,7 +85,7 @@ That outcome is worth avoiding specifically here, for two reasons.
 
 ### Neutral / follow-on
 
-- Store structure and URL-serialisation format are for [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md).
+- Store structure and URL-serialisation format are for [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md). **Now answered** in [`State Management.md`](../../03-frontend/State%20Management.md): the store is four slices (§4) and the URL encoding is a stability contract recorded in [ADR-0037](./ADR-0037-url-search-param-encoding-contract.md) (§3).
 
 ## 6. Related Decisions
 

@@ -90,7 +90,7 @@ flowchart LR
 ### Neutral / follow-on
 
 - Cookie lifetime, "remember me", and idle-timeout behaviour are product decisions, not recorded here.
-- CSRF token mechanism and the mobile flow are for [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md).
+- CSRF token mechanism and the mobile flow are for [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md). **Now answered** in its §4.3 (signed double-submit via `ecp_csrf` and `X-CSRF-Token`, covering Server Actions) and §9 (a mobile client calls `ecp-api` directly; nothing in `ecp-web` is a public API). §4.1 also fixes the cookie names, retiring assumptions `O-03` and `O-04` of [`OpenAPI/README.md`](../../04-shared/OpenAPI/README.md) §6.
 
 ## 6. Related Decisions
 

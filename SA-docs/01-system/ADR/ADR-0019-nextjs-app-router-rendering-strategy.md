@@ -79,13 +79,13 @@ Two questions are open:
 ### Negative
 
 - **The Server/Client boundary is the main source of frontend defects in this model.** A misplaced `"use client"` silently pulls a subtree into the browser bundle and undoes the benefit; there is no error, only a slower page.
-- **Static catalog pages need reliable invalidation.** They are revalidated on catalog events, which means the frontend now consumes a backend concern, and a missed invalidation shows a stale price. `BR-ORD-06` protects the customer at placement, but the displayed price was still wrong.
+- **Static catalog pages need reliable invalidation.** They are revalidated on catalog events, which means the frontend now consumes a backend concern, and a missed invalidation shows a stale price. The mechanism is decided in [ADR-0038](./ADR-0038-event-driven-catalog-revalidation.md), which also finds that it does not work across `ecp-web` replicas without a shared cache. `BR-ORD-06` protects the customer at placement, but the displayed price was still wrong.
 - **Radix and Framer Motion are client-side**, so every interactive component is a client component. The design system's component layer ([ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md)) will be largely client-side even where its content is not.
 - **App Router caching semantics have changed across versions.** The Next.js major version must be pinned and upgrades treated as behavioural changes, not patches.
 
 ### Neutral / follow-on
 
-- Route grouping, layout composition, and the admin BFF's shape are for [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md).
+- Route grouping, layout composition, and the admin BFF's shape are for [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md). **Now answered:** route groups and layout composition in [`Routing.md`](../../03-frontend/Routing.md) §2, and the admin BFF's shape by [ADR-0036](./ADR-0036-nextjs-server-sole-api-caller.md) — there is no BFF tier, and the admin console composes in Server Components exactly as the storefront does. The per-route-class budgets §4 requires are set in [`Performance.md`](../../03-frontend/Performance.md) §2 and gated by [ADR-0039](./ADR-0039-frontend-performance-budgets-ci-gate.md).
 - Deployment target for the Next.js server is undecided, as is the backend's (SRS §1.2).
 
 ## 6. Related Decisions

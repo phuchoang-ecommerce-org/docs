@@ -255,14 +255,14 @@ which the role grid does not cover. Their `x-ecp-actor` records which.
 Marked **`[ASSUMPTION]`** at the point of use, and collected here, mirroring the
 SRS §2.5 convention. Each is a decision this document had to make because **no
 repository document answers it**. None should survive contact with
-`Backend Architecture.md` and `Frontend Architecture.md` unreviewed.
+`Backend Architecture.md` and `Frontend Architecture.md` unreviewed. *(`O-03` and `O-04` have since been reviewed and ratified; the rest still stand.)*
 
 | # | Assumption | Why it was needed |
 |---|---|---|
 | **O-01** | Pagination request parameters are `cursor` and `size`. | §3 specifies only the response fields `page.next` and `page.size`; no request parameter is ever named. |
 | **O-02** | Correlation header is `X-Correlation-Id`, on request and response. | §6.2 requires the identifier end-to-end but names no HTTP header anywhere in the repository. |
-| **O-03** | Session cookie is named `ecp_session`. | `ADR-0025` §5 defers cookie naming to `Frontend Architecture.md`, a stub. |
-| **O-04** | CSRF token travels in `X-CSRF-Token`. | `ADR-0025` §5 defers the CSRF mechanism to the same stub, while §4 makes CSRF mandatory. |
+| **O-03** | Session cookie is named `ecp_session`. | `ADR-0025` §5 defers cookie naming to `Frontend Architecture.md`, a stub when this was written. **Ratified** by [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md) §4.1, which adopts the name and adds the cookie's attributes. |
+| **O-04** | CSRF token travels in `X-CSRF-Token`. | `ADR-0025` §5 defers the CSRF mechanism to the same stub, while §4 makes CSRF mandatory. **Ratified** by [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md) §4.3 — signed double-submit, `ecp_csrf` companion cookie plus this header. |
 | **O-05** | Provider callbacks are signed with `X-ECP-Signature`. | `UC-PAY-03` and `UC-SHP-04` require signature verification; no document names a header, and `NFR-MAINT-03` forbids naming a provider. |
 | **O-06** | Server URL is `{protocol}://{host}/api/v1`, host templated. | No document names a host. Only `https://ecp.example/errors/...` appears, and only as the problem-type namespace. |
 | **O-07** | Catalog reads carry `ETag` and honour `If-None-Match`. | §2.1 lists `304` for `GET` but names no conditional-request mechanism, and `NFR-PERF-01` wants the caching. |

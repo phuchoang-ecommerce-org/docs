@@ -8,7 +8,7 @@
 
 ## 1. Context and Problem Statement
 
-Nothing in the repository states how the frontend fetches data. [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md) is a stub and `Data Fetching.md` is a planned-but-absent file in [`SA-docs/README.md`](../../README.md#folder-layout) §1.1.
+Nothing in the repository states how the frontend fetches data. [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md) is a stub and `Data Fetching.md` is a planned-but-absent file in [`SA-docs/README.md`](../../README.md#folder-layout) §1.1. *(Both have since been written: [`Data Fetching.md`](../../03-frontend/Data%20Fetching.md) is the mechanism this record's §4 table describes.)*
 
 Two backend decisions make this consequential rather than routine:
 
@@ -89,7 +89,7 @@ Two backend decisions make this consequential rather than routine:
 ### Neutral / follow-on
 
 - SWR remains a viable substitution for the narrow client-cached set if bundle cost matters.
-- Revalidation triggers for statically generated catalog pages are shared with [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md).
+- Revalidation triggers for statically generated catalog pages are shared with [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md), and are now decided by [ADR-0038](./ADR-0038-event-driven-catalog-revalidation.md).
 
 ## 6. Related Decisions
 

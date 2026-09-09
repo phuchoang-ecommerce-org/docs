@@ -20,3 +20,5 @@
 - Apache Kafka
 - Benchmark performance
 - NextJS, TypeScript, TailwindCSS, RadixUI, shadcn/ui, Framer Motion
+- Zustand (the minimal client store) / TanStack Query (client cache, four cases only) — [ADR-0024](./ADR/ADR-0024-frontend-state-management.md), [ADR-0023](./ADR/ADR-0023-server-first-data-fetching.md)
+- Zod (runtime parsing at the API boundary) / openapi-typescript (API types generated from the OpenAPI contract) — [ADR-0020](./ADR/ADR-0020-typescript-strict-mode.md)

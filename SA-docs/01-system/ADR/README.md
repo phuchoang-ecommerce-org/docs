@@ -2,7 +2,7 @@
 
 **Document type:** Index
 **Audience:** Engineering, Architecture Review
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Technology Stack](../Technology%20Stack.md) · [Domain Model](../../02-backend/Domain%20Model.md) · [UI Design System](../../03-frontend/UI%20Design%20System.md)
+**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Technology Stack](../Technology%20Stack.md) · [Domain Model](../../02-backend/Domain%20Model.md) · [Frontend Architecture](../../03-frontend/Frontend%20Architecture.md) · [UI Design System](../../03-frontend/UI%20Design%20System.md)
 
 ---
 
@@ -83,6 +83,11 @@ Each record's `**Traces to:**` header carries its full list of business problems
 | [0024](./ADR-0024-frontend-state-management.md) | State management: server cache, URL state, minimal client store | **Proposed** |
 | [0025](./ADR-0025-httponly-cookie-session.md) | Browser session in an httpOnly cookie, never `localStorage` | **Proposed** |
 | [0026](./ADR-0026-motion-and-accessibility-baseline.md) | Motion vocabulary and the WCAG AA accessibility baseline | Accepted |
+| [0035](./ADR-0035-feature-sliced-frontend-structure.md) | Feature-sliced structure with lint-enforced import boundaries | **Proposed** |
+| [0036](./ADR-0036-nextjs-server-sole-api-caller.md) | The Next.js server as the sole API caller; no BFF tier | **Proposed** |
+| [0037](./ADR-0037-url-search-param-encoding-contract.md) | The URL search-param encoding as a stability contract | **Proposed** |
+| [0038](./ADR-0038-event-driven-catalog-revalidation.md) | Event-driven tag revalidation for static catalog routes | **Proposed** |
+| [0039](./ADR-0039-frontend-performance-budgets-ci-gate.md) | Per-route-class performance budgets as a build-failing CI gate | **Proposed** |
 
 ---
 
@@ -100,11 +105,14 @@ Each record's `**Traces to:**` header carries its full list of business problems
 0029 → 0030,
 0032 → 0034              backend — the event backbone's wire format, relay, and cache topology
 0019 → 0026              frontend — rendering, language, design system, data, session, motion
+0035 → 0039              frontend — structure, API access, URL state, revalidation, budgets
 ```
 
 `0027` is out of numeric order with its siblings: it is the backend's runtime/framework/build record and belongs first in the reading order, but was written after the frontend records because it supersedes and absorbs what was originally ADR-0004 (deleted; see §2).
 
 `0032`–`0034` come last for the same kind of reason as `0027` comes first: they are the operational half of decisions `0012` and `0015` already made, and they only make sense after those. Each discharges a deferral that [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md) collects.
+
+`0035`–`0039` are the frontend's equivalent, and they read the same way: `0019`–`0026` decided the frontend's shape and each of them deferred its follow-on questions to a `03-frontend/` file that did not exist. These five are what those questions turned into once the file was written — structure, API access, URL state, revalidation, and budgets. [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md) §1 is the index to the six documents they sit beneath.
 
 Two records carry more weight than the rest and are worth reading first if time is short: [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md), which is how the platform avoids selling stock it does not have, and [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md), without which the "modular" in modular monolith is only a claim.
 
@@ -112,7 +120,7 @@ Two records carry more weight than the rest and are worth reading first if time 
 
 ## 5. Adding a Record
 
-1. Take the next number in the sequence — currently **`ADR-0035`**. Numbers are never reused, including for superseded records.
+1. Take the next number in the sequence — currently **`ADR-0040`**. Numbers are never reused, including for superseded records.
 2. Name the file `ADR-00NN-<kebab-case-title>.md`.
 3. Copy the structure from any existing record: metadata block, then the six numbered sections. The metadata block is `**Status:**`, `**Date:**`, and `**Traces to:**` only — every record in this folder is an Architecture Decision Record decided by Solution Architecture, so neither fact is repeated per file, and the documents a record relates to are reached through its inline links and its §6.
 4. Give `Considered Options` at least one option that was genuinely rejected, with real trade-offs. If there isn't one, the decision probably didn't need a record.

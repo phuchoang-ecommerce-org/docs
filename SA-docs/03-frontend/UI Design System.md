@@ -3,7 +3,7 @@
 **Document type:** Frontend design specification (normative)
 **Status:** Accepted — §1 restated under *Ma (間)*; §2–§16 unchanged in substance from the version [ADR-0021](../01-system/ADR/ADR-0021-tailwind-shadcn-radix-styling-system.md), [ADR-0022](../01-system/ADR/ADR-0022-ma-design-tokens.md), and [ADR-0026](../01-system/ADR/ADR-0026-motion-and-accessibility-baseline.md) were decided against
 **Audience:** Frontend Engineering, Design, Architecture Review, QA
-**Related documents:** [Frontend Architecture](./Frontend%20Architecture.md) · [ADR-0019](../01-system/ADR/ADR-0019-nextjs-app-router-rendering-strategy.md) · [ADR-0021](../01-system/ADR/ADR-0021-tailwind-shadcn-radix-styling-system.md) · [ADR-0022](../01-system/ADR/ADR-0022-ma-design-tokens.md) · [ADR-0024](../01-system/ADR/ADR-0024-frontend-state-management.md) · [ADR-0025](../01-system/ADR/ADR-0025-httponly-cookie-session.md) · [ADR-0026](../01-system/ADR/ADR-0026-motion-and-accessibility-baseline.md)
+**Related documents:** [Frontend Architecture](./Frontend%20Architecture.md) · [Routing](./Routing.md) · [Feature Structure](./Feature%20Structure.md) · [Data Fetching](./Data%20Fetching.md) · [State Management](./State%20Management.md) · [Performance](./Performance.md) · [ADR-0019](../01-system/ADR/ADR-0019-nextjs-app-router-rendering-strategy.md) · [ADR-0021](../01-system/ADR/ADR-0021-tailwind-shadcn-radix-styling-system.md) · [ADR-0022](../01-system/ADR/ADR-0022-ma-design-tokens.md) · [ADR-0024](../01-system/ADR/ADR-0024-frontend-state-management.md) · [ADR-0025](../01-system/ADR/ADR-0025-httponly-cookie-session.md) · [ADR-0026](../01-system/ADR/ADR-0026-motion-and-accessibility-baseline.md)
 
 ---
 
