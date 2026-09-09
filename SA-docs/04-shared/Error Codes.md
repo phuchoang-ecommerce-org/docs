@@ -32,28 +32,11 @@ There is no controller layer and no domain enum yet — the same situation [`ADR
 
 ## 2. Code Scheme
 
-`ECP-<DOMAIN>-<NNNN>`, fixed by [`Integration Contract.md`](./Integration%20Contract.md) §4.2.
+`ECP-<DOMAIN>-<NNNN>`, fixed by [`Integration Contract.md`](./Integration%20Contract.md) §4.2 — which states the form, the domain codes, the status-plus-sequence numbering, and the rule that a code is matched whole as an opaque string rather than parsed by prefix. The domain codes themselves are SRS §2.2's fourteen, plus `GEN` for a failure owned by no domain; [`OpenAPI/README.md`](./OpenAPI/README.md) §2.1 lists them against the paths file and owning module of each.
 
-| Element | Rule |
-|---|---|
-| `<DOMAIN>` | One of the fourteen SRS §2.2 domain codes below, or `GEN` for a failure owned by no domain |
-| `<NNNN>` | The three-digit HTTP status the code accompanies, followed by one sequence digit scoped to that domain and that status — `4090` and `4091` are both `409`s in the same domain, numbered independently of any other domain's `409` sequence |
-| Uniqueness | Global across the whole platform. A code, once published, is **never** reused for a different meaning and never removed within a major version ([`Integration Contract.md`](./Integration%20Contract.md) §4.5 rule 1) |
-| Parsing | **A readability convention, not a parsing rule.** A client matches the whole code as an opaque string, never a substring or a prefix ([`Integration Contract.md`](./Integration%20Contract.md) §4.2) |
-| Ownership | The domain named in the code owns the code. New codes are appended by that domain's owning module, never redefined ([`Integration Contract.md`](./Integration%20Contract.md) §10) |
+Two rules govern this registry specifically: a code, once published, is **never** reused for a different meaning and never removed within a major version; and the domain named in the code owns it — new codes are appended by that domain's owning module, never redefined elsewhere.
 
-| Domain | Code | Domain | Code |
-|---|---|---|---|
-| Customer & Identity | `CUS` | Promotion | `PRM` |
-| Product Catalog & Category | `CAT` | Review | `REV` |
-| Search & Recommendation | `SCH` | Notification | `NTF` |
-| Inventory | `INV` | Administration | `ADM` |
-| Cart & Wishlist | `CRT` | Reporting & Analytics | `RPT` |
-| Checkout & Order | `ORD` | Audit & Access Control | `AUD` |
-| Payment | `PAY` | *(cross-cutting)* | `GEN` |
-| Shipping | `SHP` | | |
-
-Every response, without exception, is `application/problem+json` (RFC 9457) in the `Problem` shape [`Integration Contract.md`](./Integration%20Contract.md) §4.1 and [`components/schemas/common.yaml`](./OpenAPI/components/schemas/common.yaml) define. There is no bare status-code error anywhere in this API ([`Integration Contract.md`](./Integration%20Contract.md) §4.5 rule 2).
+Every response, without exception, is `application/problem+json` (RFC 9457) in the `Problem` shape [`Integration Contract.md`](./Integration%20Contract.md) §4.1 defines.
 
 ---
 

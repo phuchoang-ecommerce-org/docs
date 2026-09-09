@@ -1,8 +1,6 @@
 # Product Catalog & Category — User Stories (`CAT`)
 
-**Document type:** User Story Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../use-cases/02-catalog-category.md`](../use-cases/02-catalog-category.md) (source use cases) · [`../srs.md`](../srs.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 

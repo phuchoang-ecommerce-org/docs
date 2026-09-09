@@ -1,11 +1,8 @@
 # ADR-0014 — Elasticsearch as the Event-Fed Search Read Model
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P11` · `P12` · `NFR-PERF-03` · `NFR-PERF-04` · `NFR-SCAL-01` · `NFR-AVAIL-02`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Search Use Cases](../../../BA-docs/use-cases/03-search-recommendation.md) · [Domain Model](../../02-backend/Domain%20Model.md)
 
 ---
 

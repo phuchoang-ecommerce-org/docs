@@ -1,11 +1,8 @@
 # ADR-0008 — CQRS: Separate the Command and Query Paths
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P12` · `P13` · `CON-04` · `CON-06` · `NFR-SCAL-05` · `NFR-PERF-05` · `NFR-PERF-06` · `NFR-AVAIL-02`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Domain Model](../../02-backend/Domain%20Model.md)
 
 ---
 

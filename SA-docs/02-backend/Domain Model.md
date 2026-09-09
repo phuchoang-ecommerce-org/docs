@@ -179,7 +179,7 @@ A small, behavior-only set of Value Objects is shared across all 12 contexts: `M
 Two governance rules:
 
 1. **Zero outbound dependencies.** The kernel depends on none of the 12 contexts — it must sit structurally beneath all of them, or Spring Modulith's module-boundary check has nothing meaningful to verify.
-2. **Physical home is not `04-shared`.** [`example-folder-structure.md`](../example-folder-structure.md) reserves `04-shared/` for API/contract artifacts (OpenAPI, DTOs, event contracts, a permission matrix) — not domain code. This kernel needs its own module (e.g., a `shared-kernel` package beneath the backend source tree). This is a forward-pointer for [Backend Architecture](./Backend%20Architecture.md) to resolve, not a decision this document can make on its own.
+2. **Physical home is not `04-shared`.** [`SA-docs/README.md`](../README.md#folder-layout) §1.1 reserves `04-shared/` for API/contract artifacts (OpenAPI, DTOs, event contracts, a permission matrix) — not domain code. This kernel needs its own module (e.g., a `shared-kernel` package beneath the backend source tree). This is a forward-pointer for [Backend Architecture](./Backend%20Architecture.md) to resolve, not a decision this document can make on its own.
 
 ---
 
@@ -429,18 +429,9 @@ No meaningful aggregates — pure CQRS read side. Downstream Conformist subscrib
 
 ## 9. Domain Events Catalog
 
-| Event | Published by | Known consumers | Delivery |
-|---|---|---|---|
-| `AccountRegistered`, `AccountVerified`, `AccountRoleChanged`, `AccountSuspended` | Identity & Access | Audit, Notification | In-process |
-| `ProductCreated`, `ProductPublished`, `ProductPriceChanged`, `ProductDiscontinued`, `VariantAdded`, `CategoryChanged` | Catalog | Audit, Reporting & Analytics, Catalog's own search read model | Kafka (search index population, SA P11) |
-| `StockReserved`, `StockReservationCommitted`, `StockReservationReleased`, `StockReservationExpired`, `StockAdjusted` | Inventory | Catalog (availability), Audit, Reporting & Analytics | In-process (Partnership participants), Kafka (Catalog read model) |
-| `CartLineAdded`, `CartExpired`, `CartCheckedOut` | Cart & Wishlist | Ordering (consumes the checkout snapshot once, §5.2) | In-process |
-| `OrderCreated`, `OrderPaid`, `OrderProcessing`, `OrderPacked`, `OrderShipped`, `OrderDelivered`, `OrderCompleted`, `OrderCancelled`, `OrderPaymentFailed`, `OrderRefunded`, `OrderReturned` | Ordering | Payment (`OrderCreated`), Shipping (`OrderPacked`), Review (`OrderDelivered`/`OrderCompleted`), Catalog, Notification, Audit, Reporting & Analytics | Kafka + Transactional Outbox (SA P6) — durable, multi-consumer |
-| `PaymentCaptured`, `PaymentFailed`, `PaymentRefunded` | Payment | Ordering, Notification, Audit, Reporting & Analytics | Kafka + Transactional Outbox |
-| `ShipmentCreated`, `ShipmentDispatched`, `ShipmentDelivered` | Shipping | Ordering, Notification, Reporting & Analytics | Kafka + Transactional Outbox |
-| `PromotionActivated`, `PromotionRedeemed`, `PromotionExpired` | Promotion | Audit, Reporting & Analytics | In-process (Partnership), Kafka (Reporting) |
-| `ReviewSubmitted`, `ReviewPublished`, `ReviewModerated` | Review | Catalog (rating display), Notification, Audit | Kafka |
-| *(all of the above)* | *(all contexts)* | Notification, Audit, Reporting & Analytics | See per-row column — the generic subdomains are universal consumers, not listed redundantly per row |
+The catalogue is [`Integration Contract.md`](../04-shared/Integration%20Contract.md) §7 — every event name against its publishing context, its transport, its known consumers, and its payload. It is the normative contract for what crosses a boundary, so it is the copy kept; the event names this document's §8 aggregates publish are the same strings.
+
+Two properties of the catalogue matter to the domain model rather than to the contract. **Notification, Audit, and Reporting & Analytics are universal consumers** — generic subdomains subscribing to nearly every context, which is why they appear in almost every row and why none of the twelve core contexts depends on them. And **an event's transport is a consequence of its context map relationship**, not a free choice: a Partnership or Shared Kernel pairing stays in-process, while a Conformist or Customer/Supplier pairing across a future extraction boundary goes through the outbox to Kafka (§7).
 
 ---
 

@@ -18,7 +18,7 @@ Two rules dominate every diagram below:
 - **`BR-ORD-02`** — creating an order and reserving its stock is one indivisible operation.
 - **`BR-ORD-01`** — only the transitions in [`srs.md`](../../../BA-docs/srs.md) §5.3 are legal, whoever requests them and however they arrive.
 
-Arrow and frame conventions: [`README.md`](./README.md) §3.1–§3.2. The request pipeline every diagram opens with is drawn in [`00-Overview.md`](./00-Overview.md) §2.
+The request pipeline every diagram opens with is drawn in [`00-Overview.md`](./00-Overview.md) §2.
 
 ---
 

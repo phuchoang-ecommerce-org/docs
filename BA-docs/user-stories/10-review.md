@@ -1,8 +1,6 @@
 # Review System — User Stories (`REV`)
 
-**Document type:** User Story Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../use-cases/10-review.md`](../use-cases/10-review.md) (source use cases) · [`../srs.md`](../srs.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 

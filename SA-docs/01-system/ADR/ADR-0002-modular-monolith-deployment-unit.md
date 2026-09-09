@@ -1,11 +1,8 @@
 # ADR-0002 — Modular Monolith as the Deployment Unit
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P1` · `P14` · `CON-08` · `CON-09` · `NFR-MAINT-06`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Domain Model](../../02-backend/Domain%20Model.md) · [SRS](../../../BA-docs/srs.md)
 
 ---
 
@@ -54,20 +51,8 @@ The scale this is sized against is concrete (SRS §6): ≥ 10,000 products (`NFR
 
 The governing style, stated verbatim in [`Solution Architecture.md`](../Solution%20Architecture.md) §3, is *Modular Monolith + Domain-Driven Design + Clean Architecture + CQRS + Event-Driven Architecture*.
 
-```mermaid
-flowchart LR
-    subgraph Today["Today — one deployable"]
-        Catalog1[Catalog]
-        Order1[Ordering]
-        Payment1[Payment]
-    end
-    subgraph Future["Later — extracted only if growth requires it"]
-        Catalog2[Catalog Service] --> KafkaF[[Kafka]]
-        Order2[Order Service] --> KafkaF
-        Payment2[Payment Service] --> KafkaF
-    end
-    Today -. boundaries already enforced .-> Future
-```
+The same-graph picture of today's one deployable and the later extracted services is drawn in [`Solution Architecture.md`](../Solution%20Architecture.md) §11.
+
 
 Extraction is kept cheap by three commitments made in other records, not by intent alone: enforced module boundaries ([ADR-0006](./ADR-0006-spring-modulith-module-boundaries.md)), events rather than direct calls wherever durability matters ([ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md)), and outbound ports for internal cross-context calls — `StockReservationPort` and `PromotionRedemptionPort` — whose in-process adapters can be swapped for saga-capable ones without touching Ordering's domain layer (`Domain Model.md` §5.1).
 

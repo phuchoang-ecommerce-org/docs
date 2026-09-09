@@ -1,8 +1,6 @@
 # Shopping Cart & Wishlist — User Stories (`CRT`)
 
-**Document type:** User Story Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../use-cases/05-cart-wishlist.md`](../use-cases/05-cart-wishlist.md) (source use cases) · [`../srs.md`](../srs.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 

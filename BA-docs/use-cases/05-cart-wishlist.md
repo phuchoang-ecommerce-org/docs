@@ -1,8 +1,6 @@
 # Shopping Cart & Wishlist — Use Cases (`CRT`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 
@@ -145,7 +143,6 @@ The guest cart and its merge on login exist because of a single line in R1 §2 �
 | **Stakeholders & interests** | Customer: wants to see exactly what they are about to buy and at what price. Finance: wants no surprise between cart and charge. Support: wants fewer disputes about price. |
 | **Priority** | Must |
 | **Trigger** | Visitor opens the cart |
-| **Preconditions** | None |
 | **Success postconditions** | Every line is presented at current prices with current availability; changes since items were added are identified |
 | **Failure postconditions** | The cart is not presented; no state changes |
 | **Frequency** | Very high |
@@ -184,7 +181,6 @@ The guest cart and its merge on login exist because of a single line in R1 §2 �
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: must not lose what they assembled before logging in. Marketing: this is the moment an anonymous session becomes an attributable conversion — a discarded cart here is a lost sale. Support: wants no "my items vanished" tickets. |
 | **Priority** | Must |
 | **Trigger** | A guest with a non-empty cart logs in or completes registration |
@@ -227,7 +223,6 @@ The guest cart and its merge on login exist because of a single line in R1 §2 �
 | Field | Value |
 |---|---|
 | **Primary actor** | Scheduler (Time) |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Finance: wants storage and processing not to accumulate indefinitely. Customer: does not want to return to a cart of stale prices and withdrawn products. Marketing: wants the expiry period tunable against recovery campaigns. |
 | **Priority** | Must |
 | **Trigger** | A cart's inactivity period elapses |
@@ -267,7 +262,6 @@ The guest cart and its merge on login exist because of a single line in R1 §2 �
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants to hold intent without committing. Marketing: a wishlist is declared future demand and a campaign target. Staff: wishlist volume signals what to restock. |
 | **Priority** | Should |
 | **Trigger** | Customer saves a product to, or removes one from, their wishlist |
@@ -309,7 +303,6 @@ The guest cart and its merge on login exist because of a single line in R1 §2 �
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: acting on a saved intention, often prompted by a price fall or restock. Marketing: this is where held demand converts. Finance: incremental revenue from stock that would otherwise sit. |
 | **Priority** | Should |
 | **Trigger** | Customer moves a wishlist item into the cart |

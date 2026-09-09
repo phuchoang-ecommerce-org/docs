@@ -1,8 +1,4 @@
 # Shipping (`SHP`) — path items
-#
-# Permission matrix row (Integration Contract §9):
-#   Guest — · Customer own tracking · Staff read · Warehouse manage
-#   Support read · Admin manage
 
 shippingQuotes:
   get:

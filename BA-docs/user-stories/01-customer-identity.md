@@ -1,8 +1,6 @@
 # Customer & Identity — User Stories (`CUS`)
 
-**Document type:** User Story Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../use-cases/01-customer-identity.md`](../use-cases/01-customer-identity.md) (source use cases) · [`../srs.md`](../srs.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 Each story below restates its source use case as a backlog item. It introduces no behaviour the use case does not already specify — see the source for the full rationale behind each rule.
 

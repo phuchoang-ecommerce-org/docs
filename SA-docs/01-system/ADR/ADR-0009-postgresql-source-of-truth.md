@@ -1,11 +1,8 @@
 # ADR-0009 — PostgreSQL as the Single Transactional Source of Truth
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P4` · `P7` · `P10` · `NFR-REL-01` · `NFR-REL-02` · `NFR-PERF-02` · `NFR-SCAL-07` · `BR-ORD-02`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Domain Model](../../02-backend/Domain%20Model.md)
 
 ---
 

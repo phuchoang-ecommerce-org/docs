@@ -1,9 +1,5 @@
 # Promotion (`PRM`) — path items
 #
-# Permission matrix row (Integration Contract §9):
-#   Guest — · Customer redeem · Staff manage · Warehouse —
-#   Support read · Admin manage
-#
 # `UC-PRM-03` (Apply Promotion to Order) is realised in `ordering.yaml`, on the
 # checkout voucher resource and at placement — the discount belongs to the order,
 # not to the promotion.

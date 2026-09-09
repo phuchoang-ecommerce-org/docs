@@ -1,11 +1,8 @@
 # ADR-0006 — Spring Modulith: One Module per Bounded Context, Plus a `shared-kernel`
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P1` · `P14` · `CON-01` · `CON-02` · `NFR-MAINT-01` · `NFR-MAINT-02` · `NFR-MAINT-06`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Domain Model](../../02-backend/Domain%20Model.md) · [Folder Structure](../../example-folder-structure.md)
 
 ---
 
@@ -18,7 +15,7 @@
 Two questions follow, and `Domain Model.md` §5.3 explicitly hands the second one forward as unresolved:
 
 1. What is the unit of enforcement, and how is a boundary violation detected?
-2. Where does the Shared Kernel physically live? §5.3 establishes that `Money`, typed identity wrappers, and `Address` are shared across all twelve contexts, that the kernel must have **zero outbound dependencies**, and that its home is **not** `04-shared/` — because [`example-folder-structure.md`](../../example-folder-structure.md) reserves that for API and contract artifacts, not domain code. It states this is *"a forward-pointer for Backend Architecture to resolve."* This record resolves it.
+2. Where does the Shared Kernel physically live? §5.3 establishes that `Money`, typed identity wrappers, and `Address` are shared across all twelve contexts, that the kernel must have **zero outbound dependencies**, and that its home is **not** `04-shared/` — because [`SA-docs/README.md`](../../README.md#folder-layout) §1.1 reserves that for API and contract artifacts, not domain code. It states this is *"a forward-pointer for Backend Architecture to resolve."* This record resolves it.
 
 ## 2. Decision Drivers
 

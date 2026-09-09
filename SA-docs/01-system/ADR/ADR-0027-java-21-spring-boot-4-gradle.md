@@ -1,11 +1,8 @@
 # ADR-0027 — Java 21 (LTS) on Spring Boot 4.1.1, Built with Gradle (Multi-Module)
 
-**Document type:** Architecture Decision Record
 **Status:** Proposed
 **Date:** 2026-09-07
-**Deciders:** Solution Architecture
 **Traces to:** `P14` · `P15` · `NFR-MAINT-01` · `NFR-MAINT-02` · `NFR-MAINT-05` · `NFR-SCAL-04` · `NFR-SCAL-06`
-**Related documents:** [Technology Stack](../Technology%20Stack.md) · [ADR-0002](./ADR-0002-modular-monolith-deployment-unit.md) · [ADR-0006](./ADR-0006-spring-modulith-module-boundaries.md) · [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md)
 
 ---
 

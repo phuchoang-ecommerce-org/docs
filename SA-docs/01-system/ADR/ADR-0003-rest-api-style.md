@@ -1,11 +1,8 @@
 # ADR-0003 — REST as the Client-Facing API Style
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted · versioning is **Proposed** · the `Contract` row of §4 is **superseded by [ADR-0031](./ADR-0031-contract-first-openapi.md)**
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P3` · `P5` · `P16` · `NFR-SEC-01` · `NFR-SEC-04` · `NFR-REL-02`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [SRS](../../../BA-docs/srs.md) · [ADR-0016](./ADR-0016-jwt-refresh-rotation-rbac.md)
 
 ---
 
@@ -56,7 +53,7 @@ Three supporting choices are recorded here as **Proposed**, since no upstream do
 | Aspect | Proposed | Reason |
 |---|---|---|
 | Versioning | URI path prefix, `/api/v1/...` | Visible in logs, cacheable, trivially routable; header-negotiated versioning hides the version from the artefacts used to debug it. |
-| Contract | OpenAPI 3.1, generated from the controller layer and published under `04-shared/OpenAPI` | [`example-folder-structure.md`](../../example-folder-structure.md) already reserves `04-shared/OpenAPI` for exactly this. Generated rather than hand-written, so it cannot drift. |
+| Contract | OpenAPI 3.1, generated from the controller layer and published under `04-shared/OpenAPI` | [`SA-docs/README.md`](../../README.md#folder-layout) §1.1 already reserves `04-shared/OpenAPI` for exactly this. Generated rather than hand-written, so it cannot drift. |
 | Idempotency | `Idempotency-Key` request header on order placement and payment initiation | The mechanism `BR-ORD-03` and `NFR-REL-02` require; scoped to those endpoints rather than applied globally. |
 
 > **Superseded, in part.** The `Contract` row above is replaced by

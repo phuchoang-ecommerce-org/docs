@@ -1,11 +1,8 @@
 # ADR-0001 — Record Architecture Decisions in ADRs
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `NFR-MAINT-05` · `AC-04`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [SA Index](../../README.md) · [Folder Structure](../../example-folder-structure.md)
 
 ---
 
@@ -19,7 +16,7 @@ Three concrete problems follow from having only the narrative document:
 - **No status.** Every statement in §5 reads as equally settled, even though `Technology Stack.md`'s frontend line was edited this week and its backend lines have been stable for months.
 - **No supersession path.** Changing one decision means editing a 463-line document in place, destroying the previous decision's record in the process.
 
-The repository already anticipates the fix: [`example-folder-structure.md`](../../example-folder-structure.md) reserves `01-system/ADR/`, and [`README.md`](../../README.md) §1 states that folder is omitted only "until there is something to put in them."
+The repository already anticipates the fix: [`SA-docs/README.md`](../../README.md#folder-layout) §1.1 reserves `01-system/ADR/`, and [`README.md`](../../README.md) §1 states that folder is omitted only "until there is something to put in them."
 
 ## 2. Decision Drivers
 

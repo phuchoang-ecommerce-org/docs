@@ -1,11 +1,8 @@
 # ADR-0015 — Redis for Cache-Aside, Hot Data, Rate Limiting, and Flash-Sale Pre-Filtering
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P9` · `P8` · `CON-05` · `NFR-PERF-01` · `NFR-SCAL-04` · `NFR-SCAL-06` · `NFR-SEC-05` · `NFR-AVAIL-01`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md)
 
 ---
 

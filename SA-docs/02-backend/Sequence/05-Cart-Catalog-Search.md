@@ -15,8 +15,6 @@ One rule governs the whole group. **A price or an availability figure shown whil
 
 Search is not a bounded context. [Domain Model §3](../Domain%20Model.md) folds `SCH` into Catalog: keyword search, filtering, and ranking are an alternate query path over Catalog's own data with no business rules of their own. Its read model is a CQRS projection *inside* Catalog.
 
-Arrow and frame conventions: [`README.md`](./README.md) §3.1–§3.2.
-
 ---
 
 ## 2. UC-CRT-01 — Add an Item to the Cart

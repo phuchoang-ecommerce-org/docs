@@ -1,8 +1,6 @@
 # Checkout & Order — Use Cases (`ORD`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 
@@ -26,7 +24,6 @@ Two rules dominate:
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants to buy what is in the cart. Marketing: every step here is an abandonment point. Warehouse: wants only fulfillable orders to enter the flow. |
 | **Priority** | Must |
 | **Trigger** | Customer proceeds to checkout from the cart |
@@ -67,7 +64,6 @@ Two rules dominate:
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants delivery to the right place at a known cost. Warehouse and Carrier: need a deliverable address. Finance: needs billing details for reconciliation, and the fee quoted to be the fee charged. |
 | **Priority** | Must |
 | **Trigger** | Checkout requires delivery details |
@@ -110,7 +106,6 @@ Two rules dominate:
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants the advertised saving. Marketing: wants campaigns to redeem as designed. Finance: wants discount exposure bounded and every discount attributable to a campaign (`P5`). |
 | **Priority** | Must |
 | **Trigger** | Customer enters a voucher code |
@@ -153,7 +148,6 @@ Two rules dominate:
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants to know exactly what will be charged before agreeing. Finance: wants no dispute between what was shown and what was taken. Support: wants fewer "this is not what I agreed to" contacts. |
 | **Priority** | Must |
 | **Trigger** | Shipping, billing, and payment method are complete |

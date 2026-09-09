@@ -1,8 +1,6 @@
 # Notification Center — Use Cases (`NTF`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 
@@ -109,7 +107,6 @@ The second principle running through this domain: **a notification failure never
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants a single place showing what has happened to their orders. Support: needs to confirm what a customer was told and when. |
 | **Priority** | Must |
 | **Trigger** | Customer opens their notifications |

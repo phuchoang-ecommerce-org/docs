@@ -1,11 +1,8 @@
 # ADR-0020 — TypeScript in Strict Mode, with API Types Generated from OpenAPI
 
-**Document type:** Architecture Decision Record
 **Status:** Proposed
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P15` · `CON-02` · `NFR-MAINT-05` · `NFR-SEC-04`
-**Related documents:** [Technology Stack](../Technology%20Stack.md) · [ADR-0003](./ADR-0003-rest-api-style.md) · [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md)
 
 ---
 
@@ -78,7 +75,6 @@ There is also a specific integration risk. The API is REST/JSON ([ADR-0003](./AD
 
 - Generator choice, lint rule set, and formatter are for [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md).
 - **That input now exists.** [ADR-0031](./ADR-0031-contract-first-openapi.md) publishes a hand-authored, normative OpenAPI 3.1 description under [`04-shared/OpenAPI`](../../04-shared/OpenAPI/README.md), so generation is no longer blocked on the controller layer. The generation-and-fail-on-drift step this record requires is unchanged; only the source of the document changed, and it will itself be checked against the generated one once controllers exist.
-- This record stays `Proposed` until ratified, per [ADR-0001](./ADR-0001-record-architecture-decisions.md).
 
 ## 6. Related Decisions
 

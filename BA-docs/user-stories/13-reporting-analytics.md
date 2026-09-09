@@ -1,8 +1,6 @@
 # Reporting & Analytics — User Stories (`RPT`)
 
-**Document type:** User Story Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../use-cases/13-reporting-analytics.md`](../use-cases/13-reporting-analytics.md) (source use cases) · [`../srs.md`](../srs.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 

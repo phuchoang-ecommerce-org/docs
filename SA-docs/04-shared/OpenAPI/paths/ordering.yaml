@@ -1,9 +1,5 @@
 # Checkout & Order (`ORD`, Core / flagship) — path items
 #
-# Permission matrix row (Integration Contract §9):
-#   Guest — · Customer own · Staff progress · Warehouse progress
-#   Support read, cancel, return · Admin manage
-#
 # `UC-ADM-04` (Manage Orders) is realised here, on the order resource itself,
 # rather than on a separate `/admin` surface — see `README.md` §4.
 

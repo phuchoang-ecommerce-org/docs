@@ -1,11 +1,8 @@
 # ADR-0022 — The Ma Design System Expressed as Tokens
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P15` · `NFR-MAINT-05` · UI Design System §2–§14
-**Related documents:** [UI Design System](../../03-frontend/UI%20Design%20System.md) · [ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md)
 
 ---
 

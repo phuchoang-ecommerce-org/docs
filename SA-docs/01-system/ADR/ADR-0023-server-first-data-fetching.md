@@ -1,17 +1,14 @@
 # ADR-0023 — Server-First Data Fetching; TanStack Query Only for Client-Owned Interactive State
 
-**Document type:** Architecture Decision Record
 **Status:** Proposed
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P11` · `NFR-PERF-01` · `NFR-AVAIL-02` · `NFR-PERF-06` · `NFR-REL-02`
-**Related documents:** [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) · [ADR-0008](./ADR-0008-cqrs-command-query-separation.md) · [Frontend Architecture](../../03-frontend/Frontend%20Architecture.md)
 
 ---
 
 ## 1. Context and Problem Statement
 
-Nothing in the repository states how the frontend fetches data. [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md) is a stub and `Data Fetching.md` is a planned-but-absent file in [`example-folder-structure.md`](../../example-folder-structure.md).
+Nothing in the repository states how the frontend fetches data. [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md) is a stub and `Data Fetching.md` is a planned-but-absent file in [`SA-docs/README.md`](../../README.md#folder-layout) §1.1.
 
 Two backend decisions make this consequential rather than routine:
 
@@ -93,7 +90,6 @@ Two backend decisions make this consequential rather than routine:
 
 - SWR remains a viable substitution for the narrow client-cached set if bundle cost matters.
 - Revalidation triggers for statically generated catalog pages are shared with [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md).
-- This record stays `Proposed` until ratified, per [ADR-0001](./ADR-0001-record-architecture-decisions.md).
 
 ## 6. Related Decisions
 

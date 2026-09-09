@@ -1,11 +1,8 @@
 # ADR-0011 — Optimistic Locking and an Explicit Reservation Model to Prevent Overselling
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P8` · `P7` · `BR-INV-01` · `BR-INV-02` · `BR-ORD-02` · `BR-ORD-03` · `NFR-REL-02` · `NFR-REL-03` · `NFR-SCAL-06` · `NFR-PERF-02`
-**Related documents:** [Domain Model](../../02-backend/Domain%20Model.md) · [Solution Architecture](../Solution%20Architecture.md) · [Inventory Use Cases](../../../BA-docs/use-cases/04-inventory.md)
 
 ---
 

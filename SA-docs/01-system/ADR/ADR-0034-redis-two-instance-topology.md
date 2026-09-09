@@ -1,11 +1,8 @@
 # ADR-0034 — Two Redis Instances: an Evictable Cache and a Non-Evictable State Store
 
-**Document type:** Architecture Decision Record
 **Status:** **Proposed**
 **Date:** 2026-09-09
-**Deciders:** Solution Architecture
 **Traces to:** `P8` · `P9` · `CON-05` · `NFR-PERF-01` · `NFR-SCAL-04` · `NFR-SCAL-06` · `NFR-SEC-05` · `NFR-AVAIL-01`
-**Related documents:** [Backend Architecture](../../02-backend/Backend%20Architecture.md) · [Database](../../02-backend/Database.md) · [Deployment Diagram](../Deployment%20Diagram.md) · [Security](../Security.md) · [ADR-0015](./ADR-0015-redis-cache-and-rate-limiting.md)
 
 ---
 

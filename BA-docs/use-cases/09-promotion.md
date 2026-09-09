@@ -1,8 +1,6 @@
 # Promotion — Use Cases (`PRM`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 
@@ -68,7 +66,6 @@ Promotions are also the sharpest instance of **P5**. A discount rule enforced on
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants a clear answer about a code they were given. Marketing: wants valid codes to work and invalid ones to fail cleanly. Finance: wants the usage limit to hold under concurrency. Trust & Safety: wants codes not to be discoverable by guessing. |
 | **Priority** | Must |
 | **Trigger** | A voucher code is presented at checkout or at order placement |
@@ -114,7 +111,6 @@ Promotions are also the sharpest instance of **P5**. A discount rule enforced on
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants the saving reflected in what they pay. Finance: wants every discount attributable to a campaign and bounded (`P5`). Marketing: wants campaign performance measurable, which requires the contribution recorded. |
 | **Priority** | Must |
 | **Trigger** | A promotion is confirmed valid for an order |

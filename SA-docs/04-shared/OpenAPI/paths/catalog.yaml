@@ -1,8 +1,5 @@
 # Product Catalog & Category (`CAT`) — path items
 #
-# Permission matrix row (Integration Contract §9):
-#   Guest read · Customer read · Staff manage · Warehouse read · Support read · Admin manage
-#
 # `UC-ADM-01` (Manage Products) and `UC-ADM-02` (Manage Categories) are realised
 # here rather than on a separate `/admin` surface: a staff operation acts on the
 # same resource and differs only in the role it requires, which is what keeps

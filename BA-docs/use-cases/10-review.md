@@ -1,8 +1,6 @@
 # Review System — Use Cases (`REV`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 
@@ -21,7 +19,6 @@ R1 §2 states one rule for this domain in a single line — **"only verified buy
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer as author: wants to record an experience. Customer as reader: wants ratings that reflect real purchases. Marketing: reviews drive conversion, but only while they are trusted. Trust & Safety: wants the channel closed to non-buyers. Staff: want honest signal about products. |
 | **Priority** | Must |
 | **Trigger** | Customer submits a rating and review for a product |
@@ -70,7 +67,6 @@ R1 §2 states one rule for this domain in a single line — **"only verified buy
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer as author: wants to revise after longer use — often the most valuable review. Customer as reader: wants to know a review was amended. Trust & Safety: wants an old positive review not silently repurposed. |
 | **Priority** | Should |
 | **Trigger** | Customer amends their own review |
@@ -111,7 +107,6 @@ R1 §2 states one rule for this domain in a single line — **"only verified buy
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer as author: wants to withdraw an opinion. Customer as reader: wants the aggregate to reflect only live reviews. Legal/Compliance: wants withdrawal honoured. |
 | **Priority** | Should |
 | **Trigger** | Customer deletes their own review |

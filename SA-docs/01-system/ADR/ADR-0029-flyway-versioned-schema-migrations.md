@@ -1,11 +1,8 @@
 # ADR-0029 — Flyway for Versioned Schema Migrations
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted (Flyway as the migration tool) · the migration governance rules in §4 are **Proposed**
 **Date:** 2026-09-07
-**Deciders:** Solution Architecture
 **Traces to:** `P15` · `NFR-MAINT-05` · `NFR-REL-01` · `NFR-REL-03` · `NFR-AVAIL-01` · `NFR-OBS-02` · `AC-04`
-**Related documents:** [Deployment Diagram](../Deployment%20Diagram.md) · [Technology Stack](../Technology%20Stack.md) · [Domain Model](../../02-backend/Domain%20Model.md) · [ADR-0009](./ADR-0009-postgresql-source-of-truth.md) · [ADR-0010](./ADR-0010-jpa-write-model-jdbc-read-models.md) · [ADR-0027](./ADR-0027-java-21-spring-boot-4-gradle.md) · [ADR-0028](./ADR-0028-deployment-topology-containerisation.md)
 
 ---
 

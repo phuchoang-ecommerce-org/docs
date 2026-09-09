@@ -1,11 +1,8 @@
 # ADR-0005 — Clean Architecture: Ports, Adapters, and a Framework-Free Domain
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P3` · `CON-03` · `NFR-MAINT-03` · `NFR-AVAIL-03`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Domain Model](../../02-backend/Domain%20Model.md) · [SRS](../../../BA-docs/srs.md)
 
 ---
 

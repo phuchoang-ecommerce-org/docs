@@ -1,11 +1,8 @@
 # ADR-0021 — Tailwind CSS with shadcn/ui on Radix Primitives as the Single Styling and Component System
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P15` · `NFR-MAINT-05` · UI Design System §5, §6, §10, §14
-**Related documents:** [UI Design System](../../03-frontend/UI%20Design%20System.md) · [Technology Stack](../Technology%20Stack.md) · [ADR-0022](./ADR-0022-ma-design-tokens.md)
 
 ---
 

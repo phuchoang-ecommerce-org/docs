@@ -1,11 +1,8 @@
 # ADR-0025 — Browser Session Held in an httpOnly Cookie, Never in `localStorage`
 
-**Document type:** Architecture Decision Record
 **Status:** Proposed
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P16` · `P5` · `NFR-SEC-01` · `NFR-SEC-03` · `NFR-SEC-06` · `NFR-SEC-07` · `BR-CUS-03`
-**Related documents:** [ADR-0016](./ADR-0016-jwt-refresh-rotation-rbac.md) · [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) · [SRS](../../../BA-docs/srs.md)
 
 ---
 
@@ -94,7 +91,6 @@ flowchart LR
 
 - Cookie lifetime, "remember me", and idle-timeout behaviour are product decisions, not recorded here.
 - CSRF token mechanism and the mobile flow are for [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md).
-- This record stays `Proposed` until ratified, per [ADR-0001](./ADR-0001-record-architecture-decisions.md).
 
 ## 6. Related Decisions
 

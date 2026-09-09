@@ -328,38 +328,21 @@ Staff reaches `commercial reports` (revenue, product performance, customers, ord
 
 Every non-blank cell in the SRS §2.3 / [`Integration Contract.md`](./Integration%20Contract.md) §9 grid must be reachable through at least one row in §5, and every blank cell must be unreachable. Twelve of the fourteen domain rows match the operation-level grant exactly with no comment needed. Two categories of exception exist, both already identified in [`OpenAPI/README.md`](./OpenAPI/README.md) §5.1; they are restated here in full because a reader of *this* document should not have to cross-check a second one to get the complete picture.
 
-### 6.1 Four places an operation grants more than the domain cell literally says
+### 6.1 Where the operations grant more than the domain cell literally says
 
-| Domain cell | Grid says | Operations say | Why it is not a bug |
-|---|---|---|---|
-| Customer & Identity, Staff / Warehouse | `—` | `getOwnAccount`, `updateOwnProfile`, `changeOwnPassword`, session operations (§5.1) | The grid describes access to *customer records*. It was never meant to forbid a Staff member from logging out or changing their own password. Only `own`-scoped operations open; no operator reaches another account through `identity.yaml`. |
-| Inventory, Customer | `availability only` | No `INV` endpoint | Satisfied inside `CAT` and `SCH` responses (`VariantAvailability`) instead of a dedicated endpoint — quantities and warehouse structure stay hidden from Guest and Customer either way. |
-| Notification, Guest | *(blank)* | `unsubscribeFromPromotionalNotifications` (§5.11) | `UC-NTF-04` A1 requires it unauthenticated; it grants no read access to anything, only an opt-out. |
-| Review, Guest | `read` | `reportReview` also open (§5.10) | Reporting hides nothing by itself; a write with zero visibility authority is not the access the grid's `read` cell is protecting. |
+Four cells, all intentional: every authenticated role reaches its own account and session operations (§5.1) though the grid writes `—` for Staff and Warehouse; Customer inventory `availability only` is satisfied inside `CAT` and `SCH` responses rather than by an `INV` endpoint; `unsubscribeFromPromotionalNotifications` (§5.11) is unauthenticated because `UC-NTF-04` A1 requires it; and `reportReview` (§5.10) is open to Guests because `UC-REV-05` opens reporting to any visitor. The full reasoning per cell is [`OpenAPI/README.md`](./OpenAPI/README.md) §5.1.
 
 ### 6.2 One disagreement between the source documents, unresolved
 
-**SRS §2.3 and [`UC-ADM-03`](../../BA-docs/use-cases/12-administration.md) disagree about Customer Support's authority over an account, and this matrix cannot satisfy both simultaneously.**
+SRS §2.3 and [`UC-ADM-03`](../../BA-docs/use-cases/12-administration.md) disagree about Customer Support's authority over an account: the SRS grants `read`, the use case has Support suspending accounts, reinstating them, and correcting profiles. §5.12 takes the narrower reading — `setAccountStatus`, `correctAccountProfile`, and `closeAccount` are `ADMINISTRATOR`-only — because [`Integration Contract.md`](./Integration%20Contract.md) §10 makes SRS §2.3 win where the two disagree, and because a permission contract that is uncertain should fail closed. The same reasoning excludes Support from `advanceOrderStatus`.
 
-- SRS §2.3 grants Support `read` on Customer & Identity — and grants the *same table* `read, cancel, return` on Checkout & Order, which proves the grid does express verbs beyond `read` where it means to. It says `read` here on purpose, and this table is normative for `FR-AUD-05`.
-- [`UC-ADM-03`](../../BA-docs/use-cases/12-administration.md) names Customer Support Agent as **primary actor**, suspending accounts, reinstating them, and correcting profile details (steps 4, A2, A3).
-
-§5.12 takes the narrower reading: `setAccountStatus`, `correctAccountProfile`, and `closeAccount` are `ADMINISTRATOR`-only. Two reasons, both structural rather than a coin flip: [`Integration Contract.md`](./Integration%20Contract.md) §10 states that where the grid and SRS §2.3 disagree, SRS §2.3 wins; and a permission contract that is uncertain about who may suspend an account should fail closed, not open. Support keeps exactly the part both sources agree on — `getAccount` and `searchAccounts`. The same reasoning excludes Support from `advanceOrderStatus`: the grid gives Support `cancel` and `return`, which they hold through `cancelOrder` and `resolveOrderReturn`, but not `progress`.
-
-**This is a Business Analysis decision, not an architecture one, and it is still open.** If `UC-ADM-03`'s actor assignment is the intended behaviour, SRS §2.3's Customer & Identity row should read `read, suspend, correct` for Support, and `setAccountStatus`, `correctAccountProfile`, and `closeAccount` widen to match in the same change. Until the SRS says so, this matrix does not get ahead of the requirement it implements.
+**This is a Business Analysis decision, not an architecture one, and it is still open.** It is argued in full, with what would have to change in the SRS to reverse it, at [`OpenAPI/README.md`](./OpenAPI/README.md) §5.1. See also §9.
 
 ---
 
 ## 7. System Actors Authorised by Signature
 
-Two operations sit outside the six-role grid entirely because their caller is not a human actor SRS §2.3's role table covers — it is a system actor from the same section's second table.
-
-| Operation | Actor | Security | Why not a role |
-|---|---|---|---|
-| `receivePaymentProviderNotification` | Payment Gateway | `providerSignature` — [Security.md](../01-system/Security.md) §9.1 | An inbound callback carries no user session at all. The signature *is* the authentication ([Security.md](../01-system/Security.md) §9.1: "verification precedes authorisation, not the reverse"). |
-| `receiveCarrierEvent` | Shipping Carrier | `providerSignature` | Same reasoning, `UC-SHP-04` E4. |
-
-Both operations authenticate by a body signature verified against bytes captured before parsing (`Security.md` §9.1 step 1), never by a bearer token or session cookie, and an unverifiable callback is recorded and rejected, never applied (`Security.md` §9.1 step 4). This is a different trust mechanism from every other row in §5, not a weaker one — a forged signature is refused before it reaches any business logic, exactly as a wrong role is.
+`receivePaymentProviderNotification` and `receiveCarrierEvent` carry `x-ecp-roles: []` and `providerSignature` security: their caller is the Payment Gateway or the Shipping Carrier, actors in SRS §2.3's *system* table that the six-role grid does not cover. `x-ecp-actor` records which.
 
 ---
 

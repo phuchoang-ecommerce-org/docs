@@ -15,8 +15,6 @@ That is why they appear last and why they are short. Each is an application of [
 
 Administration is the exception, and deliberately so: [Domain Model §3](../Domain%20Model.md) concludes that `ADM` **is not a bounded context**. Walking `UC-ADM-01`–`06`, only account suspension and role management are genuinely identity-shaped domain logic, and both land in Identity & Access. The rest are role-gated operations routing through Catalog's, Ordering's, and Inventory's own public APIs. There is no leftover domain logic for "Administration" to own, so §7 and §8 below are drawn against Identity, and the admin console is a thin composition layer with no aggregates of its own.
 
-Arrow and frame conventions: [`README.md`](./README.md) §3.1–§3.2.
-
 ---
 
 ## 2. UC-REV-01 — Submit a Product Review

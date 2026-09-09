@@ -1,9 +1,5 @@
 # Audit & Access Control (`AUD`) — path items
 #
-# Permission matrix row (Integration Contract §9):
-#   Audit trail: Support read · Admin read · every other cell blank
-#   — and **no role has `manage`**.
-#
 # THIS FILE CONTAINS ONLY `GET`. That is the contract, not an oversight:
 # `BR-AUD-01` and `NFR-OBS-02` require the trail to be unamendable through any
 # interface by any role, and `ADR-0017` enforces it by exposing no mutation API

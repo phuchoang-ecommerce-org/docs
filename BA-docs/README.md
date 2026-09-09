@@ -48,19 +48,7 @@ Reading backward is the more useful direction once delivery starts. Every requir
 
 Identifiers are **stable**. A withdrawn requirement is marked withdrawn rather than renumbered, so a citation never silently changes meaning.
 
-| Kind | Form | Example | Defined in |
-|---|---|---|---|
-| Business problem | `P<n>` | `P8` | [`general-approach.md`](./general-approach.md) |
-| Functional requirement | `FR-<DOMAIN>-<nn>` | `FR-ORD-08` | [`srs.md`](./srs.md) §3 |
-| Business rule | `BR-<DOMAIN>-<nn>` | `BR-INV-01` | [`srs.md`](./srs.md) §4 |
-| Non-functional requirement | `NFR-<CATEGORY>-<nn>` | `NFR-REL-03` | [`srs.md`](./srs.md) §6 |
-| Constraint | `CON-<nn>` | `CON-04` | [`srs.md`](./srs.md) §7 |
-| Acceptance criterion | `AC-<nn>` | `AC-05` | [`srs.md`](./srs.md) §9 |
-| Use case | `UC-<DOMAIN>-<nn>` | `UC-ORD-05` | [`use-cases/`](./use-cases/README.md) |
-| User story | `US-<DOMAIN>-<nn>` | `US-ORD-05` | [`user-stories/`](./user-stories/README.md) |
-| Assumption | `A-<nn>` | `A-07` | [`srs.md`](./srs.md) §2.5 |
-
-**Domain codes:** `CUS` Customer & Identity · `CAT` Catalog & Category · `SCH` Search & Recommendation · `INV` Inventory · `CRT` Cart & Wishlist · `ORD` Checkout & Order · `PAY` Payment · `SHP` Shipping · `PRM` Promotion · `REV` Review · `NTF` Notification · `ADM` Administration · `RPT` Reporting & Analytics · `AUD` Audit & Access Control · `DAT` cross-domain data qualities
+The full scheme — all nine identifier kinds, the fourteen domain codes, the non-functional categories, and the MoSCoW priorities — is stated once in [`srs.md`](./srs.md) §1.5. `P<n>` is defined in [`general-approach.md`](./general-approach.md), `UC-` in [`use-cases/`](./use-cases/README.md), and `US-` in [`user-stories/`](./user-stories/README.md).
 
 ---
 
@@ -68,7 +56,7 @@ Identifiers are **stable**. A withdrawn requirement is marked withdrawn rather t
 
 **No technology in these documents.** [`general-approach.md`](./general-approach.md) states the rule and `srs.md` and the use cases follow it: they say what must be true, never how to build it. The *how* belongs to [Solution Architecture](../SA-docs/01-system/Solution%20Architecture.md). This keeps the business analysis reviewable by stakeholders who do not read code, and keeps architectural decisions open to challenge on their own terms.
 
-**Nothing is invented silently.** Where `requirement.md` leaves a value or policy undefined, an explicit **[ASSUMPTION]** is recorded in [`srs.md`](./srs.md) §2.5 rather than a decision being made quietly. Thirteen stand unconfirmed; several are load-bearing, and they are listed with their consequences in [`traceability-matrix.md`](./traceability-matrix.md) §7.
+**Nothing is invented silently.** Where `requirement.md` leaves a value or policy undefined, an explicit **[ASSUMPTION]** is recorded in [`srs.md`](./srs.md) §2.5 rather than a decision being made quietly. Thirteen stand unconfirmed; several are load-bearing, and each is listed in [`srs.md`](./srs.md) §2.5 with what depends on it and what turns on confirming it.
 
 **Failure behaviour is specified, not deferred.** Every use case documents its exception flows. A use case with no exception flow is one whose failure behaviour nobody has decided, and deciding it later under delivery pressure is how `P5` and `P7` happen in practice.
 
@@ -76,22 +64,7 @@ Identifiers are **stable**. A withdrawn requirement is marked withdrawn rather t
 
 ## 5. Building the Documents
 
-The Markdown files are the source. Diagrams are PlantUML compiled to SVG; HTML is generated and not committed.
-
-```bash
-# from the repo root
-node util/toSvg.js       # docs/BA-docs/diagrams/*.puml -> sibling *.svg
-node util/toHtml.js      # every *.md -> a styled, standalone sibling *.html
-
-# or, from util/
-npm run docs:diagrams
-npm run docs:html
-npm run docs:build       # both, in order
-```
-
-**Prerequisites.** `node`, and the `plantuml` CLI for diagrams (`brew install plantuml graphviz` on macOS; `apt-get install plantuml graphviz` on Debian). `util/toSvg.js` reports a clear message if PlantUML is missing.
-
-**What is committed.** The `.md` sources, the `.puml` diagram sources, and the compiled `.svg` files — the SVGs must be committed for diagrams to render on GitHub. The generated `.html` is gitignored; regenerate it locally when you want the styled, zoomable reading view.
+Markdown is the source; the `.svg` diagrams are committed and the `.html` is not. Build commands and prerequisites are in the [repository README](../../README.md#building-the-documentation).
 
 Diagram sources live in [`diagrams/`](./diagrams/): fourteen per-domain use case diagrams, plus `system-context`, `order-lifecycle`, and `checkout-activity`. `_common.iuml` carries the shared styling and is not a diagram in its own right.
 

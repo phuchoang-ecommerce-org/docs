@@ -1,8 +1,6 @@
 # Customer & Identity — Use Cases (`CUS`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 
@@ -101,7 +99,6 @@ This domain is where **P16** (every role does exactly what its job requires) beg
 | Field | Value |
 |---|---|
 | **Primary actor** | Guest |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants their cart, addresses, and orders back. Trust & Safety: wants credential guessing to be impractical. |
 | **Priority** | Must |
 | **Trigger** | Guest submits credentials |
@@ -143,7 +140,6 @@ This domain is where **P16** (every role does exactly what its job requires) beg
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants the session genuinely ended, particularly on a shared device. Trust & Safety: wants a discarded token to be unusable. |
 | **Priority** | Must |
 | **Trigger** | Customer requests to log out |
@@ -177,7 +173,6 @@ This domain is where **P16** (every role does exactly what its job requires) beg
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants to stay logged in without re-entering credentials. Trust & Safety: wants a stolen token to have a short useful life and a detectable reuse. |
 | **Priority** | Must |
 | **Trigger** | The access token is near expiry or has expired |
@@ -331,7 +326,6 @@ This domain is where **P16** (every role does exactly what its job requires) beg
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants checkout to be quick and deliveries to arrive. Warehouse and Carrier: want a deliverable address. Finance: wants failed deliveries and redelivery cost minimised. |
 | **Priority** | Must |
 | **Trigger** | Customer opens their address book, or adds an address during checkout |
@@ -371,7 +365,6 @@ This domain is where **P16** (every role does exactly what its job requires) beg
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants to find a past order, reorder, or start a return. Customer Support: needs the same view to resolve a query. Finance: wants the record to match what was charged. |
 | **Priority** | Must |
 | **Trigger** | Customer opens their order history |

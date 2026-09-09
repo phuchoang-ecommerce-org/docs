@@ -1,8 +1,6 @@
 # Product Catalog & Category — Use Cases (`CAT`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 
@@ -21,11 +19,9 @@ This domain is read-dominated and conversion-critical. **P11** — customers who
 | Field | Value |
 |---|---|
 | **Primary actor** | Guest |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Guest and Customer: want to narrow from a broad idea to a specific product. Staff: want the merchandising structure to be navigable. Marketing: wants browse depth to convert. |
 | **Priority** | Must |
 | **Trigger** | Visitor opens category navigation |
-| **Preconditions** | None |
 | **Success postconditions** | The navigable category structure is presented; no state changes |
 | **Failure postconditions** | Nothing is presented; browsing by other means (search, featured) remains available |
 | **Frequency** | Very high |
@@ -57,7 +53,6 @@ This domain is read-dominated and conversion-critical. **P11** — customers who
 | Field | Value |
 |---|---|
 | **Primary actor** | Guest |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Guest and Customer: want to compare candidates quickly. Marketing: wants listing performance to drive conversion. Finance: wants prices shown to be prices charged. |
 | **Priority** | Must |
 | **Trigger** | Visitor selects a category |
@@ -96,7 +91,6 @@ This domain is read-dominated and conversion-critical. **P11** — customers who
 | Field | Value |
 |---|---|
 | **Primary actor** | Guest |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Guest and Customer: want enough to decide. Staff: want merchandising content to reach the shopper intact. Finance: wants the displayed price to be the price charged. Support: wants fewer "not as described" disputes. |
 | **Priority** | Must |
 | **Trigger** | Visitor opens a product |
@@ -137,7 +131,6 @@ This domain is read-dominated and conversion-critical. **P11** — customers who
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants the exact configuration they intend to buy. Warehouse: wants the order to name a single stockable unit. Finance: wants the variant's own price applied. |
 | **Priority** | Must |
 | **Trigger** | Customer selects variant values on a product page |
@@ -173,11 +166,9 @@ This domain is read-dominated and conversion-critical. **P11** — customers who
 | Field | Value |
 |---|---|
 | **Primary actor** | Guest |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Marketing: wants a merchandising surface for campaigns. Guest and Customer: want a starting point without knowing what to search for. |
 | **Priority** | Should |
 | **Trigger** | Visitor opens the storefront home |
-| **Preconditions** | None |
 | **Success postconditions** | Categories designated as featured are presented with their images |
 | **Failure postconditions** | The section is omitted; the rest of the storefront is unaffected |
 | **Frequency** | Very high |

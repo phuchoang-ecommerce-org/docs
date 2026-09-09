@@ -361,13 +361,7 @@ The `ADR` column links each technology to the record that argues for it — incl
 
 ## 8. Architecture Governance
 
-Architecture decisions are only as durable as the mechanism that enforces them. Three tools work together to keep the system's structure from drifting away from the decisions above over time:
-
-- **Spring Modulith** verifies, at build time, that no module reaches into another module's internal (non-API) packages.
-- **ArchUnit** encodes layering and dependency-direction rules (e.g., "Domain must not depend on Infrastructure") as executable tests.
-- **JMolecules** makes DDD building blocks (Aggregate, Entity, Value Object, Domain Event) explicit types in code, so architectural intent is visible and checkable rather than implicit convention.
-
-Together, these convert P15 from an ongoing manual review burden into an automated CI gate: a change that violates architectural boundaries fails the build before it can be merged.
+§5 `P15` names the mechanism — Spring Modulith for module-boundary verification, ArchUnit for layering and dependency-direction rules, JMolecules for making DDD building blocks explicit types — and [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) is the record of why governance is a CI gate rather than a review practice, with the rule table it enforces. Neither is repeated here.
 
 ---
 

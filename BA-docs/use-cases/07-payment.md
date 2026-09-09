@@ -1,8 +1,6 @@
 # Payment — Use Cases (`PAY`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 
@@ -23,7 +21,6 @@ Every use case here is bounded by a party the platform does not control. That si
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants to pay the way they prefer. Finance: wants Cash On Delivery confined to where it is economic, since it carries collection risk. Warehouse: needs to know which orders arrive with cash to collect. |
 | **Priority** | Must |
 | **Trigger** | Checkout requires a payment method |
@@ -104,7 +101,6 @@ Every use case here is bounded by a party the platform does not control. That si
 | Field | Value |
 |---|---|
 | **Primary actor** | Payment Gateway |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Finance: needs every result applied exactly once. Customer: needs the order to reflect what happened to their money. Support: needs no order left in an indeterminate state. |
 | **Priority** | Must |
 | **Trigger** | The provider delivers a result for a payment attempt |

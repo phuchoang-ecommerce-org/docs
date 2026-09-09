@@ -15,8 +15,6 @@ Shipping is bounded by a carrier. Everything it knows about a parcel arrives asy
 
 Promotion appears here because its *binding* moment is not in the promotion domain at all: it is inside the placement transaction in [`01-Ordering.md`](./01-Ordering.md) §6. §6 below is the inside view of that call, and §7 is what happens when a preview and a redemption disagree.
 
-Arrow and frame conventions: [`README.md`](./README.md) §3.1–§3.2.
-
 ---
 
 ## 2. UC-SHP-03 — Create a Shipment

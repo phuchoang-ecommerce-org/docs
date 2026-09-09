@@ -1,8 +1,5 @@
 # Search & Recommendation (`SCH`) — path items
 #
-# Permission matrix row (Integration Contract §9):
-#   Guest use · Customer use · Staff use · Warehouse — · Support use · Admin use
-#
 # `search` appears as a path segment as a **noun** — the search resource — not as
 # a verb. `Integration Contract` §2 forbids a verb in a path; it does not forbid
 # a resource whose name happens to be a nominalised action.

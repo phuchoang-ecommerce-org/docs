@@ -1,11 +1,8 @@
 # ADR-0026 — Motion Vocabulary and the WCAG AA Accessibility Baseline
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** UI Design System §8, §13, §14, §15 · `P15` · `NFR-MAINT-05`
-**Related documents:** [UI Design System](../../03-frontend/UI%20Design%20System.md) · [ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) · [ADR-0022](./ADR-0022-ma-design-tokens.md)
 
 ---
 

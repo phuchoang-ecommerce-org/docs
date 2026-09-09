@@ -1,9 +1,5 @@
 # Inventory (`INV`, Core) — path items
 #
-# Permission matrix row (Integration Contract §9):
-#   Guest — · Customer availability only · Staff read · Warehouse manage
-#   Support read · Admin manage
-#
 # Customer-facing availability is a boolean carried inside catalog and search
 # responses (`VariantAvailability`), not an endpoint here: quantities and
 # warehouse structure are never exposed to a Guest or a Customer.

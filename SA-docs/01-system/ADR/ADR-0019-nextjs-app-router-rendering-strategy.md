@@ -1,11 +1,8 @@
 # ADR-0019 — Next.js App Router with React Server Components, and a Rendering Strategy per Route Class
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted (Next.js) · **Proposed** (App Router, RSC, route classification)
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P11` · `P5` · `NFR-PERF-01` · `NFR-AVAIL-02` · `NFR-SEC-01`
-**Related documents:** [Technology Stack](../Technology%20Stack.md) · [UI Design System](../../03-frontend/UI%20Design%20System.md) · [Frontend Architecture](../../03-frontend/Frontend%20Architecture.md)
 
 ---
 

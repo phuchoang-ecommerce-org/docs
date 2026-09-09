@@ -1,8 +1,6 @@
 # Inventory — User Stories (`INV`)
 
-**Document type:** User Story Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../use-cases/04-inventory.md`](../use-cases/04-inventory.md) (source use cases) · [`../srs.md`](../srs.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 

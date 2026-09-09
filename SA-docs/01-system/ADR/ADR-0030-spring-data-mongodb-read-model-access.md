@@ -1,11 +1,8 @@
 # ADR-0030 — Spring Data MongoDB as the Read-Model Access Technology
 
-**Document type:** Architecture Decision Record
 **Status:** Proposed
 **Date:** 2026-09-08
-**Deciders:** Solution Architecture
 **Traces to:** `P13` · `CON-06` · `NFR-PERF-01` · `NFR-PERF-05` · `NFR-PERF-06` · `NFR-REL-05` · `NFR-MAINT-03`
-**Related documents:** [Technology Stack](../Technology%20Stack.md) · [Database](../../02-backend/Database.md) · [Integration Contract](../../04-shared/Integration%20Contract.md) · [ADR-0013](./ADR-0013-mongodb-scoped-to-read-models.md)
 
 ---
 

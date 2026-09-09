@@ -1,8 +1,6 @@
 # Checkout & Order — User Stories (`ORD`)
 
-**Document type:** User Story Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../use-cases/06-checkout-order.md`](../use-cases/06-checkout-order.md) (source use cases) · [`../srs.md`](../srs.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 

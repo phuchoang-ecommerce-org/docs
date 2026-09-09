@@ -1,9 +1,5 @@
 # Administration (`ADM`) — path items
 #
-# Permission matrix rows (Integration Contract §9):
-#   Customer & Identity: Support read · Admin manage
-#   Role management:     Admin manage only — every other cell is blank
-#
 # Only what has no other home lives here: account administration (`UC-ADM-03`)
 # and role management (`UC-ADM-06`). `UC-ADM-01`/`02` are in `catalog.yaml`,
 # `UC-ADM-04` in `ordering.yaml`, `UC-ADM-05` in `inventory.yaml` — a staff

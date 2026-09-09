@@ -7,8 +7,6 @@
 
 Three module-level diagrams. The first is the map; the other two are mechanisms that every layered diagram in this folder leans on rather than redrawing.
 
-Arrow and frame conventions are in [`README.md`](./README.md) §3.1–§3.2.
-
 ---
 
 ## 1. The Purchase Path

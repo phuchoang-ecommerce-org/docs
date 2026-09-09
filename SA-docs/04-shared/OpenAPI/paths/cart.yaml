@@ -1,9 +1,5 @@
 # Cart & Wishlist (`CRT`) — path items
 #
-# Permission matrix row (Integration Contract §9):
-#   Guest own guest cart · Customer own · Staff — · Warehouse —
-#   Support read · Admin read
-#
 # `UC-CRT-06` (Expire Inactive Cart) has **no endpoint**: it is Scheduler-driven
 # (`A-02`, `FR-CRT-07`) — see `README.md` §5.
 

@@ -1,11 +1,8 @@
 # ADR-0017 — Append-Only Audit Log Projected from Domain Events
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P17` · `P2` · `BR-AUD-01` · `BR-AUD-02` · `BR-AUD-03` · `NFR-OBS-01` · `NFR-OBS-02` · `NFR-SEC-07`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Domain Model](../../02-backend/Domain%20Model.md) · [Audit Use Cases](../../../BA-docs/use-cases/14-audit-access-control.md)
 
 ---
 

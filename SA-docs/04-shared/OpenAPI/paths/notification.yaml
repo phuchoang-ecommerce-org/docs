@@ -1,8 +1,5 @@
 # Notification (`NTF`) — path items
 #
-# Permission matrix row (Integration Contract §9):
-#   Guest — · Customer own · Staff — · Warehouse — · Support read · Admin manage
-#
 # `UC-NTF-01` (Deliver Email) and `UC-NTF-02` (Deliver In-App) have **no
 # endpoint**: both are Kafka event consumers that no client invokes
 # (`Integration Contract` §7) — see `README.md` §5.

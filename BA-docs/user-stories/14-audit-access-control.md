@@ -1,8 +1,6 @@
 # Audit & Access Control — User Stories (`AUD`)
 
-**Document type:** User Story Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../use-cases/14-audit-access-control.md`](../use-cases/14-audit-access-control.md) (source use cases) · [`../srs.md`](../srs.md)
-**Audience:** Product Management, Engineering, Quality Assurance, Security
 
 These four stories are included by nearly every other story in this specification, exactly as their source use cases are included by nearly every other use case — see [`../use-cases/14-audit-access-control.md`](../use-cases/14-audit-access-control.md) §Domain Scope.
 

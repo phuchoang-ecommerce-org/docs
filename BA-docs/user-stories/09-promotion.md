@@ -1,8 +1,6 @@
 # Promotion — User Stories (`PRM`)
 
-**Document type:** User Story Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../use-cases/09-promotion.md`](../use-cases/09-promotion.md) (source use cases) · [`../srs.md`](../srs.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 

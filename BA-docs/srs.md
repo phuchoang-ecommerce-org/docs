@@ -74,6 +74,8 @@ Consistent with [`general-approach.md`](./general-approach.md), this document **
 | Acceptance criterion | `AC-<nn>` | `AC-03` |
 | Constraint | `CON-<nn>` | `CON-04` |
 | Business problem | `P<n>` (defined in R2) | `P8` |
+| User story | `US-<DOMAIN>-<nn>` (defined in R4) | `US-ORD-05` |
+| Assumption | `A-<nn>` (§2.5) | `A-07` |
 
 **Domain codes.**
 
@@ -136,15 +138,15 @@ That framing has a direct consequence for this specification. A storefront can b
 | **Guest** | An unauthenticated visitor. Browses the catalog, searches, views reviews, and builds a cart, but cannot check out, review, or access any account-scoped data. | **[ASSUMPTION A-01]** — implied by R1 §2 "merge guest cart after login" but not named among the roles in R1 §9. |
 | **Customer** | A registered, authenticated shopper. Owns carts, wishlists, orders, addresses, reviews, and notifications. | R1 §9 |
 | **Staff** | Commercial and catalog operations. Maintains products, categories, and promotions; progresses orders through commercial states. | R1 §9 |
-| **Warehouse Operator** | Fulfilment operations. Adjusts inventory, picks and packs orders, creates shipments. | R1 §9 |
-| **Customer Support Agent** | Customer-facing issue resolution. Inspects orders and shipments, cancels orders, approves returns, initiates refunds, moderates reviews. | R1 §9 |
+| **Warehouse Operator** | Fulfilment operations. Adjusts inventory, picks and packs orders, creates shipments, settles Cash On Delivery. | R1 §9 |
+| **Customer Support Agent** | Customer-facing issue resolution. Inspects orders and shipments, cancels orders, accepts returns, initiates refunds, moderates reviews. | R1 §9 |
 | **Administrator** | Full operational authority including user and role management, and access to all reporting and the audit trail. | R1 §9 |
 
 **System and time actors.**
 
 | Actor | Description | Source |
 |---|---|---|
-| **Scheduler (Time)** | Triggers time-based behaviour: cart expiry, flash sale start and end, promotion expiry, scheduled report generation. | **[ASSUMPTION A-02]** — implied by R1 §2 "cart expiration should be configurable" and Flash Sale, but not named as an actor. |
+| **Scheduler (Time)** | Triggers time-based behaviour: cart expiry, flash sale start and end, promotion expiry, payment retry window expiry, scheduled report generation. | **[ASSUMPTION A-02]** — implied by R1 §2 "cart expiration should be configurable" and Flash Sale, but not named as an actor. |
 | **Payment Gateway** | External provider that authorises, captures, and refunds payments, and reports results asynchronously. | R1 §2 Payment |
 | **Shipping Carrier** | External provider that transports shipments and reports tracking and delivery events. | R1 §2 Shipping |
 | **Email Service Provider** | External provider that delivers outbound email. | R1 §2 Notification Center |
@@ -179,21 +181,21 @@ The platform depends on external providers it does not control (payment gateways
 
 The following are stated by this SRS but **not** established by R1. Each requires Product Owner confirmation; each is cited from the requirement that depends on it.
 
-| ID | Assumption | Depends on it |
-|---|---|---|
-| **A-01** | Guest is a distinct actor with browse, search, and cart capability but no checkout. | `FR-CRT-05`, `FR-CRT-06`, `UC-CRT-05` |
-| **A-02** | Time-triggered behaviour (cart expiry, flash sale windows, promotion expiry) is modelled as a Scheduler actor. | `FR-CRT-07`, `FR-PRM-06`, `FR-PRM-10` |
-| **A-03** | "Acceptable latency" (R1 §7) means p95 ≤ 300 ms for catalog and search reads and p95 ≤ 800 ms for transactional writes, measured server-side excluding external provider time. | `NFR-PERF-01`, `NFR-PERF-02` |
-| **A-04** | Peak shopping events are assumed to reach 10× median throughput. | `NFR-SCAL-06`, `NFR-AVAIL-01` |
-| **A-05** | Default cart inactivity expiry is 30 days for authenticated customers and 7 days for guests, both configurable. | `FR-CRT-07`, `BR-CRT-01` |
-| **A-06** | The return window is 14 days from delivery. | `FR-ORD-14`, `BR-ORD-05` |
-| **A-07** | A failed payment may be retried for 24 hours, during which the stock reservation is held; after that the order is cancelled and stock released. | `FR-PAY-06`, `BR-ORD-04` |
-| **A-08** | Reviews are published immediately and moderated after the fact, rather than held for pre-publication approval. | `FR-REV-07`, `FR-REV-08` |
-| **A-09** | A customer may submit one review per purchased product, editable within 30 days of submission. | `BR-REV-02`, `BR-REV-03` |
-| **A-10** | Prices, and therefore reports, are expressed in a single currency in this release; multi-currency is deferred (§8). | `FR-RPT-01`, `FR-CAT-01` |
-| **A-11** | Reporting figures may lag transactional state by up to 5 minutes. Inventory and payment figures may not lag at all. | `NFR-PERF-05`, `P4` |
-| **A-12** | Target availability is 99.9% monthly for the purchase path (browse, cart, checkout, payment). | `NFR-AVAIL-01` |
-| **A-13** | Audit entries are retained for 7 years. | `FR-DAT-05` |
+| ID | Assumption | Depends on it | Why it matters |
+|---|---|---|---|
+| **A-01** | Guest is a distinct actor with browse, search, and cart capability but no checkout. | `FR-CRT-05`, `FR-CRT-06`, `UC-CRT-05` | Determines whether the cart and catalog paths need an authenticated principal at all |
+| **A-02** | Time-triggered behaviour (cart expiry, flash sale windows, promotion expiry) is modelled as a Scheduler actor. | `FR-CRT-07`, `FR-PRM-06`, `FR-PRM-10` | Determines whether time-based behaviour needs a first-class actor and an owner |
+| **A-03** | "Acceptable latency" (R1 §7) means p95 ≤ 300 ms for catalog and search reads and p95 ≤ 800 ms for transactional writes, measured server-side excluding external provider time. | `NFR-PERF-01`, `NFR-PERF-02` | The architecture is sized against these figures |
+| **A-04** | Peak shopping events are assumed to reach 10× median throughput. | `NFR-SCAL-06`, `NFR-AVAIL-01` | Determines the capacity a flash sale must survive (`P8`, `P9`) |
+| **A-05** | Default cart inactivity expiry is 30 days for authenticated customers and 7 days for guests, both configurable. | `FR-CRT-07`, `BR-CRT-01` | Trades cart recovery against storage growth |
+| **A-06** | The return window is 14 days from delivery. | `FR-ORD-14`, `BR-ORD-05` | Determines when revenue is final |
+| **A-07** | A failed payment may be retried for 24 hours, during which the stock reservation is held; after that the order is cancelled and stock released. | `FR-PAY-06`, `BR-ORD-04` | Determines how long scarce stock is held against an unpaid order during a flash sale |
+| **A-08** | Reviews are published immediately and moderated after the fact, rather than held for pre-publication approval. | `FR-REV-07`, `FR-REV-08` | Trades review volume against storefront exposure |
+| **A-09** | A customer may submit one review per purchased product, editable within 30 days of submission. | `BR-REV-02`, `BR-REV-03` | Trades review volume against storefront exposure |
+| **A-10** | Prices, and therefore reports, are expressed in a single currency in this release; multi-currency is deferred (§8). | `FR-RPT-01`, `FR-CAT-01` | Determines whether `Money` needs a currency dimension before launch, not after |
+| **A-11** | Reporting figures may lag transactional state by up to 5 minutes. Inventory and payment figures may not lag at all. | `NFR-PERF-05`, `P4` | The explicit `P4` freshness trade-off |
+| **A-12** | Target availability is 99.9% monthly for the purchase path (browse, cart, checkout, payment). | `NFR-AVAIL-01` | Determines the resilience investment |
+| **A-13** | Audit entries are retained for 7 years. | `FR-DAT-05` | A legal and regulatory determination, not a platform decision |
 
 **External dependencies.** Delivery of `FR-PAY-03`, `FR-SHP-04`, and `FR-NTF-01` depends on commercial agreements with a payment gateway, a shipping carrier, and an email service provider respectively. These agreements are outside the platform's control and are a delivery risk to be tracked by Product Management.
 
@@ -421,98 +423,98 @@ A business rule is a constraint that holds regardless of which requirement, use 
 
 ### 4.1 Customer & Identity
 
-| ID | Rule | Enforcement point | Source |
-|---|---|---|---|
-| `BR-CUS-01` | An email address identifies at most one customer account. | Account creation | R1 §2 |
-| `BR-CUS-02` | An account whose email address is unverified may browse and build a cart but may not place an order or submit a review. | Order placement, review submission | *derived* from R1 §2 (Email Verification) |
-| `BR-CUS-03` | A verification, password-reset, or refresh token is valid for a single use and expires after a configured lifetime. Using one invalidates it. | Token redemption | R1 §2, §9 |
-| `BR-CUS-04` | Authentication failure reveals nothing about which credential was wrong, nor whether the account exists. | Authentication | *derived* from R1 §9 (Secure Authentication) |
-| `BR-CUS-05` | A customer has at most one default shipping address. Nominating a new default removes the nomination from the previous one. | Address management | *derived* from R1 §2 |
+| ID | Rule | Enforcement point | Enforced in (UC) | Source |
+|---|---|---|---|---|
+| `BR-CUS-01` | An email address identifies at most one customer account. | Account creation | `UC-CUS-01`, `UC-CUS-08` | R1 §2 |
+| `BR-CUS-02` | An account whose email address is unverified may browse and build a cart but may not place an order or submit a review. | Order placement, review submission | `UC-CUS-03`, `UC-ORD-01`, `UC-REV-01` | *derived* from R1 §2 (Email Verification) |
+| `BR-CUS-03` | A verification, password-reset, or refresh token is valid for a single use and expires after a configured lifetime. Using one invalidates it. | Token redemption | `UC-CUS-02`, `UC-CUS-05`, `UC-CUS-07`, `UC-NTF-04` | R1 §2, §9 |
+| `BR-CUS-04` | Authentication failure reveals nothing about which credential was wrong, nor whether the account exists. | Authentication | `UC-CUS-01`, `UC-CUS-03`, `UC-CUS-07` | *derived* from R1 §9 (Secure Authentication) |
+| `BR-CUS-05` | A customer has at most one default shipping address. Nominating a new default removes the nomination from the previous one. | Address management | `UC-CUS-09`, `UC-ORD-02` | *derived* from R1 §2 |
 
 ### 4.2 Catalog, Category & Search
 
-| ID | Rule | Enforcement point | Source |
-|---|---|---|---|
-| `BR-CAT-01` | A SKU identifies at most one purchasable unit across the entire catalog. | Product and variant creation | R1 §2 (SKU) |
-| `BR-CAT-02` | An unpublished product is not returned by browsing or search and cannot be added to a cart, but remains visible on orders that already contain it. | Catalog read, search read, cart addition | *derived* from `FR-CAT-03`, `FR-SCH-01` |
-| `BR-CAT-03` | A category may not be its own ancestor, and a category holding products or child categories may not be deleted until they are reassigned. | Category management | *derived* from R1 §2 (Nested Categories) |
-| `BR-SCH-01` | Search history and personalised recommendations are scoped to the customer they belong to and are never exposed to another customer. | Search read, recommendation read | *derived* from R1 §9, P16 |
+| ID | Rule | Enforcement point | Enforced in (UC) | Source |
+|---|---|---|---|---|
+| `BR-CAT-01` | A SKU identifies at most one purchasable unit across the entire catalog. | Product and variant creation | `UC-CAT-04`, `UC-ADM-01` | R1 §2 (SKU) |
+| `BR-CAT-02` | An unpublished product is not returned by browsing or search and cannot be added to a cart, but remains visible on orders that already contain it. | Catalog read, search read, cart addition | `UC-CAT-02`, `UC-SCH-01`, `UC-CRT-01`, `UC-ADM-01` | *derived* from `FR-CAT-03`, `FR-SCH-01` |
+| `BR-CAT-03` | A category may not be its own ancestor, and a category holding products or child categories may not be deleted until they are reassigned. | Category management | `UC-ADM-02` | *derived* from R1 §2 (Nested Categories) |
+| `BR-SCH-01` | Search history and personalised recommendations are scoped to the customer they belong to and are never exposed to another customer. | Search read, recommendation read | `UC-SCH-04`, `UC-SCH-07` | *derived* from R1 §9, P16 |
 
 ### 4.3 Inventory
 
-| ID | Rule | Enforcement point | Source |
-|---|---|---|---|
-| `BR-INV-01` | **Available stock may never be negative.** No sequence of concurrent operations may result in more units reserved than are held. | Stock reservation | R1 §2 ("stock must never become negative"), R1 §8 |
-| `BR-INV-02` | A stock reservation is resolved **exactly once**: either committed on fulfilment or released on cancellation — never both, and never neither. | Reservation lifecycle | *derived* from R1 §8 ("ensure transactional consistency"), P7 |
-| `BR-INV-03` | An inventory adjustment requires a reason and records the acting user, and generates an audit entry. | Inventory adjustment | R1 §2, §6 |
+| ID | Rule | Enforcement point | Enforced in (UC) | Source |
+|---|---|---|---|---|
+| `BR-INV-01` | **Available stock may never be negative.** No sequence of concurrent operations may result in more units reserved than are held. | Stock reservation | `UC-INV-01`, `UC-INV-04`, `UC-ORD-05`, `UC-PRM-04` | R1 §2 ("stock must never become negative"), R1 §8 |
+| `BR-INV-02` | A stock reservation is resolved **exactly once**: either committed on fulfilment or released on cancellation — never both, and never neither. | Reservation lifecycle | `UC-INV-01`, `UC-INV-02`, `UC-INV-03` | *derived* from R1 §8 ("ensure transactional consistency"), P7 |
+| `BR-INV-03` | An inventory adjustment requires a reason and records the acting user, and generates an audit entry. | Inventory adjustment | `UC-INV-04`, `UC-ADM-05` | R1 §2, §6 |
 
 ### 4.4 Cart & Wishlist
 
-| ID | Rule | Enforcement point | Source |
-|---|---|---|---|
-| `BR-CRT-01` | Cart expiry is governed by a configured inactivity period, changeable without redeployment, and may differ between guest and authenticated carts. | Cart expiry | R1 §2 ("cart expiration should be configurable") |
-| `BR-CRT-02` | A cart line's quantity may not exceed the available stock of its variant at the time the line is created or amended. | Cart addition and amendment | *derived* from `BR-INV-01` |
-| `BR-CRT-03` | Merging a guest cart into a customer cart never silently discards a line: quantities for the same variant are combined, and any line that cannot be carried over is reported to the customer. | Cart merge | R1 §2 (Merge guest cart after login) |
-| `BR-CRT-04` | A cart holds no price of its own. Prices are those current at the moment the cart is displayed, and become fixed only when the order is placed. | Cart display, order placement | *derived* from `BR-ORD-06` |
+| ID | Rule | Enforcement point | Enforced in (UC) | Source |
+|---|---|---|---|---|
+| `BR-CRT-01` | Cart expiry is governed by a configured inactivity period, changeable without redeployment, and may differ between guest and authenticated carts. | Cart expiry | `UC-CRT-06` | R1 §2 ("cart expiration should be configurable") |
+| `BR-CRT-02` | A cart line's quantity may not exceed the available stock of its variant at the time the line is created or amended. | Cart addition and amendment | `UC-CRT-01`, `UC-CRT-02`, `UC-CRT-05` | *derived* from `BR-INV-01` |
+| `BR-CRT-03` | Merging a guest cart into a customer cart never silently discards a line: quantities for the same variant are combined, and any line that cannot be carried over is reported to the customer. | Cart merge | `UC-CRT-05` | R1 §2 (Merge guest cart after login) |
+| `BR-CRT-04` | A cart holds no price of its own. Prices are those current at the moment the cart is displayed, and become fixed only when the order is placed. | Cart display, order placement | `UC-CRT-04`, `UC-ORD-04` | *derived* from `BR-ORD-06` |
 
 ### 4.5 Order
 
-| ID | Rule | Enforcement point | Source |
-|---|---|---|---|
-| `BR-ORD-01` | **Only the state transitions defined in §5.3 are legal.** Any other transition is rejected, regardless of the role or entry point requesting it. | Every order state change | R1 §2 ("every state transition must follow business rules"), P5 |
-| `BR-ORD-02` | Creating an order and reserving its stock is a single indivisible operation. A partially completed placement is not a permitted outcome, including under system failure. | Order placement | R1 §8, P7 |
-| `BR-ORD-03` | Repeated submission of the same confirmed checkout yields the same single order. | Order placement | R1 §8 ("prevent duplicate orders") |
-| `BR-ORD-04` | An order may be cancelled in Draft, Pending Payment, Payment Failed, Paid, or Processing. Once Packed, it may only be returned, not cancelled. | Order cancellation | *derived* from R1 §2 Order Management lifecycle |
-| `BR-ORD-05` | A return may be requested only against an order in state Delivered, and only within the configured return window from the delivery date. | Return request | *derived* from R1 §2 (Returned) |
-| `BR-ORD-06` | Once an order reaches Paid, its line items, prices, discounts, shipping fee, and total are fixed. Subsequent commercial change is expressed as a refund or a return, never as an amendment. | Order amendment | *derived* from R1 §6, §8 |
+| ID | Rule | Enforcement point | Enforced in (UC) | Source |
+|---|---|---|---|---|
+| `BR-ORD-01` | **Only the state transitions defined in §5.3 are legal.** Any other transition is rejected, regardless of the role or entry point requesting it. | Every order state change | `UC-ORD-10`, `UC-ORD-08`, `UC-SHP-06`, `UC-ADM-04` | R1 §2 ("every state transition must follow business rules"), P5 |
+| `BR-ORD-02` | Creating an order and reserving its stock is a single indivisible operation. A partially completed placement is not a permitted outcome, including under system failure. | Order placement | `UC-ORD-05`, `UC-INV-01` | R1 §8, P7 |
+| `BR-ORD-03` | Repeated submission of the same confirmed checkout yields the same single order. | Order placement | `UC-ORD-05` | R1 §8 ("prevent duplicate orders") |
+| `BR-ORD-04` | An order may be cancelled in Draft, Pending Payment, Payment Failed, Paid, or Processing. Once Packed, it may only be returned, not cancelled. | Order cancellation | `UC-ORD-08`, `UC-PAY-05` | *derived* from R1 §2 Order Management lifecycle |
+| `BR-ORD-05` | A return may be requested only against an order in state Delivered, and only within the configured return window from the delivery date. | Return request | `UC-ORD-09`, `UC-SHP-06` | *derived* from R1 §2 (Returned) |
+| `BR-ORD-06` | Once an order reaches Paid, its line items, prices, discounts, shipping fee, and total are fixed. Subsequent commercial change is expressed as a refund or a return, never as an amendment. | Order amendment | `UC-ORD-04`, `UC-PAY-05`, `UC-ADM-04`, `UC-PRM-05` | *derived* from R1 §6, §8 |
 
 ### 4.6 Payment
 
-| ID | Rule | Enforcement point | Source |
-|---|---|---|---|
-| `BR-PAY-01` | A payment provider result is applied at most once per attempt, however many times the provider delivers it. | Gateway result handling | *derived* from R1 §8 ("handle retryable failures") |
-| `BR-PAY-02` | The cumulative refunded amount for an order may never exceed the amount captured for it. | Refund | *derived* from R1 §2 (Refunded), P7 |
-| `BR-PAY-03` | Cash On Delivery is offered only where the delivery destination and the order value both satisfy the configured eligibility conditions. | Payment method selection | *derived* from R1 §2 (Cash On Delivery) |
+| ID | Rule | Enforcement point | Enforced in (UC) | Source |
+|---|---|---|---|---|
+| `BR-PAY-01` | A payment provider result is applied at most once per attempt, however many times the provider delivers it. | Gateway result handling | `UC-PAY-02`, `UC-PAY-03`, `UC-PAY-06` | *derived* from R1 §8 ("handle retryable failures") |
+| `BR-PAY-02` | The cumulative refunded amount for an order may never exceed the amount captured for it. | Refund | `UC-PAY-06`, `UC-ORD-09` | *derived* from R1 §2 (Refunded), P7 |
+| `BR-PAY-03` | Cash On Delivery is offered only where the delivery destination and the order value both satisfy the configured eligibility conditions. | Payment method selection | `UC-PAY-01`, `UC-PAY-04` | *derived* from R1 §2 (Cash On Delivery) |
 
 ### 4.7 Shipping
 
-| ID | Rule | Enforcement point | Source |
-|---|---|---|---|
-| `BR-SHP-01` | The shipping fee is recalculated whenever the destination address, the order contents, or the selected provider changes, and the fee presented at confirmation is the fee charged. | Fee calculation, order placement | R1 §2 (Shipping fee calculation) |
-| `BR-SHP-02` | A carrier tracking update older than the shipment's latest recorded update does not move the shipment backwards. | Tracking update | *derived* from `FR-SHP-05` |
+| ID | Rule | Enforcement point | Enforced in (UC) | Source |
+|---|---|---|---|---|
+| `BR-SHP-01` | The shipping fee is recalculated whenever the destination address, the order contents, or the selected provider changes, and the fee presented at confirmation is the fee charged. | Fee calculation, order placement | `UC-SHP-01`, `UC-ORD-02`, `UC-ORD-04` | R1 §2 (Shipping fee calculation) |
+| `BR-SHP-02` | A carrier tracking update older than the shipment's latest recorded update does not move the shipment backwards. | Tracking update | `UC-SHP-04`, `UC-SHP-05` | *derived* from `FR-SHP-05` |
 
 ### 4.8 Promotion
 
-| ID | Rule | Enforcement point | Source |
-|---|---|---|---|
-| `BR-PRM-01` | A promotion applies only when every configured condition holds — active period, customer eligibility, order eligibility, total usage limit, and per-customer usage limit — evaluated both when it is applied and again when the order is placed. | Voucher validation, order placement | R1 §2 ("promotion rules should be configurable") |
-| `BR-PRM-02` | Total discount may not exceed the discountable value of the order. An order total may never be negative. | Discount calculation | *derived* from R1 §2, P7 |
-| `BR-PRM-03` | Where more than one promotion is eligible, the configured stacking policy determines which apply, and the outcome is deterministic for identical inputs. | Discount calculation | *derived* from R1 §2 (Promotion Engine) |
+| ID | Rule | Enforcement point | Enforced in (UC) | Source |
+|---|---|---|---|---|
+| `BR-PRM-01` | A promotion applies only when every configured condition holds — active period, customer eligibility, order eligibility, total usage limit, and per-customer usage limit — evaluated both when it is applied and again when the order is placed. | Voucher validation, order placement | `UC-PRM-02`, `UC-PRM-04`, `UC-PRM-05`, `UC-ORD-03` | R1 §2 ("promotion rules should be configurable") |
+| `BR-PRM-02` | Total discount may not exceed the discountable value of the order. An order total may never be negative. | Discount calculation | `UC-PRM-03`, `UC-PRM-01` | *derived* from R1 §2, P7 |
+| `BR-PRM-03` | Where more than one promotion is eligible, the configured stacking policy determines which apply, and the outcome is deterministic for identical inputs. | Discount calculation | `UC-PRM-03` | *derived* from R1 §2 (Promotion Engine) |
 
 ### 4.9 Review
 
-| ID | Rule | Enforcement point | Source |
-|---|---|---|---|
-| `BR-REV-01` | **Only a verified buyer may review a product** — a customer holding an order in state Delivered or Completed that contains it. | Review submission | R1 §2 ("only verified buyers can review products"), P5 |
-| `BR-REV-02` | A customer holds at most one review per product. | Review submission | *derived* from `FR-REV-01` |
-| `BR-REV-03` | A review may be amended or deleted by its author within the configured edit window, and thereafter only by a moderator. | Review amendment | *derived* from R1 §2 (Edit reviews, Delete reviews) |
-| `BR-REV-04` | Review images are accepted only in permitted formats and within the configured size limit. | Image upload | *derived* from R1 §9 (Input Validation) |
+| ID | Rule | Enforcement point | Enforced in (UC) | Source |
+|---|---|---|---|---|
+| `BR-REV-01` | **Only a verified buyer may review a product** — a customer holding an order in state Delivered or Completed that contains it. | Review submission | `UC-REV-01` | R1 §2 ("only verified buyers can review products"), P5 |
+| `BR-REV-02` | A customer holds at most one review per product. | Review submission | `UC-REV-01`, `UC-REV-03` | *derived* from `FR-REV-01` |
+| `BR-REV-03` | A review may be amended or deleted by its author within the configured edit window, and thereafter only by a moderator. | Review amendment | `UC-REV-02`, `UC-REV-05` | *derived* from R1 §2 (Edit reviews, Delete reviews) |
+| `BR-REV-04` | Review images are accepted only in permitted formats and within the configured size limit. | Image upload | `UC-REV-01`, `UC-REV-02` | *derived* from R1 §9 (Input Validation) |
 
 ### 4.10 Notification & Reporting
 
-| ID | Rule | Enforcement point | Source |
-|---|---|---|---|
-| `BR-NTF-01` | A notification raised by a business event is delivered at least once, or is recorded as undeliverable. It is never silently dropped. | Notification dispatch | *derived* from R1 §2 Notification Center, P6 |
-| `BR-NTF-02` | A customer may opt out of promotional notifications but not out of transactional notifications concerning their own orders, payments, and shipments. | Preference management | *derived* from `FR-NTF-05` |
-| `BR-RPT-01` | Revenue figures count only orders that have reached Paid or beyond, and exclude the value of refunds and returns from the periods in which they occur. | Report computation | *derived* from R1 §3, P6 |
+| ID | Rule | Enforcement point | Enforced in (UC) | Source |
+|---|---|---|---|---|
+| `BR-NTF-01` | A notification raised by a business event is delivered at least once, or is recorded as undeliverable. It is never silently dropped. | Notification dispatch | `UC-NTF-01`, `UC-NTF-02` | *derived* from R1 §2 Notification Center, P6 |
+| `BR-NTF-02` | A customer may opt out of promotional notifications but not out of transactional notifications concerning their own orders, payments, and shipments. | Preference management | `UC-NTF-04`, `UC-NTF-01` | *derived* from `FR-NTF-05` |
+| `BR-RPT-01` | Revenue figures count only orders that have reached Paid or beyond, and exclude the value of refunds and returns from the periods in which they occur. | Report computation | `UC-RPT-01`, `UC-RPT-02`, `UC-RPT-05` | *derived* from R1 §3, P6 |
 
 ### 4.11 Audit & Access Control
 
-| ID | Rule | Enforcement point | Source |
-|---|---|---|---|
-| `BR-AUD-01` | **An audit entry is append-only.** Once written it is never amended and never deleted, by any role, through any interface the platform exposes. | Audit write | R1 §6 ("audit records should never be modified"), P17 |
-| `BR-AUD-02` | An authorisation decision is a property of the platform, not of the caller. The same request by the same user yields the same decision whatever entry point it arrives through. | Every authorised operation | R1 §9, P5, P16 |
-| `BR-AUD-03` | A user may not grant themselves a role they do not already hold, nor revoke the last remaining Administrator role. | Role assignment | *derived* from R1 §9, P16 |
+| ID | Rule | Enforcement point | Enforced in (UC) | Source |
+|---|---|---|---|---|
+| `BR-AUD-01` | **An audit entry is append-only.** Once written it is never amended and never deleted, by any role, through any interface the platform exposes. | Audit write | `UC-AUD-01`, `UC-AUD-02` | R1 §6 ("audit records should never be modified"), P17 |
+| `BR-AUD-02` | An authorisation decision is a property of the platform, not of the caller. The same request by the same user yields the same decision whatever entry point it arrives through. | Every authorised operation | `UC-AUD-03` — and every use case that includes it | R1 §9, P5, P16 |
+| `BR-AUD-03` | A user may not grant themselves a role they do not already hold, nor revoke the last remaining Administrator role. | Role assignment | `UC-ADM-06`, `UC-AUD-03` | *derived* from R1 §9, P16 |
 
 ---
 
@@ -709,14 +711,14 @@ R1 §10 requires that these capabilities "can be added with minimal impact to ex
 
 R1 §12 states six conditions for success. Each is restated below as a criterion with an identifier, the requirements that must hold for it, and the means by which it is judged.
 
-| ID | Criterion | Requirements | Verification |
-|---|---|---|---|
-| `AC-01` | All core business workflows function correctly. | All `Must` requirements in §3 | Every `Must`-priority use case in R3 passes, including its alternate and exception flows |
-| `AC-02` | Business rules are enforced consistently, regardless of entry point. | All of §4; `NFR-SEC-01`, `BR-AUD-02` | Each rule in §4 is exercised through every entry point that can reach it and is enforced identically |
-| `AC-03` | New business modules can be added with minimal modification to existing code. | `NFR-MAINT-01`, `NFR-MAINT-02`, `NFR-MAINT-04`, `NFR-MAINT-06` | A worked example — adding a capability that reacts to an existing business event — requires no change to the checkout or payment flow |
-| `AC-04` | The system remains maintainable as complexity increases. | `NFR-MAINT-01`–`NFR-MAINT-06` | Structural constraints are enforced by an automated check that fails the build on violation (`NFR-MAINT-05`) |
-| `AC-05` | Reporting does not significantly impact transactional operations. | `NFR-PERF-05`, `NFR-PERF-06`, `NFR-SCAL-05` | Transactional latency targets continue to hold with reporting under sustained concurrent load |
-| `AC-06` | The platform demonstrates production-quality architecture suitable for an enterprise environment. | §6.3 Reliability, §6.4 Security, §6.5 Availability, §6.7 Observability in full | Peak-load, fault-injection, and authorisation test suites pass; the audit trail withstands attempted modification by every role |
+| ID | Criterion | Requirements | Use cases | Verification |
+|---|---|---|---|---|
+| `AC-01` | All core business workflows function correctly. | All `Must` requirements in §3 | Every `Must` use case, including alternate and exception flows | Every `Must`-priority use case in R3 passes, including its alternate and exception flows |
+| `AC-02` | Business rules are enforced consistently, regardless of entry point. | All of §4; `NFR-SEC-01`, `BR-AUD-02` | `UC-AUD-03` and every use case including it | Each rule in §4 is exercised through every entry point that can reach it and is enforced identically |
+| `AC-03` | New business modules can be added with minimal modification to existing code. | `NFR-MAINT-01`, `NFR-MAINT-02`, `NFR-MAINT-04`, `NFR-MAINT-06` | — (architectural) | A worked example — adding a capability that reacts to an existing business event — requires no change to the checkout or payment flow |
+| `AC-04` | The system remains maintainable as complexity increases. | `NFR-MAINT-01`–`NFR-MAINT-06` | — (architectural) | Structural constraints are enforced by an automated check that fails the build on violation (`NFR-MAINT-05`) |
+| `AC-05` | Reporting does not significantly impact transactional operations. | `NFR-PERF-05`, `NFR-PERF-06`, `NFR-SCAL-05` | `UC-RPT-01`–`UC-RPT-06` | Transactional latency targets continue to hold with reporting under sustained concurrent load |
+| `AC-06` | The platform demonstrates production-quality architecture suitable for an enterprise environment. | §6.3 Reliability, §6.4 Security, §6.5 Availability, §6.7 Observability in full | `UC-ORD-05`, `UC-PAY-02`, `UC-PAY-03`, `UC-INV-01`, `UC-AUD-01`–`UC-AUD-04` | Peak-load, fault-injection, and authorisation test suites pass; the audit trail withstands attempted modification by every role |
 
 An acceptance criterion is met only when every requirement it names is met. A `Should` or `Could` requirement not delivered is recorded as a scope decision against the criterion it supports, not treated as an omission.
 
@@ -730,10 +732,3 @@ An acceptance criterion is met only when every requirement it names is met. A `S
 
 The matrix also serves as a coverage check. A business problem with no requirement is an unaddressed problem; a requirement with no use case is a requirement nobody has worked out how to exercise; a use case with no requirement is scope that entered without justification. All three are reported there rather than left to be discovered during delivery.
 
----
-
-## 11. Next Step
-
-[`use-cases/README.md`](./use-cases/README.md) specifies how each actor in §2.3 exercises the requirements in §3, with every use case set out in full — preconditions, main success scenario, alternate and exception flows, postconditions, and the business rules from §4 that apply at each step. The exception flows are where **P5** through **P8** become concrete and testable.
-
-[Solution Architecture](../SA-docs/01-system/Solution%20Architecture.md) takes the constraints in §7 and the non-functional requirements in §6 and determines how they are met.

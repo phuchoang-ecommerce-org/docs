@@ -1,11 +1,8 @@
 # ADR-0010 — Spring Data JPA for the Write Model, Spring Data JDBC for Read Models
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P12` · `CON-03` · `NFR-MAINT-03` · `NFR-PERF-01` · `NFR-PERF-02` · `NFR-REL-03`
-**Related documents:** [Technology Stack](../Technology%20Stack.md) · [Domain Model](../../02-backend/Domain%20Model.md) · [ADR-0008](./ADR-0008-cqrs-command-query-separation.md)
 
 ---
 

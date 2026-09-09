@@ -1,8 +1,6 @@
 # Inventory — Use Cases (`INV`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 
@@ -24,7 +22,6 @@ This is the domain where the platform's most expensive failures live. **P8** —
 | Field | Value |
 |---|---|
 | **Primary actor** | Checkout & Order (internal), acting for a Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: needs a confirmed order to mean the goods exist. Warehouse: needs to be able to fulfil what was sold. Finance: bears the refund cost of every oversell. Marketing/Brand: bears the reputational cost, at exactly the moment a campaign was meant to build goodwill (`P8`). |
 | **Priority** | Must |
 | **Trigger** | An order is being placed (`UC-ORD-05`) |
@@ -66,7 +63,6 @@ This is the domain where the platform's most expensive failures live. **P8** —
 | Field | Value |
 |---|---|
 | **Primary actor** | Checkout & Order (internal), or Scheduler |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Finance: a reservation never released is stock that can never be sold — a silent write-off. Marketing: units held by dead orders are units withheld from a live campaign. Customer: wants stock to reappear when an order is cancelled. |
 | **Priority** | Must |
 | **Trigger** | An order is cancelled, or a payment retry window elapses |
@@ -106,7 +102,6 @@ This is the domain where the platform's most expensive failures live. **P8** —
 | Field | Value |
 |---|---|
 | **Primary actor** | Warehouse Operator |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Warehouse: needs the system to match the shelf. Finance: needs stock on hand to be a figure the business can rely on. Customer: needs availability shown to others to reflect what has actually left. |
 | **Priority** | Must |
 | **Trigger** | An order is packed (`UC-ORD-10` transition Processing → Packed) |

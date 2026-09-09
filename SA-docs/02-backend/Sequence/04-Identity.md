@@ -18,8 +18,6 @@ Two decisions produce almost everything below:
 - **[`ADR-0016`](../../01-system/ADR/ADR-0016-jwt-refresh-rotation-rbac.md)** — a stateless access token so authorisation costs nothing on the hot path, plus a **stateful, rotating** refresh token, because `NFR-SEC-03`'s "reuse invalidates the session" requires server-side state by definition.
 - **[`ADR-0025`](../../01-system/ADR/ADR-0025-httponly-cookie-session.md)** — the browser holds an httpOnly cookie and **the Next.js server is the only party that ever sees a token**.
 
-Arrow and frame conventions: [`README.md`](./README.md) §3.1–§3.2.
-
 ---
 
 ## 2. UC-CUS-01, UC-CUS-02 — Register and Verify

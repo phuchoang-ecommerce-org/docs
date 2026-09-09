@@ -1,11 +1,8 @@
 # ADR-0016 — JWT Access Tokens with Rotating Refresh Tokens, RBAC at the Application Boundary
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P16` · `P5` · `NFR-SEC-01` · `NFR-SEC-02` · `NFR-SEC-03` · `NFR-SEC-05` · `BR-CUS-03` · `BR-AUD-02` · `AC-02`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Domain Model](../../02-backend/Domain%20Model.md) · [SRS](../../../BA-docs/srs.md)
 
 ---
 

@@ -1,8 +1,4 @@
 # Review (`REV`) — path items
-#
-# Permission matrix row (Integration Contract §9):
-#   Guest read · Customer own · Staff moderate · Warehouse —
-#   Support moderate · Admin manage
 
 productReviews:
   parameters:

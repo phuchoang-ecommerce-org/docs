@@ -1,8 +1,6 @@
 # Administration — Use Cases (`ADM`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 
@@ -239,7 +237,6 @@ This domain is where **P16** and **P17** are decided in practice. Every use case
 | Field | Value |
 |---|---|
 | **Primary actor** | Administrator |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Administrator: needs to grant people the authority their job requires. Legal/Compliance: role assignment is the control that makes every other control meaningful. Leadership: bears the reputational risk of privilege misuse. Staff: need enough authority to work. |
 | **Priority** | Must |
 | **Trigger** | Administrator assigns or revokes a role |

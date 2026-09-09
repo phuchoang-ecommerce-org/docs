@@ -2,10 +2,6 @@
 #
 # Top-level keys are *names*, not paths; `openapi.yaml` maps each real path to
 # one of them. This avoids `~1` JSON-pointer escaping in every root reference.
-#
-# Permission matrix row (Integration Contract §9):
-#   Guest: register, log in · Customer: own record · Staff: — · Warehouse: —
-#   Support: read · Admin: manage
 # Support and Admin reach accounts through `administration.yaml`, not here:
 # every operation below is either public or scoped to the caller's own record.
 

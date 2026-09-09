@@ -6,47 +6,25 @@
 **Version:** 1.0
 **Status:** Draft for stakeholder review
 
+Every numbered file in this folder is a **Use Case Specification — domain** for the audience above; the per-file headers carry only what differs between them.
+
 ---
 
 ## 1. Purpose of This Document
-
-[`../srs.md`](../srs.md) states **what must be true** of the platform. This document states **how each actor reaches it** — the sequence of interactions that realises each requirement, and, more importantly, everything that can go wrong along the way.
 
 The exception flows are the point. `FR-ORD-08` can say that placing an order and reserving stock must be atomic in a single line; it takes a use case to say what the customer sees when the reservation succeeds and the payment does not, what happens to the reserved units, and how long they stay reserved. **P5** through **P8** — inconsistent rule enforcement, lost business events, partial failure in money-critical flows, and overselling under concentrated demand — are business problems until they are written as exception flows, at which point they become test cases.
 
 Every use case here is specified in full. There is no abbreviated tier: a use case with no documented exception flow is a use case whose failure behaviour nobody has decided, and deciding it later, under delivery pressure, is how P5 and P7 happen.
 
-Consistent with [`../general-approach.md`](../general-approach.md), this document names no technology.
-
 ---
 
 ## 2. Actors
 
-Reproduced from [`../srs.md`](../srs.md) §2.3, which is normative.
+Actor definitions are normative in [`../srs.md`](../srs.md) §2.3 and are not reproduced here — a second copy is a second thing to drift, and this one had already drifted before it was removed.
 
 ![Actors and system boundary](../diagrams/system-context.svg)
 
-### 2.1 Human Actors
-
-| Actor | Description |
-|---|---|
-| **Guest** | An unauthenticated visitor. Browses, searches, reads reviews, and builds a cart. Cannot check out, review, or reach any account-scoped data. *(Assumption A-01.)* |
-| **Customer** | A registered, authenticated shopper. Owns carts, wishlists, orders, addresses, reviews, and notifications. |
-| **Staff** | Commercial and catalog operations. Maintains products, categories, and promotions; progresses orders through commercial states. |
-| **Warehouse Operator** | Fulfilment operations. Adjusts inventory, picks and packs, creates shipments, settles Cash On Delivery. |
-| **Customer Support Agent** | Issue resolution. Inspects orders and shipments, cancels orders, accepts returns, initiates refunds, moderates reviews. |
-| **Administrator** | Full operational authority, including role management, all reporting, and the audit trail. |
-
-### 2.2 System and Time Actors
-
-| Actor | Description |
-|---|---|
-| **Scheduler (Time)** | Triggers time-based behaviour: cart expiry, flash sale start and end, promotion expiry, payment retry window expiry, scheduled reports. *(Assumption A-02.)* |
-| **Payment Gateway** | External. Authorises, captures, and refunds payments; reports results asynchronously. |
-| **Shipping Carrier** | External. Transports shipments; reports tracking and delivery events. |
-| **Email Service Provider** | External. Delivers outbound email. |
-
-### 2.3 Role Authority
+### 2.1 Role Authority
 
 See [`../srs.md`](../srs.md) §2.3 for the normative role × domain authority table. `UC-AUD-03` specifies how it is enforced, and `BR-AUD-02` requires that the same decision is reached whatever entry point a request arrives through.
 
@@ -76,6 +54,10 @@ Followed by:
 - **Exception flows** (`E1`, `E2`, …) — paths where the goal is not reached, each stating what the actor is told and what state the system is left in.
 - **Business rules applied** — the rules from [`../srs.md`](../srs.md) §4 that constrain this use case.
 - **Assumptions & open questions** — where present, what remains to be confirmed.
+
+
+A field with no value is omitted rather than printed with an em-dash: an absent
+**Supporting actors** row means none, and an absent **Preconditions** row means none.
 
 ---
 
@@ -261,18 +243,5 @@ Followed by:
 
 ## 5. Cross-Cutting Use Cases
 
-Three use cases are exercised by nearly every other one and are not repeated in each:
-
-- **`UC-AUD-03` Authorise Request via RBAC** is included by every use case with a human primary actor. Where a use case's preconditions say "the actor holds role X," `UC-AUD-03` is what establishes it.
-- **`UC-AUD-04` Enforce API Rate Limit** precedes every externally originated request.
-- **`UC-AUD-01` Record Audit Entry** is included by every use case that changes a price, an inventory level, an order state, a refund, a promotion, a review's visibility, an account's status, or a role.
-
----
-
-## 6. Next Step
-
-[`../user-stories/README.md`](../user-stories/README.md) restates every use case here as a user story with acceptance criteria — the Agile-format counterpart of this specification, for pulling directly into a sprint backlog.
-
-[`../traceability-matrix.md`](../traceability-matrix.md) maps these use cases back to the requirements they realise and the business problems they address, and reports any coverage gap in either direction.
-
-[Solution Architecture](../../SA-docs/01-system/Solution%20Architecture.md) determines how the behaviour specified here is implemented.
+`UC-AUD-01`, `UC-AUD-03`, and `UC-AUD-04` are exercised by nearly every other use case and are
+not repeated in each. Which use cases include them, and on what trigger, is specified where the three are specified: [`14-audit-access-control.md`](./14-audit-access-control.md).

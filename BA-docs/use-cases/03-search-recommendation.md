@@ -1,8 +1,6 @@
 # Search & Recommendation — Use Cases (`SCH`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 
@@ -23,7 +21,6 @@ Every use case in this domain is a read. None of them changes an order, a price,
 | Field | Value |
 |---|---|
 | **Primary actor** | Guest |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Guest and Customer: want the product they have in mind, immediately. Marketing: wants search to convert. Leadership: sees the cost of failure only in the sales figures (`P11`). |
 | **Priority** | Must |
 | **Trigger** | Visitor submits a keyword query |
@@ -67,7 +64,6 @@ Every use case in this domain is a read. None of them changes an order, a price,
 | Field | Value |
 |---|---|
 | **Primary actor** | Guest |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Guest and Customer: want to reach the query without typing it or misspelling it. Marketing: wants suggestion to steer toward products that exist. |
 | **Priority** | Should |
 | **Trigger** | Visitor types into the search field |
@@ -104,7 +100,6 @@ Every use case in this domain is a read. None of them changes an order, a price,
 | Field | Value |
 |---|---|
 | **Primary actor** | Guest |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Guest and Customer: want to reduce a large result set to a decidable one. Marketing: wants filtering to shorten the path to purchase rather than lengthen it. |
 | **Priority** | Must |
 | **Trigger** | Visitor applies a filter or changes the ordering |
@@ -143,11 +138,9 @@ Every use case in this domain is a read. None of them changes an order, a price,
 | Field | Value |
 |---|---|
 | **Primary actor** | Guest |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Guest and Customer: want a starting point, or their previous search back. Marketing: wants visibility of what shoppers are actually asking for. Legal/Compliance: wants one customer's history never visible to another. |
 | **Priority** | Could |
 | **Trigger** | Visitor opens the search field before typing |
-| **Preconditions** | None |
 | **Success postconditions** | Platform-wide popular keywords are presented; for an authenticated customer, their own recent keywords are presented alongside |
 | **Failure postconditions** | The section is omitted; search remains fully usable |
 | **Frequency** | Very high |
@@ -182,7 +175,6 @@ Every use case in this domain is a read. None of them changes an order, a price,
 | Field | Value |
 |---|---|
 | **Primary actor** | Guest |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants alternatives and complements without searching again. Marketing: wants basket size to grow. Finance: wants incremental revenue per session. |
 | **Priority** | Should |
 | **Trigger** | Visitor opens a product or the cart |
@@ -219,11 +211,9 @@ Every use case in this domain is a read. None of them changes an order, a price,
 | Field | Value |
 |---|---|
 | **Primary actor** | Guest |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Guest and Customer: want a reason to start browsing. Marketing: wants new stock discovered quickly. Staff: want newly listed products to reach shoppers without a campaign. |
 | **Priority** | Could |
 | **Trigger** | Visitor opens the storefront home or a discovery surface |
-| **Preconditions** | None |
 | **Success postconditions** | Trending and newly listed products are presented |
 | **Failure postconditions** | The sections are omitted; the rest of the storefront is unaffected |
 | **Frequency** | Very high |
@@ -256,7 +246,6 @@ Every use case in this domain is a read. None of them changes an order, a price,
 | Field | Value |
 |---|---|
 | **Primary actor** | Customer |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants relevance, not noise. Marketing: wants conversion from returning customers. Legal/Compliance: wants one customer's behaviour never inferable by another (`P16`). |
 | **Priority** | Could |
 | **Trigger** | Authenticated customer opens the storefront or a discovery surface |

@@ -1,9 +1,5 @@
 # Payment (`PAY`) — path items
 #
-# Permission matrix row (Integration Contract §9):
-#   Guest — · Customer own · Staff — · Warehouse settle COD
-#   Support refund · Admin manage
-#
 # No operation in this file accepts or returns a payment instrument.
 
 orderPaymentMethods:

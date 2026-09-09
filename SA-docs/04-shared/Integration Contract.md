@@ -167,34 +167,11 @@ RFC 9457 `application/problem+json`, one shape for every error the platform retu
 ]
 ```
 
-### 4.4 Seed catalogue
+### 4.4 The registry
 
-Not exhaustive — the enumeration lives in `04-shared/Error Codes` as the API grows. These are the codes that carry business rules, and each one exists because a specific rule can be violated:
+The enumeration this section seeded now lives in [`Error Codes.md`](./Error%20Codes.md) §3 — every `ECP-<DOMAIN>-<NNNN>` in force, the HTTP status it carries, what it means, the rule it enforces, and the operations that return it. It is the copy `Backend Architecture.md` §6.3 names as the one CI diffs the domain enums against, so it is the only copy kept.
 
-| Code | Status | Meaning | Enforces |
-|---|---|---|---|
-| `ECP-GEN-4000` | 400 | Request validation failed; see `errors` | `FR-AUD-08`, `NFR-SEC-04` |
-| `ECP-GEN-4010` | 401 | No credential, or the access token has expired | `NFR-SEC-03` |
-| `ECP-GEN-4011` | 401 | Refresh token invalid, expired, or already consumed — the session chain is invalidated | `BR-CUS-03`, `NFR-SEC-03` |
-| `ECP-GEN-4030` | 403 | Authenticated, but the role does not permit this operation | `BR-AUD-02`, `NFR-SEC-01` |
-| `ECP-GEN-4290` | 429 | Rate limit exceeded; `Retry-After` is set | `NFR-SEC-05` |
-| `ECP-GEN-5030` | 503 | A dependency is unavailable; the operation is retryable and platform state is unchanged | `NFR-AVAIL-03` |
-| `ECP-INV-4091` | 409 | Insufficient available stock for one or more lines | `BR-INV-01`, `FR-ORD-06` |
-| `ECP-ORD-4001` | 400 | `Idempotency-Key` required and absent | `BR-ORD-03` |
-| `ECP-ORD-4090` | 409 | `Idempotency-Key` reused with a different request body | `BR-ORD-03` |
-| `ECP-ORD-4091` | 409 | Order state transition not permitted from the current state | `BR-ORD-01`, `FR-ORD-11` |
-| `ECP-ORD-4220` | 422 | Cart is empty, or contains no purchasable line | `BR-ORD-01` |
-| `ECP-PRM-4090` | 409 | Promotion usage limit reached by a concurrent redemption | `UC-PRM-02` E7 |
-| `ECP-PRM-4220` | 422 | Voucher invalid, expired, or not applicable to this order | `BR-PRM-01`, `FR-ORD-05` |
-| `ECP-PRM-4221` | 422 | Discount would exceed the discountable value of the order | `BR-PRM-02` |
-| `ECP-PAY-4090` | 409 | A payment attempt is already in flight for this order | `BR-PAY-01` |
-| `ECP-PAY-4220` | 422 | Refund would exceed the amount captured | `BR-PAY-02` |
-| `ECP-REV-4030` | 403 | Reviewer is not a verified buyer of this product | `BR-REV-01`, `FR-REV-06` |
-| `ECP-CRT-4090` | 409 | Requested quantity exceeds available stock for the variant | `BR-CRT-02` |
-
-One code was added to this catalogue by [`04-shared/OpenAPI/`](./OpenAPI/README.md): **`ECP-GEN-4040`** (`404` — the resource does not exist, *or* exists and the caller does not own it; the two are deliberately indistinguishable, §2.1). It is needed because §4.5 rule 2 requires every `4xx` to carry a code and this table had none for `404`. It belongs here and in `04-shared/Error Codes`.
-
-**`ECP-INV-4091` and `ECP-PRM-4090` are the two that matter most.** Both are the visible surface of a concurrency guarantee — `BR-INV-01`'s oversell prevention and the usage-cap enforcement `UC-PRM-02` E7 describes — and both are *expected* outcomes under peak load, not exceptional ones. A client that treats either as a generic failure will present a checkout error where it should present "someone else just took the last one."
+Two codes are worth knowing before reading further: **`ECP-INV-4091`** (insufficient stock) and **`ECP-PRM-4090`** (promotion usage limit reached by a concurrent redemption). Both are the visible surface of a concurrency guarantee rather than a client mistake, and both are expected under peak load rather than exceptional — a client that treats either as a bug will retry wrongly.
 
 ### 4.5 Rules
 

@@ -1,8 +1,6 @@
 # Shipping — User Stories (`SHP`)
 
-**Document type:** User Story Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../use-cases/08-shipping.md`](../use-cases/08-shipping.md) (source use cases) · [`../srs.md`](../srs.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 

@@ -1,11 +1,8 @@
 # ADR-0012 — Transactional Outbox with Kafka; In-Process Domain Events by Default
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P2` · `P6` · `CON-07` · `NFR-REL-05` · `NFR-REL-06` · `NFR-MAINT-04` · `AC-03`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Domain Model](../../02-backend/Domain%20Model.md)
 
 ---
 
@@ -95,7 +92,7 @@ The runtime picture of this decision is [`Sequence/00-Overview.md`](../../02-bac
 
 **Consumers are idempotent, without exception.** At-least-once means redelivery, so every handler is keyed on the event id or on a natural business key. This is not optional per consumer.
 
-**Events are contracts.** A published event's schema is owned jointly by publisher and consumers, versioned additively, and destined for `04-shared/Event Contract` ([`example-folder-structure.md`](../../example-folder-structure.md)). Event payloads carry business fields only — never raw request payloads, credentials, or tokens (`NFR-SEC-07`).
+**Events are contracts.** A published event's schema is owned jointly by publisher and consumers, versioned additively, and destined for `04-shared/Event Contract` ([`SA-docs/README.md`](../../README.md#folder-layout) §1.1). Event payloads carry business fields only — never raw request payloads, credentials, or tokens (`NFR-SEC-07`).
 
 **A failed consumer never blocks the publisher.** Retry with backoff, then a dead-letter topic and an alert. `NFR-AVAIL-02` requires that a failing non-essential capability leaves checkout alone.
 

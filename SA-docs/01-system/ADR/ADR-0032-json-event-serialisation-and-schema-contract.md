@@ -1,11 +1,8 @@
 # ADR-0032 — JSON Event Serialisation with a Repository-Held Schema Contract; No Schema Registry
 
-**Document type:** Architecture Decision Record
 **Status:** **Proposed**
 **Date:** 2026-09-09
-**Deciders:** Solution Architecture
 **Traces to:** `P2` · `P6` · `P15` · `CON-07` · `NFR-REL-06` · `NFR-MAINT-04` · `NFR-SEC-07` · `AC-03`
-**Related documents:** [Backend Architecture](../../02-backend/Backend%20Architecture.md) · [Integration Contract](../../04-shared/Integration%20Contract.md) · [Module Dependency Diagram](../../02-backend/Module%20Dependency%20Diagram.md) · [ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md)
 
 ---
 
@@ -148,7 +145,7 @@ Test 2 is the one that matters, and it is worth being precise about why. Test 1 
 
 ### Neutral / follow-on
 
-- `04-shared/Event Contract/` does not exist yet. It is reserved in [`example-folder-structure.md`](../../example-folder-structure.md) and is created by the change that implements this record; until then §4's structure is a specification, not a directory.
+- `04-shared/Event Contract/` does not exist yet. It is reserved in [`SA-docs/README.md`](../../README.md#folder-layout) §1.1 and is created by the change that implements this record; until then §4's structure is a specification, not a directory.
 - The JSON Schema validation library is not fixed here. Any 2020-12-conformant JVM implementation satisfies §4; naming one is a build concern for [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md) §8.
 - CloudEvents remains a reasonable future move if an external subscriber ever appears, and would be a `v2` envelope under [`Integration Contract.md`](../../04-shared/Integration%20Contract.md) §8.3 rather than an in-place change.
 - If the deployment ever grows past one broker and one VM, Option 2 should be re-examined on its publish-time-enforcement merit. The shared-type objection would still stand; the operational objection would not.

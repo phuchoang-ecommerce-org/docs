@@ -477,15 +477,7 @@ The platform makes outbound HTTP calls, so it is a candidate SSRF pivot into the
 
 ## 10. Secrets and Configuration Management
 
-From [`Deployment Diagram.md`](./Deployment%20Diagram.md) §5, which already satisfies `NFR-SEC-07`'s spirit at the deployment layer.
-
-| Concern | Rule |
-|---|---|
-| Secrets | Injected at runtime as environment variables or Compose secrets. **No credential, key, or connection string is ever baked into an image or committed to the repository** |
-| Configuration | Environment variables per Spring profile; a `.env` file per environment, never committed |
-| Image identity | Tagged with the build's commit SHA, never `latest`, so a running container is traceable to a source revision |
-| Environment parity | Same images across `dev`/`staging`/`prod`; only `.env` and replica counts differ. A promoted image is byte-identical |
-| Provider credentials | Scoped per environment |
+[`Deployment Diagram.md`](./Deployment%20Diagram.md) §5 states the rules — secrets injected at runtime and never baked into an image or committed, configuration by Spring profile with an uncommitted `.env` per environment, images tagged by commit SHA, environment parity, provider credentials scoped per environment — and already satisfies `NFR-SEC-07`'s spirit at the deployment layer. They are not restated here.
 
 Three additions this document makes (**Proposed**):
 

@@ -21,8 +21,6 @@ And one distinction that the architecture is built around: **a provider that doe
 
 `P3` applies with equal weight. No diagram below names a provider: `FR-PAY-09` requires payment to be expressed independently of any one of them, which is what the `PaymentProcessor` port is for.
 
-Arrow and frame conventions: [`README.md`](./README.md) §3.1–§3.2.
-
 ---
 
 ## 2. UC-PAY-02 — Authorise Online Payment

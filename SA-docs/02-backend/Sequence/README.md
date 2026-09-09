@@ -21,7 +21,7 @@ That gap is load-bearing. The platform's three most expensive problems are all t
 
 Each is a claim about *ordering*, and prose is a poor medium for ordering. `Solution Architecture.md` §4 asserts that a provider timeout "is not a decline"; `ADR-0012` asserts that the outbox row and the business update share one transaction. These diagrams are where those assertions become checkable.
 
-[`example-folder-structure.md`](../../example-folder-structure.md) reserved `02-backend/Sequence/` for exactly this, and [`SA-docs/README.md`](../../README.md) recorded it as omitted "until there is something to put in it."
+[`SA-docs/README.md`](../../README.md#folder-layout) §1.1 reserved `02-backend/Sequence/` for exactly this, and [`SA-docs/README.md`](../../README.md) recorded it as omitted "until there is something to put in it."
 
 ---
 
@@ -84,6 +84,8 @@ The request pipeline is drawn once, in [`00-Overview.md`](./00-Overview.md) §2.
 ---
 
 ## 4. Format
+
+Every document in this folder assumes §3 — the participant vocabulary and the arrow and frame conventions of §3.1–§3.2 — without restating it.
 
 Mermaid, embedded directly in these Markdown files, per the convention [`SA-docs/README.md`](../../README.md) §1 already sets: PlantUML `.puml` for standalone diagrams in [`diagrams/`](../../diagrams), Mermaid for diagrams that live inside a document. `util/toHtml.js` renders them, following the reader's light or dark theme, with click-to-zoom and drag-to-pan.
 

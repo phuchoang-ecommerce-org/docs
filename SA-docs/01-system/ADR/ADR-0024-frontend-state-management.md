@@ -1,11 +1,8 @@
 # ADR-0024 — Frontend State Management: Server Cache, URL State, and a Minimal Client Store
 
-**Document type:** Architecture Decision Record
 **Status:** Proposed
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `CON-02` · `P5` · `P11` · `NFR-MAINT-02` · `NFR-SEC-01`
-**Related documents:** [ADR-0023](./ADR-0023-server-first-data-fetching.md) · [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) · [UI Design System](../../03-frontend/UI%20Design%20System.md)
 
 ---
 
@@ -89,7 +86,6 @@ That outcome is worth avoiding specifically here, for two reasons.
 ### Neutral / follow-on
 
 - Store structure and URL-serialisation format are for [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md).
-- This record stays `Proposed` until ratified, per [ADR-0001](./ADR-0001-record-architecture-decisions.md).
 
 ## 6. Related Decisions
 

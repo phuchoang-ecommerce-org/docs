@@ -1,11 +1,8 @@
 # ADR-0007 — Tactical DDD via JMolecules, with Context-Named Stereotype Annotations
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P5` · `P15` · `NFR-SEC-01` · `NFR-MAINT-05` · `AC-02`
-**Related documents:** [Domain Model](../../02-backend/Domain%20Model.md) · [Solution Architecture](../Solution%20Architecture.md) · [Technology Stack](../Technology%20Stack.md)
 
 ---
 

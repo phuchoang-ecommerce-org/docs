@@ -1,11 +1,8 @@
 # ADR-0028 — Docker Compose on Two VMs as the Deployment Topology
 
-**Document type:** Architecture Decision Record
 **Status:** **Proposed**
 **Date:** 2026-09-07
-**Deciders:** Solution Architecture
 **Traces to:** `CON-08` · `CON-09` · `NFR-AVAIL-01` · `NFR-AVAIL-02` · `NFR-SCAL-06` · `NFR-MAINT-05` · `NFR-OBS-03` · `NFR-OBS-04`
-**Related documents:** [Deployment Diagram](../Deployment%20Diagram.md) · [Solution Architecture](../Solution%20Architecture.md) · [ADR-0002](./ADR-0002-modular-monolith-deployment-unit.md) · [ADR-0027](./ADR-0027-java-21-spring-boot-4-gradle.md)
 
 ---
 
@@ -15,7 +12,7 @@
 
 > *"Deployment topology, containerisation, and CI provider remain undecided; SRS §1.2 explicitly leaves them open and no record covers them yet."*
 
-That gap is now blocking. `example-folder-structure.md` reserves `01-system/Deployment Diagram.md`, and a deployment diagram cannot be drawn without a topology. More concretely, four decisions already made are sized against a runtime nobody has specified: [`ADR-0015`](./ADR-0015-redis-cache-and-rate-limiting.md) assumes Redis is reachable with sub-millisecond latency, [`ADR-0012`](./ADR-0012-transactional-outbox-and-kafka.md) assumes an operable Kafka cluster, [`ADR-0014`](./ADR-0014-elasticsearch-search-read-model.md) assumes an Elasticsearch tier that scales independently of the application, and [`ADR-0013`](./ADR-0013-mongodb-scoped-to-read-models.md) adds a fifth data service. The platform therefore needs **five stateful services plus an application and a web tier** running somewhere, and no document says where.
+That gap is now blocking. [`SA-docs/README.md`](../../README.md#folder-layout) §1.1 reserves `01-system/Deployment Diagram.md`, and a deployment diagram cannot be drawn without a topology. More concretely, four decisions already made are sized against a runtime nobody has specified: [`ADR-0015`](./ADR-0015-redis-cache-and-rate-limiting.md) assumes Redis is reachable with sub-millisecond latency, [`ADR-0012`](./ADR-0012-transactional-outbox-and-kafka.md) assumes an operable Kafka cluster, [`ADR-0014`](./ADR-0014-elasticsearch-search-read-model.md) assumes an Elasticsearch tier that scales independently of the application, and [`ADR-0013`](./ADR-0013-mongodb-scoped-to-read-models.md) adds a fifth data service. The platform therefore needs **five stateful services plus an application and a web tier** running somewhere, and no document says where.
 
 SRS §1.2 places deployment outside business-analysis scope, so there is no upstream answer to defer to. This record makes the decision for the first time and is therefore `Proposed`, per [ADR/README](./README.md) §2.
 
@@ -57,21 +54,8 @@ The question is: **what is the least operational surface that runs seven service
 
 **Chosen: Option 1.** Two virtual machines, each running a Docker Compose project.
 
-```nano
-  VM  app-01   (networks: edge, app)
-  ├── nginx            TLS termination · reverse proxy · static · rate-limit backstop
-  ├── ecp-web   {1..N} Next.js standalone
-  └── ecp-api   {1..N} ecp-app.jar — 13 Modulith modules + in-process outbox relay
+The topology is two VMs — `app-01` carrying nginx, the Next.js web tier, and `N` replicas of `ecp-app.jar`; `data-01` carrying PostgreSQL, Redis, Kafka, Elasticsearch, and MongoDB on a network not routable from the public internet — plus the three external providers. The node-by-node inventory, with ports, volumes, and replica counts, is [`Deployment Diagram.md`](../Deployment%20Diagram.md) §2 and §4; it is not duplicated here, and it has since moved on from this record (see §5).
 
-  VM  data-01  (network: data — not routable from the public internet)
-  ├── postgres         transactional source of truth + outbox table
-  ├── redis            cache-aside · hot data · rate limit · flash-sale pre-filter
-  ├── kafka (KRaft)    event backbone
-  ├── elasticsearch    Catalog search read model
-  └── mongodb          reporting · flexible read models
-
-  External             Payment Gateway · Shipping Carrier · Email Service Provider
-```
 
 Three commitments make the choice mean something:
 
@@ -107,6 +91,7 @@ The concrete node inventory, networks, ports, volumes, and operational procedure
 - The relay-implementation choice ([ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md) §5) and the scheduler-contention mitigation are both deferred to `Backend Architecture.md`. This record only fixes where they run. **The relay's half is now settled** by [ADR-0033](./ADR-0033-polling-outbox-relay.md): a polling relay in-process in `ecp-api`, single-runner per publishing module via a PostgreSQL advisory lock — so §4's topology gains no container, and neither of the two candidates this record's §6 offered was needed. The **scheduler's half remains open**, and deliberately so: an advisory lock suits a continuous loop and a periodic job suits a lease.
 - CI provider, image registry, and hosting location remain open, as does the question of whether `NFR-AVAIL-01`'s assumption **[A-12]** becomes a ratified commitment. If it does, Option 2 should be revisited immediately — the reason for rejecting it was proportionality, and a ratified availability target changes what is proportionate.
 - Container image hardening, base-image patch cadence, and network-level access to `data-01` are security-operational concerns no record covers yet.
+- **§4's `redis` container is now two.** [ADR-0034](./ADR-0034-redis-two-instance-topology.md) splits it into an evictable `redis-cache` and a non-evictable `redis-state`, because a cache eviction policy and a state-store durability policy cannot both hold on one instance. §4's node block above is left as written per the supersession rule; [`Deployment Diagram.md`](../Deployment%20Diagram.md) §2 carries the current topology.
 
 ## 6. Related Decisions
 

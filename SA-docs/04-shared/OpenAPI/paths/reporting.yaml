@@ -1,9 +1,5 @@
 # Reporting & Analytics (`RPT`) — path items
 #
-# Permission matrix row (Integration Contract §9):
-#   Guest — · Customer — · Staff commercial reports · Warehouse inventory reports
-#   Support — · Admin all
-#
 # Note the two blank cells that are enforced here: a Customer has no reporting
 # access at all, and Support has none either. Every report carries `meta` with
 # its as-at time and counting basis (`BR-RPT-01`), and reporting reads never

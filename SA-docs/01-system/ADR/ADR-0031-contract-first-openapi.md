@@ -1,11 +1,8 @@
 # ADR-0031 — Contract-First OpenAPI, Verified Rather Than Generated
 
-**Document type:** Architecture Decision Record
 **Status:** **Proposed**
 **Date:** 2026-09-08
-**Deciders:** Solution Architecture
 **Traces to:** `P5` · `P15` · `CON-02` · `NFR-SEC-01` · `NFR-MAINT-05`
-**Related documents:** [ADR-0003](./ADR-0003-rest-api-style.md) · [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md) · [ADR-0020](./ADR-0020-typescript-strict-mode.md) · [Integration Contract](../../04-shared/Integration%20Contract.md) · [OpenAPI](../../04-shared/OpenAPI/README.md)
 
 ---
 
@@ -37,7 +34,7 @@ Five documents point at `04-shared/OpenAPI` for something that does not exist:
   the role × domain grid, but "per operation" has no list of operations.
 - [`Integration Contract.md`](../../04-shared/Integration%20Contract.md) §1.1 and
   §11 both defer to a controller layer that does not exist.
-- [`example-folder-structure.md`](../../example-folder-structure.md) reserves the
+- [`SA-docs/README.md`](../../README.md#folder-layout) §1.1 reserves the
   folder.
 
 So the question is not *generated or hand-written*. It is: **while there is no

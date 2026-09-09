@@ -1,11 +1,8 @@
 # ADR-0018 — Architecture Governance as a CI Gate: ArchUnit, Modulith Verification, and the Test Strategy
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted · the test-stack selection is **Proposed** · §4.1's eleven CQRS rules are **Proposed**, pending ratification of [`CQRS.md`](../../02-backend/CQRS.md)
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P15` · `P5` · `NFR-MAINT-01` · `NFR-MAINT-02` · `NFR-MAINT-03` · `NFR-MAINT-05` · `NFR-REL-03` · `AC-04`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Technology Stack](../Technology%20Stack.md) · [CQRS](../../02-backend/CQRS.md)
 
 ---
 
@@ -96,17 +93,7 @@ The last MongoDB rule is the second-least-obvious. It is a **narrowing** of the 
 
 G5, G6, and G7 are deliberately the Elasticsearch twins of rules this record already carried for MongoDB. The asymmetry was an artefact of [ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md) existing while no equivalent record covered the search index, not a decision that the search index needed less protection.
 
-**Test strategy — `Proposed`**, since the repository names no framework:
-
-| Layer | Stack | Verifies |
-|---|---|---|
-| Domain unit tests | JUnit 5, no Spring context | Aggregate invariants: `BR-INV-01`, `BR-ORD-01/02/06`, `BR-PAY-01/02`, `BR-PRM-03`. Pure and fast, which is a direct dividend of [ADR-0005](./ADR-0005-clean-architecture-ports-and-adapters.md). |
-| Architecture tests | ArchUnit + `ApplicationModules.verify()` | The table above. **Build-failing, never skippable.** |
-| Module integration tests | Spring Modulith test scenarios + Testcontainers (PostgreSQL, MongoDB) | Cross-module flows through public APIs and events. MongoDB is present because a projection's idempotency and ordering guards ([ADR-0030](./ADR-0030-spring-data-mongodb-read-model-access.md) §4) are only meaningful against a real store — redelivering the same event twice must leave the document unchanged. |
-| Persistence & concurrency tests | Testcontainers PostgreSQL | `NFR-REL-01` fault injection at each step; `NFR-REL-03` concurrency at `NFR-SCAL-06` peak. **Real PostgreSQL — an optimistic-locking guarantee cannot be verified against an in-memory database.** |
-| Authorisation tests | Spring Security Test, matrix-driven | `NFR-SEC-01` per role, per operation, from SRS §2.3's authority table. |
-| Event delivery tests | Testcontainers Kafka + induced failure | `NFR-REL-05`, `NFR-REL-06` at-least-once delivery. |
-| Performance benchmarks | Load-test suite against the `NFR-PERF-*` / `NFR-SCAL-*` numbers | `Technology Stack.md`'s "Benchmark performance" line. Reported, not build-failing. |
+**Test strategy — `Proposed`**, since the repository names no framework. The seven layers this record proposed are now carried, with their cadence, gate status, and time budget, by [`Testing and Benchmark Strategy.md`](../Testing%20and%20Benchmark%20Strategy.md) §3 — a strict superset of the table that stood here. The rule most likely to be traded away is restated there: a `BR-INV-01` optimistic-locking guarantee cannot be verified against an in-memory database.
 
 **The gate is mandatory.** Architecture tests run on every build and every pull request. A rule may be changed by editing it in a commit that says why; it may not be suppressed to unblock a merge. A rule that is genuinely wrong is a defect in this ADR set, and the fix is to amend the record.
 

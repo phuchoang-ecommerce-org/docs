@@ -1,8 +1,6 @@
 # Audit & Access Control — Use Cases (`AUD`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance, Security
 
 ---
 
@@ -27,7 +25,6 @@ Two problems are answered here directly. **P16** — every role does exactly wha
 | Field | Value |
 |---|---|
 | **Primary actor** | Any authorised actor (internal, on their behalf) |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Legal/Compliance: must be able to demonstrate a reliable record on request. Finance: needs internal fraud and error investigable. Support: needs to resolve disputes with evidence rather than recollection. Leadership: bears the consequence of an unanswerable audit request. |
 | **Priority** | Must |
 | **Trigger** | A significant business action is performed |
@@ -113,7 +110,6 @@ Two problems are answered here directly. **P16** — every role does exactly wha
 | Field | Value |
 |---|---|
 | **Primary actor** | Any authenticated actor |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Finance: pricing and inventory integrity depend on this decision. Legal/Compliance: data access risk is bounded by it. Customer: their data is protected by it. Leadership: bears the reputational risk if it fails publicly (`P16`). |
 | **Priority** | Must |
 | **Trigger** | Any operation requiring authority is requested |
@@ -158,11 +154,9 @@ Two problems are answered here directly. **P16** — every role does exactly wha
 | Field | Value |
 |---|---|
 | **Primary actor** | Any caller |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: needs the platform responsive during peak events (`P9`). Leadership: peak availability is peak revenue. Trust & Safety: rate limiting is the primary defence against credential guessing and code enumeration. Finance: bounded load is bounded infrastructure cost (`P10`). |
 | **Priority** | Must |
 | **Trigger** | Any externally originated request |
-| **Preconditions** | None |
 | **Success postconditions** | The request proceeds and is counted against the caller's allowance |
 | **Failure postconditions** | The request is rejected **without being processed**, and the caller is told when they may retry |
 | **Frequency** | Extremely high — every request |

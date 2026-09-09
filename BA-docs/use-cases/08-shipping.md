@@ -1,8 +1,6 @@
 # Shipping — Use Cases (`SHP`)
 
-**Document type:** Use Case Specification — domain
 **Related documents:** [`README.md`](./README.md) (index and template) · [`../srs.md`](../srs.md) · [`../traceability-matrix.md`](../traceability-matrix.md)
-**Audience:** Product Management, Engineering, Quality Assurance
 
 ---
 
@@ -145,7 +143,6 @@ Like Payment, this domain is bounded by parties the platform does not control, a
 | Field | Value |
 |---|---|
 | **Primary actor** | Shipping Carrier |
-| **Supporting actors** | — |
 | **Stakeholders & interests** | Customer: wants to follow the parcel without asking. Support: every visible update is a contact avoided. Warehouse: needs exceptions surfaced early. |
 | **Priority** | Must |
 | **Trigger** | The carrier reports a status change |

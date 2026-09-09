@@ -1,11 +1,8 @@
 # ADR-0033 — A Polling Outbox Relay over Per-Module Outbox Tables, Not Spring Modulith Externalisation
 
-**Document type:** Architecture Decision Record
 **Status:** **Proposed**
 **Date:** 2026-09-09
-**Deciders:** Solution Architecture
 **Traces to:** `P2` · `P6` · `P10` · `CON-07` · `NFR-REL-05` · `NFR-REL-06` · `NFR-AVAIL-01` · `NFR-OBS-04` · `AC-03`
-**Related documents:** [Backend Architecture](../../02-backend/Backend%20Architecture.md) · [Database](../../02-backend/Database.md) · [Deployment Diagram](../Deployment%20Diagram.md) · [ADR-0012](./ADR-0012-transactional-outbox-and-kafka.md)
 
 ---
 

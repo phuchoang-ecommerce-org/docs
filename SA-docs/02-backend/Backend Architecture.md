@@ -337,7 +337,7 @@ relay --replay --module=catalog --from-sequence=0 --to-topic=ecp.replay.<rebuild
 
 JSON Schema 2020-12. One file per event type per **major** version; `additionalProperties: true` on `payload`, which is [`Integration Contract.md`](../04-shared/Integration%20Contract.md) §6.4 obligation 2 made mechanical. The full rules, including why the denylist is a name check and not a content check, are [ADR-0032](../01-system/ADR/ADR-0032-json-event-serialisation-and-schema-contract.md) §4.
 
-**The directory does not exist yet.** It is reserved in [`example-folder-structure.md`](../example-folder-structure.md) and created by the change that implements this section.
+**The directory does not exist yet.** It is reserved in [`SA-docs/README.md`](../README.md#folder-layout) §1.1 and created by the change that implements this section.
 
 #### 3.5.3 The two contract tests
 

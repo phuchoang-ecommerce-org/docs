@@ -90,23 +90,17 @@ organised by the fourteen SRS domain codes, not by the twelve modules.
 
 ## 3. Conventions
 
-Every rule below is transcribed from a normative source; none is invented here.
-See [`Integration Contract.md`](../Integration%20Contract.md) §2–§5 and §8 for the
-reasoning.
+Every rule this contract obeys is normative in
+[`Integration Contract.md`](../Integration%20Contract.md) §2–§5 and §8 —
+versioning and path shape, the money and identifier forms, timestamps, field
+casing, cursor pagination, the RFC 9457 error shape, open enums, the
+`404`-not-`403` ownership rule, and where `Idempotency-Key` is required. None of
+it is invented here, so none of it is transcribed here either; the machine-readable
+copy that API consumers see is `openapi.yaml`'s `info.description`, which Redocly
+renders with the contract.
 
-| Concern | Rule |
-|---|---|
-| Versioning | URI prefix `/api/v1`. A breaking change ships as `/api/v2`, served concurrently; `v1` then carries a `Deprecation` header for at least two release cycles. |
-| Paths | Plural nouns, kebab-case, hierarchical by ownership. **Never a verb.** A non-CRUD state change becomes a subordinate resource — `POST /orders/{orderId}/cancellation`, not `/orders/{orderId}/cancel`. |
-| Money | Always `{"amount": "129.99", "currency": "VND"}`. `amount` is a **string**, scaled to `NUMERIC(19,4)`. Never a bare number. |
-| Identifiers | `string`/`uuid` (UUIDv7 in store), documented as **opaque**. Business references (`orderNumber`, `sku`, `trackingReference`) are separate fields and never a path id. |
-| Timestamps | RFC 3339, UTC. |
-| Field names | `camelCase` on the wire; `snake_case` stays in PostgreSQL. |
-| Pagination | Cursor, never offset. `size` default 20, max 100, **clamped not rejected**. `page.total` is optional and always absent on Elasticsearch-backed collections. |
-| Errors | RFC 9457 `application/problem+json`. Every 4xx/5xx carries a stable `code`; `title` and `detail` are never user-facing copy. |
-| Enums | **Open, not closed.** Status fields are `type: string` with `x-extensible-enum` listing the exact `CHECK`-constraint literals in SCREAMING_SNAKE. A closed `enum` would make a generated client reject a value added later, which §8.1 explicitly calls non-breaking. |
-| Ownership | A resource the caller does not own returns **`404`, never `403`**. |
-| Idempotency | `Idempotency-Key` required on exactly two operations: `placeOrder` and `initiatePayment`. |
+Two things below are original to this document: the discrepancies it settles
+(§3.1), and the vendor extensions it defines (§3.2).
 
 ### 3.1 Two discrepancies this document settles
 
@@ -124,13 +118,16 @@ left for a reader to rediscover.
 
 ### 3.2 Vendor extensions
 
-| Extension | Meaning |
-|---|---|
-| `x-ecp-roles` | Roles permitted to call the operation, from the §9 permission matrix, as the `identity_role.code` literals. Empty on a provider callback, which is authenticated by signature rather than by role. |
-| `x-ecp-ownership` | `own` where the role grants the capability and a runtime check grants the instance. |
-| `x-ecp-traces` | The `UC`/`FR`/`BR` identifiers the operation realises. |
-| `x-ecp-actor` | The external actor that calls an inbound callback. |
-| `x-extensible-enum` | Known values of an open vocabulary. |
+Five `x-ecp-*` / `x-extensible-enum` extensions carry what OpenAPI has no field
+for: `x-ecp-roles` (the roles permitted to call an operation, as
+`identity_role.code` literals), `x-ecp-ownership`, `x-ecp-traces` (the `UC`/`FR`/`BR`
+identifiers the operation realises), `x-ecp-actor`, and `x-extensible-enum`. Their
+definitions are in `openapi.yaml`'s `info.description`, which is where a consumer
+reading the rendered contract will look for them.
+
+`x-ecp-roles`, `x-ecp-ownership`, and `x-ecp-traces` are the machine-readable source
+that [`Permission Matrix.md`](../Permission%20Matrix.md) §5 presents in
+human-readable form.
 
 ---
 

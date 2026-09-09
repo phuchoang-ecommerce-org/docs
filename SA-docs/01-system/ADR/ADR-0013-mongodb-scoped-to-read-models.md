@@ -1,11 +1,8 @@
 # ADR-0013 — MongoDB Scoped to Flexible Read Models Only
 
-**Document type:** Architecture Decision Record
 **Status:** Accepted
 **Date:** 2026-09-06
-**Deciders:** Solution Architecture
 **Traces to:** `P4` · `P13` · `CON-06` · `NFR-PERF-05` · `NFR-PERF-06`
-**Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Technology Stack](../Technology%20Stack.md) · [ADR-0008](./ADR-0008-cqrs-command-query-separation.md)
 
 ---
 
