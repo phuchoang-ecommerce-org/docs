@@ -29,6 +29,8 @@ This folder holds the solution architecture for the Enterprise Commerce Platform
 | [`03-frontend/`](./03-frontend) | [`UI Design System.md`](./03-frontend/UI%20Design%20System.md) | *Ma (間)*-inspired UI design specification — philosophy, layout and spacing scale, typography, palette, components, motion, accessibility baseline, validation checklist |
 | [`04-shared/`](./04-shared) | [`Integration Contract.md`](./04-shared/Integration%20Contract.md) | Everything that crosses a boundary — REST conventions, pagination, error taxonomy, event envelope and catalogue, schema evolution, permission matrix |
 | [`04-shared/OpenAPI/`](./04-shared/OpenAPI) | [`README.md`](./04-shared/OpenAPI/README.md) + `openapi.yaml` | The OpenAPI 3.1 contract — 121 paths, 155 operations across all fourteen domains, every one traced to its use case and its permission-matrix cell. Hand-authored and normative per [`ADR-0031`](./01-system/ADR/ADR-0031-contract-first-openapi.md); verified against the controller layer in CI once one exists |
+| [`04-shared/`](./04-shared) | [`Error Codes.md`](./04-shared/Error%20Codes.md) | The error-code registry `ADR-0003` §5 reserved and `Integration Contract.md` §4.4 seeded — every `ECP-<DOMAIN>-<NNNN>` code in force, what it enforces, and the two places the codebase has already drifted from the scheme. Hand-authored until the domain enums exist, per `Backend Architecture.md` §6.3 |
+| [`04-shared/`](./04-shared) | [`Permission Matrix.md`](./04-shared/Permission%20Matrix.md) | The per-operation realisation of SRS §2.3 `ADR-0016` §4 named as its destination — all 155 OpenAPI operations mapped to the roles that may call them, the ownership scope, and the reconciliation walk against the domain-level grid, including the one open Business Analysis disagreement it cannot resolve by itself |
 
 Diagram sources live in [`diagrams/`](./diagrams): PlantUML `.puml` files compiled to committed `.svg` siblings. Diagrams embedded directly in a document use Mermaid instead, rendered by `util/toHtml.js`.
 
@@ -56,6 +58,8 @@ Folders are organized by concern, following the target layout in [`example-folde
 01-system/Security.md                the trust boundaries that topology draws, and what guards each one
 04-shared/Integration Contract.md    the rules every boundary crossing obeys
 04-shared/OpenAPI/                   the endpoints written under those rules
+04-shared/Error Codes.md             every code those endpoints return, and what it enforces
+04-shared/Permission Matrix.md       every operation's roles, expanded from the domain-level grid
       ↓
 01-system/Testing and Benchmark Strategy.md   how every claim above is verified, and what is not yet verified
 ```
