@@ -36,8 +36,8 @@ CategoryRef:
   required: [id, name, slug]
   properties:
     id: { $ref: './common.yaml#/Id' }
-    name: { type: string }
-    slug: { type: string }
+    name: { type: string, examples: ['Outerwear'] }
+    slug: { type: string, examples: ['outerwear'] }
 
 CategoryNode:
   description: >-
@@ -85,10 +85,11 @@ Variant:
     id: { $ref: './common.yaml#/Id' }
     sku:
       type: string
+      examples: ['TRJ-BLK-M']
       description: >-
         Unique platform-wide (`BR-CAT-01`). A removed SKU is never reused
         (`UC-ADM-01`).
-    name: { type: string }
+    name: { type: string, examples: ['Trail Runner Jacket — Black, M'] }
     listPrice: { $ref: './common.yaml#/Money' }
     promotionalPrice:
       $ref: './common.yaml#/Money'
@@ -109,8 +110,8 @@ ProductImage:
   required: [id, url]
   properties:
     id: { $ref: './common.yaml#/Id' }
-    url: { type: string, format: uri }
-    altText: { type: string }
+    url: { type: string, format: uri, examples: ['https://cdn.ecp.example/products/trail-runner-jacket/front.jpg'] }
+    altText: { type: string, examples: ['Trail Runner Jacket, front view'] }
     sortOrder: { type: integer, format: int32 }
 
 ProductSummary:
@@ -166,10 +167,10 @@ Product:
   required: [id, name, slug, publicationStatus, variants, images, categories]
   properties:
     id: { $ref: './common.yaml#/Id' }
-    name: { type: string }
-    slug: { type: string }
-    description: { type: string }
-    brand: { type: string }
+    name: { type: string, examples: ['Trail Runner Jacket'] }
+    slug: { type: string, examples: ['trail-runner-jacket'] }
+    description: { type: string, examples: ['A packable, waterproof shell for wet-weather trail running.'] }
+    brand: { type: string, examples: ['Northpeak'] }
     publicationStatus: { $ref: '#/PublicationStatus' }
     publishedAt: { type: string, format: date-time }
     categories:
