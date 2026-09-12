@@ -226,6 +226,38 @@ Two consequences worth making explicit, because both are easy to violate without
 - **The `AuthorizationService` call is an application-layer call.** `identity` may be named from another module's `application` package and nowhere else. A domain object that asks who the caller is has made authorisation part of a business invariant, which is precisely what `BR-AUD-02` and Domain Model §5.2 forbid.
 - **The Partnership adapters are infrastructure.** `ordering.infrastructure` hosts the `StockReservationPort` and `PromotionRedemptionPort` adapters. `ordering.domain` never names `inventory` or `promotion`; it names only the port interfaces `ordering.application` owns.
 
+### 6.1 Sub-packages Inside `application`
+
+Once a module's `application` package outgrows a handful of files (`identity`'s did in Sprint 03), split it by role rather than leaving every use case, port, and helper flat in one directory:
+
+| Sub-package | Holds | Visibility |
+|---|---|---|
+| `command` | Write-side use cases — `*Command` records and their `@Service` handlers ([`ADR-0008`](../01-system/ADR/ADR-0008-cqrs-command-query-separation.md)) | `public` |
+| `query` | Read-side use cases — `@QueryService`, `readOnly = true` (ADR-0008 §4). Empty is fine; a module with no bespoke read model yet still gets the folder | `public` |
+| `mapper` | Translation between domain aggregates and caller-facing DTOs (e.g. `identity`'s `AccountSummary.of(Account)`) | `public` |
+| `port` | Interfaces `infrastructure` adapters implement (`AccountRepository`, `PasswordEncoder`, …) | `public` |
+| `internal` | Helpers used only by this module's own command/query services and never by `api` (`PermissionMatrix`, token generators) | `public`, but never imported outside `application..` |
+| package root | The single `@Service` façade (`IdentityApplicationService`) that `api` calls, plus any cross-cutting value type every sub-package needs (`CallerContext`) | `public` |
+
+**Why `public` and not package-private.** Java does not extend package-private access across sibling sub-packages — `command` cannot see a package-private class in `internal`. The encapsulation this used to buy inside a flat `application` package was never load-bearing: the real boundary is the ArchUnit rule in §7 (`noClassReachesIntoAnotherModulesApplicationPackage`), which already blocks every class outside `identity..` from depending on anything under `identity.application..`, subpackages included. Making the split public trades a language-level guarantee no one outside the module could reach anyway for a folder structure that scales past a handful of files — it does not weaken the module boundary itself.
+
+Only split when there is enough to organise — a module with two or three files stays flat. `identity` is the reference example; apply the same five-way split the next time another module's `application` package grows past roughly ten files.
+
+### 6.2 Sub-packages Inside `infrastructure`
+
+Split by adapter technology, not by aggregate — one module usually talks to only a handful of concrete technologies, and that is the natural grouping:
+
+| Sub-package | Holds |
+|---|---|
+| `persistence` | JPA entities, `JpaRepository` interfaces, and the `port` adapters backed by them (`identity`'s `AccountEntity`/`AccountJpaRepository`/`JpaAccountRepositoryAdapter` and the token/role equivalents) |
+| `security` | Adapters for authentication/crypto ports (`Argon2PasswordEncoderAdapter`, `JwtAccessTokenIssuer`) |
+| `redis` | Adapters backed by Redis (cache-aside, rate limiting) — mirrors the top-level `app.redis` config package, scoped to this module's own usage |
+| `event` | `@ApplicationModuleListener`s reacting to this module's own or another module's published events |
+
+Unlike §6.1, this split needed **no visibility changes** — `identity`'s infrastructure classes were already grouped so that only sibling classes serving the same adapter reference each other (e.g. `JpaAccountRepositoryAdapter` only ever touches `AccountEntity`/`AccountJpaRepository`/`AccountRoleAssignments`, never a token or Redis class), so each group could move into its own package while every class stayed package-private. If a future module's infrastructure classes cross those lines, resolve it as in §6.1 (widen to `public`) rather than forcing an unnatural single package back together.
+
+Apply this split at the same rough size threshold as §6.1 — once `infrastructure` passes about ten files, group it by technology.
+
 ---
 
 ## 7. Forbidden Edges

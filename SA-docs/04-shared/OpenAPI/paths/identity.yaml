@@ -157,8 +157,13 @@ sessions:
       token plus a server-side refresh token that rotates on every use
       (`FR-CUS-03`, `ADR-0016` §4).
 
-      A browser caller receives the tokens as `httpOnly` cookies and no token in
-      the body; a non-browser caller receives them in the body (`ADR-0025` §4).
+      **`ecp-api` always returns both tokens as JSON, to every caller.**
+      It has no notion of "browser" vs "non-browser" and never sets a cookie
+      itself — cookie custody (`ADR-0025` §4) is entirely `ecp-web`'s (the
+      Next.js server's) responsibility on *its own* response to the actual
+      browser, which sits in front of this API and is the only party that
+      ever presents a `bearerAuth` credential here (Sprint 03 backend
+      implementation decision; see `sprint-03-identity-core.md` Review Notes).
 
       An unverified account gets a **restricted** session — browse and cart, no
       checkout (`UC-CUS-03` A2). Supplying `guestCartId` merges the guest cart in
@@ -222,10 +227,17 @@ sessionsCurrent:
     operationId: logOut
     tags: [Customer & Identity]
     summary: Log out
-    description: >-
+    description: |
       Ends the current session and invalidates its refresh token (`FR-CUS-04`).
       Idempotent: logging out of an already-ended session is `204`, not `404`
       (`Integration Contract` §2.1).
+
+      **Drift fix (Sprint 03, backend lane).** A caller without cookie custody
+      (this platform's backend never issues one — `ADR-0025`'s cookie is a
+      Next.js-server concern) has no way to name which refresh token to
+      revoke from the access token alone. `refreshToken` was added to the
+      request body for that reason; its absence is treated as `UC-CUS-04` E1
+      (already ended), never an error.
     x-ecp-roles: [CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
     x-ecp-ownership: own
     x-ecp-traces:
@@ -234,6 +246,11 @@ sessionsCurrent:
       br: [BR-CUS-03]
     parameters:
       - $ref: '../components/parameters.yaml#/CorrelationIdHeader'
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema: { $ref: '../components/schemas/identity.yaml#/LogoutRequest' }
     responses:
       '204':
         description: Session ended.

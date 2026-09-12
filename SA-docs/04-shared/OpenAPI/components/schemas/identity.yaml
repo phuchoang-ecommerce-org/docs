@@ -95,10 +95,11 @@ CredentialsRequest:
 Session:
   type: object
   description: >-
-    An established session. The refresh token is held server-side and rotated on
-    every use; it is returned to a non-browser caller only, and to a browser
-    caller it is set as an `httpOnly` cookie and is absent from this body
-    (`ADR-0016` §4, `ADR-0025` §4).
+    An established session. `ecp-api` always returns both tokens as JSON — it
+    has no browser/non-browser distinction and never sets a cookie itself
+    (`ADR-0016` §4). `ecp-web`, the only caller that ever presents `bearerAuth`
+    here, is what gives the real browser an `httpOnly` cookie on its own
+    response, per `ADR-0025` §4 (Sprint 03 backend implementation decision).
   required: [accessToken, expiresIn, account]
   properties:
     accessToken:
@@ -107,8 +108,7 @@ Session:
     refreshToken:
       type: string
       description: >-
-        Present only for a non-browser caller authenticating with
-        `bearerAuth`. Rotated on every use; presenting a consumed one
+        Always present. Rotated on every use; presenting a consumed one
         invalidates the whole session chain (`BR-CUS-03`).
     expiresIn:
       type: integer
@@ -129,8 +129,18 @@ SessionRenewalRequest:
     refreshToken:
       type: string
       description: >-
-        Required for a non-browser caller. Omitted by a browser caller, whose
-        refresh token travels in the `httpOnly` cookie.
+        Required — `ecp-api` has no cookie to read it from (see `Session`).
+
+LogoutRequest:
+  type: object
+  description: >-
+    Sprint 03 drift fix — see `paths/identity.yaml#/sessionsCurrent`'s `delete` description.
+  additionalProperties: false
+  properties:
+    refreshToken:
+      type: string
+      description: >-
+        The refresh token to invalidate. Optional; its absence is `UC-CUS-04` E1 (already ended).
 
 EmailVerificationRequest:
   type: object
