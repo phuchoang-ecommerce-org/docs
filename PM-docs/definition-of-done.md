@@ -49,6 +49,7 @@ An item may not enter a sprint until all six hold. An item that fails goes back 
 | 10 | Every domain event the story publishes has an L4 test asserting a consumer reacts **idempotently** — redelivery leaves the document byte-identical | Testing Strategy §10, §6.3 |
 | 11 | Structured log lines carry the correlation id; any new Micrometer meter is registered | `NFR-OBS-01`, `-03`, `-04` |
 | 12 | No credential, key, or connection string in an image, a log, an audit entry, or the repository | Deployment §5; `NFR-SEC-07` |
+| 13 | **Every production declaration added or changed by the slice has accurate Javadoc:** package and type purpose; record components, constants, constructors, and methods; inputs, outputs, invariants, failure behavior, and temporary scope where relevant. The owning module's `javadoc` task completes with no warnings. | `P15`; `NFR-MAINT-05`; [`ADR-0018`](../SA-docs/01-system/ADR/ADR-0018-architecture-governance-ci-gate.md) |
 
 **Additionally, for a story with a concurrency guarantee** (`US-INV-01`, `US-ORD-05`, `US-PRM-03`): an **L5 test against Testcontainers PostgreSQL**, not H2. An approximation of a concurrency guarantee is not a guarantee, and this is the rule most likely to be traded away for build speed (Testing Strategy §6.4).
 
