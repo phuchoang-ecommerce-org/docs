@@ -18,7 +18,7 @@ This folder holds the delivery plan for the Enterprise Commerce Platform: the or
 | [`release-plan.md`](./release-plan.md) | The sprint map — 36 sprints across three releases, both lanes side by side with their point loads, every Contract Sync gate and Integration Hardening sprint, the sequencing rationale, the schedule risks, and the re-baselining rule |
 | [`integration-plan.md`](./integration-plan.md) | **How the frontend and backend stay decoupled and how they meet.** The Prism mock harness, the codegen contract, the one-environment-variable switch, the ten-point Contract Sync checklist, the three hardening sprints, and the contract-amendment procedure |
 | [`definition-of-done.md`](./definition-of-done.md) | The quality gates — Definition of Ready, a Definition of Done per lane, the story-level integration criterion, the release-level `AC-01`–`AC-06` table, and the coverage policy |
-| [`sprint-backlogs/`](./sprint-backlogs/README.md) | Task-level backlogs for Sprints 00–05, plus the template that turns any later sprint into one at Sprint Planning |
+| [`sprint-backlogs/`](./sprint-backlogs/README.md) | Task-level backlogs for **all 36 sprints** — Sprints 00–32 plus IH-1, IH-2 and IH-3; the six delivered, thirty drafted from the release plan and the BA/SA source documents, confirmed and amended at each Sprint Planning rather than authored there |
 
 ---
 
