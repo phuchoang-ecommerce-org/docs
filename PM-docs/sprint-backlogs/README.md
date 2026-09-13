@@ -36,11 +36,16 @@ The **Integration Risk** section is the one part worth reading before the day. I
 | 04 | [`sprint-04-authorisation.md`](./sprint-04-authorisation.md) | Authorisation and rate limiting hold on every path |
 | 05 | [`sprint-05-identity-account.md`](./sprint-05-identity-account.md) | A customer owns their account — **`G2`** |
 
-### Drafted
+### Active
 
 | Sprint | File | Goal |
 |---|---|---|
 | 06 | [`sprint-06-catalog-browse.md`](./sprint-06-catalog-browse.md) | The catalog is browsable |
+
+### Drafted
+
+| Sprint | File | Goal |
+|---|---|---|
 | 07 | [`sprint-07-catalog-detail-and-cache.md`](./sprint-07-catalog-detail-and-cache.md) | The product page is the reference implementation of `NFR-AVAIL-02` — **`G3`** |
 | 08 | [`sprint-08-event-backbone.md`](./sprint-08-event-backbone.md) | No accepted business event can be silently lost |
 | 09 | [`sprint-09-catalog-administration.md`](./sprint-09-catalog-administration.md) | An operator can manage the catalog, and the storefront notices — **`G4`** |

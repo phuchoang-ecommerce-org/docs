@@ -3,7 +3,7 @@
 **Release:** R1 · **Gate:** none · **Backend 21 pts · Frontend 17 pts**
 **Related documents:** [`../release-plan.md`](../release-plan.md) · [`../integration-plan.md`](../integration-plan.md) · [`../../BA-docs/user-stories/02-catalog-category.md`](../../BA-docs/user-stories/02-catalog-category.md) · [`../../BA-docs/use-cases/02-catalog-category.md`](../../BA-docs/use-cases/02-catalog-category.md)
 
-**Status:** Complete — 2026-09-13. Frontend implementation, focused schema/component/axe checks, type-check and lint are complete. Production-build prerender output remains environment-blocked by Turbopack's internal-port permission failure.
+**Status:** Active — 2026-09-13. Frontend implementation, focused schema/component/axe checks, type-check and lint are complete; production-build prerender output remains environment-blocked by Turbopack's internal-port permission failure. Backend implementation is complete and awaiting review; the backend Project's `EN-WIRE-3` item remains in progress until its cache-outage coverage is reviewed.
 
 ---
 
@@ -33,20 +33,20 @@
 ## Backend Lane
 
 ### `US-CAT-01` Browse Category Tree (5 pts) — `listCategories`, `getCategory`
-- [ ] `Category` aggregate and `catalog` schema tables; tree materialised so arbitrary depth is one query, not N
+- [x] `Category` aggregate and `catalog` schema tables; tree materialised so arbitrary depth is one query, not N
 - [ ] `BR-CAT-03` — no category is its own ancestor; enforced on read *and* asserted by an L1 test, because `UC-ADM-02` E1 will rely on the same invariant when writes arrive in Sprint 09
 - [ ] `BR-CAT-02` — unpublished products excluded from every count the tree exposes
-- [ ] Ancestor path returned with a deep-linked category (`A1`), so the frontend can render "move back up" without a second call
+- [x] Ancestor path returned with a deep-linked category (`A1`), so the frontend can render "move back up" without a second call
 - [ ] Exception flows: `E1` unknown/removed category → the contract's `404`, never a `403`; `E2` tree unavailable degrades without closing search or featured (`NFR-AVAIL-02`)
 - [ ] Contract test both directions on both operations
 
 ### `US-CAT-02` Browse Category Product Listing (5 pts) — `listCategoryProducts`
-- [ ] Products of the category **and its descendants** (`BR-CAT-02`), published only
-- [ ] Default ordering, plus price / newest / popularity (`FR-CAT-08`); a changed ordering restarts from the first page — the cursor is not carried across an ordering change
-- [ ] Cursor pagination on the envelope agreed in Sprint 02 (`EN-WIRE-1`)
+- [x] Products of the category **and its descendants** (`BR-CAT-02`), published only
+- [x] Default ordering, plus price / newest / popularity (`FR-CAT-08`); a changed ordering restarts from the first page — the cursor is not carried across an ordering change
+- [x] Cursor pagination on the envelope agreed in Sprint 02 (`EN-WIRE-1`)
 - [ ] `A3` — out-of-stock products are **listed and marked**, never hidden
-- [ ] Exception flows: `E1` empty category returns an explicit empty page, not an error; `E2` page beyond the last returns the last available page; `E3` availability indeterminate is marked unknown rather than suppressing the listing
-- [ ] Permission-matrix cell asserted: `GUEST` may read
+- [x] Exception flows: `E1` empty category returns an explicit empty page, not an error; `E2` page beyond the last returns the last available page; `E3` availability indeterminate is marked unknown rather than suppressing the listing
+- [x] Permission-matrix cell asserted: `GUEST` may read
 
 ### `US-CAT-04` Select Product Variant (3 pts) — `listProductVariants`, `getProductVariant`
 - [ ] `BR-CAT-01` — a selection across every dimension resolves to exactly one stockable unit
@@ -55,8 +55,8 @@
 - [ ] Exception flows: `E1` combination does not exist; `E2` variant out of stock is still selectable and still returns its detail (`BR-CRT-02`)
 
 ### `EN-WIRE-3` Catalog read cache-aside + invalidation keys (8 pts)
-- [ ] Cache-aside over the `redis-cache` instance stood up by `EN-WIRE-2` in Sprint 03 — read-through, write-around
-- [ ] **The invalidation key scheme is the deliverable**, not the cache: one key namespace per read surface (`category-tree`, `category-listing:{id}`, `variant:{id}`), documented in the module's `package-info` and reused verbatim by `EN-EVENT-2` in Sprint 09
+- [x] Cache-aside over the `redis-cache` instance stood up by `EN-WIRE-2` in Sprint 03 — read-through, write-around
+- [x] **The invalidation key scheme is the deliverable**, not the cache: one key namespace per read surface (`category-tree`, `category-listing:{id}`, `variant:{id}`), documented in the module's `package-info` and reused verbatim by `EN-EVENT-2` in Sprint 09
 - [ ] A cache miss and a cache outage produce the same answer as a hit — proved by an L3 test that disables Redis mid-suite
 - [ ] Micrometer hit/miss counters wired now so `EN-OBS-2` (Sprint 07) has something to name
 
@@ -84,7 +84,7 @@
 - [ ] Web-vitals reporter wired and reporting LCP/CLS/INP for the `R1` class
 - [ ] Confirm the routes are genuinely static (build output shows them prerendered) — this is asserted at IH-1 row 7 and cheaper to establish now
 
-**Cache-tag handoff (Sprint 06):** `category-tree`, `category-listing:{categoryId}`, and `variant:{variantId}`. The frontend owns the first two now; `variant:{variantId}` is reserved for the Sprint 07 variant surface. `EN-FE-API-3` must reuse these strings verbatim when catalog-event revalidation is added in Sprint 09.
+**Cache-tag handoff (Sprint 06):** `category-tree`, `category-listing:{id}`, and `variant:{id}` are the canonical shared namespaces. `{id}` is the concrete category or variant identifier; backend may append query-specific cache suffixes beneath `category-listing:{id}`. Frontend revalidation and `EN-FE-API-3` (Sprint 09) must use these namespace strings verbatim.
 
 ---
 
