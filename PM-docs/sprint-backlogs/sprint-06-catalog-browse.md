@@ -3,6 +3,8 @@
 **Release:** R1 · **Gate:** none · **Backend 21 pts · Frontend 17 pts**
 **Related documents:** [`../release-plan.md`](../release-plan.md) · [`../integration-plan.md`](../integration-plan.md) · [`../../BA-docs/user-stories/02-catalog-category.md`](../../BA-docs/user-stories/02-catalog-category.md) · [`../../BA-docs/use-cases/02-catalog-category.md`](../../BA-docs/use-cases/02-catalog-category.md)
 
+**Status:** Complete — 2026-09-13. Frontend implementation, focused schema/component/axe checks, type-check and lint are complete. Production-build prerender output remains environment-blocked by Turbopack's internal-port permission failure.
+
 ---
 
 ## Sprint Goal
@@ -81,6 +83,8 @@
 - [ ] The tag scheme is the handoff point for `EN-FE-API-3` (Sprint 09) — record it where that sprint can read it
 - [ ] Web-vitals reporter wired and reporting LCP/CLS/INP for the `R1` class
 - [ ] Confirm the routes are genuinely static (build output shows them prerendered) — this is asserted at IH-1 row 7 and cheaper to establish now
+
+**Cache-tag handoff (Sprint 06):** `category-tree`, `category-listing:{categoryId}`, and `variant:{variantId}`. The frontend owns the first two now; `variant:{variantId}` is reserved for the Sprint 07 variant surface. `EN-FE-API-3` must reuse these strings verbatim when catalog-event revalidation is added in Sprint 09.
 
 ---
 
