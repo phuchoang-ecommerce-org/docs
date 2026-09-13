@@ -65,22 +65,22 @@
 ## Frontend Lane
 
 ### `US-CAT-01` Browse Category Tree (5 pts) — `/` and `/c/[...slug]` navigation
-- [ ] Hand-written Zod parsers for `Category` and the tree response; reviewed, not generated
-- [ ] Category navigation renders the ancestor path for a deep link, and a category with no image renders on its name alone (`A2`)
+- [x] Hand-written Zod parsers for `Category` and the tree response; reviewed, not generated
+- [x] Category navigation renders the ancestor path for a deep link, and a category with no image renders on its name alone (`A2`)
 - [ ] `E2` — a failed tree collapses the navigation to its empty state; search and featured entry points stay reachable
-- [ ] Vitest + axe
+- [x] Vitest + axe
 
 ### `US-CAT-02` Browse Category Product Listing (5 pts) — `/c/[...slug]`, **R1**
 - [ ] `/c/[...slug]` as an `R1` static route per [`Routing.md`](../../SA-docs/03-frontend/Routing.md) §4.1; **the product grid streams in its own `<Suspense>` boundary and the facet panel in another**
-- [ ] `loading.tsx` skeleton shaped like the grid — a fixed placeholder count, never a count read from a response that may be absent
-- [ ] Sort control writes to the URL, not to component state; changing it resets to the first page
-- [ ] Out-of-stock cards render the *marked* treatment, not a hidden or disabled one
+- [x] `loading.tsx` skeleton shaped like the grid — a fixed placeholder count, never a count read from a response that may be absent
+- [x] Sort control writes to the URL, not to component state; changing it resets to the first page
+- [x] Out-of-stock cards render the *marked* treatment, not a hidden or disabled one
 - [ ] Empty category renders the designed empty state with sibling categories offered (`E1`)
 - [ ] Vitest + axe on the grid, the card, and the empty state
 
 ### `EN-FE-PERF-1` R1 static generation + tag-based cache (7 pts)
 - [ ] `generateStaticParams` for the category routes; tag-based `revalidateTag` keys that **match the backend's invalidation namespaces above**, agreed in this sprint rather than reconciled at `G3`
-- [ ] The tag scheme is the handoff point for `EN-FE-API-3` (Sprint 09) — record it where that sprint can read it
+- [x] The tag scheme is the handoff point for `EN-FE-API-3` (Sprint 09) — record it where that sprint can read it
 - [ ] Web-vitals reporter wired and reporting LCP/CLS/INP for the `R1` class
 - [ ] Confirm the routes are genuinely static (build output shows them prerendered) — this is asserted at IH-1 row 7 and cheaper to establish now
 
