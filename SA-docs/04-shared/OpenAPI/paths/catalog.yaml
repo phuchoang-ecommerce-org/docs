@@ -205,6 +205,9 @@ categoryProducts:
       (`FR-CAT-03`). Out-of-stock products are included and marked, not hidden.
       Only `PUBLISHED` products appear (`BR-CAT-02`). Sortable fields are
       `price`, `createdAt`, and `popularity` — each is index-backed (`P10`).
+      `cursor` is an opaque continuation token bound to this category, the
+      selected filters, and sort; pass it unchanged only with the same listing
+      inputs and discard it whenever any of them changes.
     security: []
     x-ecp-roles: [GUEST, CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
     x-ecp-traces:

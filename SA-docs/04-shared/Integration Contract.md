@@ -109,6 +109,8 @@ Every collection endpoint is paginated. There is no unpaginated list endpoint, b
 
 Cursor pagination is the default. Offset (`?page=7`) is rejected for two reasons that both bite in production: it produces duplicated and skipped rows when the underlying set changes between requests — routine on an order list — and its cost grows with depth, which is precisely the `P10` problem indexing exists to avoid.
 
+Every cursor is an opaque, versioned HMAC-signed keyset token. It contains the ordered sort value or values and a UUID tie-breaker, and is bound to the endpoint, resource scope, sort, and normalized filter set that produced it. The server reads **`size + 1`** rows, returns at most `size`, and derives `page.next` from the final returned row; it never uses `OFFSET` or materialises the complete candidate set. A client passes `page.next` back verbatim and discards it whenever any listing input changes. A malformed, tampered, or incompatible cursor is `400` validation failure — it is never treated as a first-page request. Signing keys rotate with an active key for issuance and one previous verification key, so tokens issued immediately before a rotation remain usable until that previous key is retired.
+
 ### 3.3 Filtering and sorting
 
 | Aspect | Rule |

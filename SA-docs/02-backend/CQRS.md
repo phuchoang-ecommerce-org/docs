@@ -93,6 +93,8 @@ Three properties of that picture are the whole of this document, and each is a r
 
 `NFR-PERF-06` sets this table and **it is not negotiable per feature.** A feature that wants C0 semantics from a C2 store has a design defect, not a configuration problem.
 
+**Ordinary catalog category and listing reads are C1 PostgreSQL JDBC seek queries** over catalog-owned tables, with Redis only as cache-aside. Elasticsearch is not a fallback or alternative source for those pages: it is limited to full-text search, relevance ordering, facets, and autocomplete. This preserves exact filter-bound keyset pagination and the C1 visibility contract while keeping C2 search behaviour explicit.
+
 ### 2.2 The rule that makes the separation safe
 
 > **A command never decides against a read model.**
