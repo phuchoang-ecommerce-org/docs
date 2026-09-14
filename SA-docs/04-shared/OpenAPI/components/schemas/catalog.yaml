@@ -103,7 +103,19 @@ Variant:
       additionalProperties: { type: string }
     weightGrams: { type: integer, format: int32, minimum: 0 }
     active: { type: boolean }
-    availability: { $ref: './inventory.yaml#/VariantAvailability' }
+    availability:
+      $ref: '#/AdvisoryVariantAvailability'
+
+AdvisoryVariantAvailability:
+  type: object
+  description: >-
+    Temporary catalog-owned advisory projection until Inventory supplies the
+    authoritative projection in Sprint 11. It never authorizes purchase; the
+    binding check happens during order placement. Omitted while the projection
+    is unknown.
+  required: [inStock]
+  properties:
+    inStock: { type: boolean }
 
 ProductImage:
   type: object

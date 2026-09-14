@@ -339,6 +339,8 @@ productById:
       search, recommendations, or reviews must never prevent browsing
       (`NFR-AVAIL-02`). Availability shown here is advisory; the binding check
       happens inside the order-placement transaction (`ADR-0008` §4).
+      Variant `availability` is omitted while Catalog's temporary advisory
+      projection is unknown; when projected it is `{inStock: boolean}`.
     security: []
     x-ecp-roles: [GUEST, CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
     x-ecp-traces:

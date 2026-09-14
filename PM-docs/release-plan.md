@@ -300,6 +300,13 @@ Category tree, category listings, variants, and the Redis cache-aside path `NFR-
 
 **Sprint goal.** The product page is the reference implementation of `NFR-AVAIL-02`.
 
+**Approved pull-forward and scope boundary.** Sprint 07 includes variant
+selection only: `?variant=<id>` is a shareable read-state and there is no cart
+mutation or add-to-cart control. Cart writes, guest-cart identity, and cart
+error handling remain exclusively Sprint 13 work. The active-promotion period
+and unavailable-product category recovery are G3 contract-amendment
+dependencies; estimates, `S07`, `G3`, and milestone dates are unchanged.
+
 | Backend lane | Pts |
 |---|---:|
 | `US-CAT-03` View Product Details | 5 |
