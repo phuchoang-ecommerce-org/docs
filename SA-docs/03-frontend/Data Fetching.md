@@ -123,7 +123,7 @@ This mirrors [`ADR-0015`](../01-system/ADR/ADR-0015-redis-cache-and-rate-limitin
 
 Every write is a **Server Action**, or a route handler where a Server Action cannot serve — a provider redirect return, for instance. The browser never calls `ecp-api` ([`ADR-0025`](../01-system/ADR/ADR-0025-httponly-cookie-session.md), [`ADR-0036`](../01-system/ADR/ADR-0036-nextjs-server-sole-api-caller.md)), which keeps the session cookie server-side and gives one place to attach the idempotency key.
 
-**Every action composes one wrapper**, which in order: verifies CSRF ([`Frontend Architecture.md`](./Frontend%20Architecture.md) §4.3), resolves the session, attaches the idempotency key where the operation requires it, invokes the client, maps a typed problem to a typed action result, and revalidates the affected tags. A per-action habit would hold for a year and then not; a wrapper fails loudly the first time it is bypassed.
+**Every action composes one wrapper**, which in order: verifies CSRF ([`Frontend Architecture.md`](./Frontend%20Architecture.md) §4.3), resolves the session, attaches the idempotency key where the operation requires it, invokes the client, maps a typed problem to a typed action result, and performs only the revalidation that action owns. **Catalog administration writes own none:** their storefront invalidation arrives solely through the signed catalog-event callback in §7. A per-action habit would hold for a year and then not; a wrapper fails loudly the first time it is bypassed.
 
 ### 6.2 Idempotency
 
@@ -160,7 +160,7 @@ The rule underneath: **optimistic UI is permitted only where the operation canno
 ```mermaid
 flowchart LR
     K["ecp.catalog.product.v1<br/>ecp.catalog.category.v1"] --> C["ecp-api consumer group<br/>ecp.web-revalidation"]
-    C -->|"signed POST /api/internal/revalidate<br/>{ tags: [...] }"| W["ecp-web<br/>revalidateTag()"]
+    C -->|"signed POST /api/internal/revalidate<br/>catalog event envelope"| W["ecp-web<br/>maps event → revalidateTag()"]
     W --> R["next render serves fresh"]
 ```
 
@@ -175,7 +175,7 @@ Deliberately parallel to the Redis key scheme of [`Backend Architecture.md`](../
 
 ### 7.2 The rules
 
-1. **The call carries tags, never content.** [`CQRS.md`](../02-backend/CQRS.md) §6.3's rule — an event handler `DEL`s, never `SET`s — applies for the same reason: a payload would give one page two freshness mechanisms and a guaranteed disagreement between them.
+1. **The call carries a signed event envelope, never caller-supplied tags or page content.** `ecp-web` maps supported event types to the table above; the exact versioned body, HMAC signature, and no-op rule are in the [`Private Web Revalidation Callback v1`](../04-shared/Event%20Contract/web-revalidation.v1.md). [`CQRS.md`](../02-backend/CQRS.md) §6.3's rule — an event handler `DEL`s, never `SET`s — applies for the same reason: a payload must not give one page two freshness mechanisms and a guaranteed disagreement between them.
 2. **The endpoint is signed** with `ECP_REVALIDATE_SECRET` and is reachable only from the internal network. An unauthenticated cache-purge endpoint is a denial-of-service primitive.
 3. **A time-based floor stays on.** Every statically generated route also carries a `revalidate` interval. [`ADR-0015`](../01-system/ADR/ADR-0015-redis-cache-and-rate-limiting.md) §4's reasoning transfers exactly: TTL is a backstop, not the mechanism, and without it a silently-dead consumer is indistinguishable from a working one.
 4. **Consumer lag alarms.** [`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) §5.7 alarms on invalidation-consumer lag because nothing else would notice; this consumer joins that alarm.

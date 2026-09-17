@@ -97,25 +97,44 @@ Variant:
         Present only while a flash sale or automatic promotion applies
         (`FR-PRM-06`). Advisory for display; the binding price is fixed at order
         placement (`BR-ORD-06`).
+    activePromotion:
+      $ref: '#/ActivePromotion'
+      description: >-
+        The safe storefront period metadata for the promotion represented by
+        `promotionalPrice`. Present only while that reduced price is active.
     options:
       type: object
       description: 'Attribute values that identify this variant, e.g. `{"size": "M"}`.'
       additionalProperties: { type: string }
     weightGrams: { type: integer, format: int32, minimum: 0 }
     active: { type: boolean }
-    availability:
-      $ref: '#/AdvisoryVariantAvailability'
+    availability: { $ref: './inventory.yaml#/VariantAvailability' }
 
-AdvisoryVariantAvailability:
+ActivePromotion:
   type: object
   description: >-
-    Temporary catalog-owned advisory projection until Inventory supplies the
-    authoritative projection in Sprint 11. It never authorizes purchase; the
-    binding check happens during order placement. Omitted while the projection
-    is unknown.
-  required: [inStock]
+    Storefront-safe timing for an active automatic promotion. This is display
+    metadata only; it neither authorises a price nor changes the binding price
+    resolved at order placement.
+  required: [validFrom, validUntil]
   properties:
-    inStock: { type: boolean }
+    validFrom: { type: string, format: date-time }
+    validUntil: { type: string, format: date-time }
+
+ProductUnavailable:
+  allOf:
+    - $ref: './common.yaml#/Problem'
+    - type: object
+      description: >-
+        The storefront-safe form of a product-unavailable response. It does not
+        disclose whether the product was removed, unpublished, or never existed.
+      required: [recovery]
+      properties:
+        recovery:
+          type: object
+          required: [category]
+          properties:
+            category: { $ref: '#/CategoryRef' }
 
 ProductImage:
   type: object

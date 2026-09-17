@@ -34,6 +34,7 @@ This folder holds the solution architecture for the Enterprise Commerce Platform
 | [`03-frontend/`](./03-frontend) | [`UI Design System.md`](./03-frontend/UI%20Design%20System.md) | *Ma (間)*-inspired UI design specification — philosophy, layout and spacing scale, typography, palette, components, motion, accessibility baseline, validation checklist |
 | [`04-shared/`](./04-shared) | [`Integration Contract.md`](./04-shared/Integration%20Contract.md) | Everything that crosses a boundary — REST conventions, pagination, error taxonomy, event envelope and catalogue, schema evolution, permission matrix |
 | [`04-shared/OpenAPI/`](./04-shared/OpenAPI) | [`README.md`](./04-shared/OpenAPI/README.md) + `openapi.yaml` | The OpenAPI 3.1 contract — 121 paths, 155 operations across all fourteen domains, every one traced to its use case and its permission-matrix cell. Hand-authored and normative per [`ADR-0031`](./01-system/ADR/ADR-0031-contract-first-openapi.md); verified against the controller layer in CI once one exists |
+| [`04-shared/Event Contract/`](./04-shared/Event%20Contract) | [`README.md`](./04-shared/Event%20Contract/README.md) + JSON Schemas | Versioned event envelopes and event payloads crossing module boundaries, plus the signed private callback that delivers catalog invalidation events to `ecp-web` |
 | [`04-shared/`](./04-shared) | [`Error Codes.md`](./04-shared/Error%20Codes.md) | The error-code registry `ADR-0003` §5 reserved and `Integration Contract.md` §4.4 seeded — every `ECP-<DOMAIN>-<NNNN>` code in force, what it enforces, and the two places the codebase has already drifted from the scheme. Hand-authored until the domain enums exist, per `Backend Architecture.md` §6.3 |
 | [`04-shared/`](./04-shared) | [`Permission Matrix.md`](./04-shared/Permission%20Matrix.md) | The per-operation realisation of SRS §2.3 `ADR-0016` §4 named as its destination — all 155 OpenAPI operations mapped to the roles that may call them, the ownership scope, and the reconciliation walk against the domain-level grid, including the one open Business Analysis disagreement it cannot resolve by itself |
 
@@ -49,9 +50,9 @@ Two rules here are cited from elsewhere in this repository and are normative:
 
 - **`04-shared/` holds API and contract artifacts only** — OpenAPI, DTOs, event contracts, the
 permission matrix, the error-code registry. It is not a home for domain code; a shared kernel belongs in its own module beneath the backend source tree.
-- **Reserved, not yet created:** `04-shared/Event Contract/` (created by the change that
-  implements [`Backend Architecture.md`](./02-backend/Backend%20Architecture.md) §3.5) and
-  `00-vision/`. Previously reserved and since filled: `04-shared/OpenAPI/` by
+- **Reserved, not yet created:** `00-vision/`. Previously reserved and since filled:
+  `04-shared/Event Contract/` by the Sprint 9 catalog-event contract,
+  `04-shared/OpenAPI/` by
 [`ADR-0031`](./01-system/ADR/ADR-0031-contract-first-openapi.md), `02-backend/Sequence/` by the sequence diagrams, `01-system/ADR/` by the decision records, and
   `01-system/Deployment Diagram.md` by [`ADR-0028`](./01-system/ADR/ADR-0028-deployment-topology-containerisation.md).
 

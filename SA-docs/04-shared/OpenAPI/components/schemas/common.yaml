@@ -207,3 +207,12 @@ Problem:
         only the first (`Integration Contract` §4.3).
       items:
         $ref: '#/FieldError'
+    blocking:
+      type: object
+      description: >-
+        Server-authoritative facts that explain why a requested operation cannot
+        proceed. Present only on operation-specific conflict responses; clients
+        must not derive these values from cached reads.
+      properties:
+        productCount: { type: integer, format: int32, minimum: 0 }
+        childCategoryCount: { type: integer, format: int32, minimum: 0 }

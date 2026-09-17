@@ -50,13 +50,23 @@ Every module has the same internal shape ([ADR-0006](../01-system/ADR/ADR-0006-s
 
 ```nano
   <module>/
-  ├── api/              public   — the module's deliberate surface: services, DTOs, event types
-  ├── application/      internal — use cases, ports, orchestration
-  ├── domain/           internal — aggregates, value objects, domain services
-  └── infrastructure/   internal — adapters (persistence, providers, event listeners)
+  ├── api/                              public   — the module's deliberate surface
+  └── internal/                         internal — never a named interface
+      ├── application/                  use cases, ports, orchestration
+      ├── domain/model/                 aggregates, entities, value objects, domain services
+      ├── domain/event/                 domain events
+      ├── domain/repository/            one JMolecules repository per aggregate root
+      └── infrastructure/               adapters (persistence, providers, event listeners)
 ```
 
-Only `api/` is reachable from another module. The other three are internal by Modulith's default, and reaching into them is the specific violation the CI gate exists to catch.
+Only `api/` is reachable from another module. `spring.modulith.detection-strategy=explicitly-annotated`
+limits the graph to packages carrying `@ApplicationModule`, so the composition root's web,
+configuration, and relay packages are not accidentally treated as bounded contexts. Everything
+below `internal/` remains inaccessible to another module.
+
+`shared-kernel` is the deliberate exception to closed-module semantics: it is open because its
+behaviour-only `api` types are consumed by both bounded contexts and the composition root. It has
+no implementation types today; any future implementation code belongs below `sharedkernel.internal`.
 
 ---
 

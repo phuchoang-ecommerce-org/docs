@@ -50,7 +50,7 @@ The two are genuinely different tools. JPA gives a persistence context, dirty ch
 
 | | Write model (commands) | Read models (queries) |
 |---|---|---|
-| Technology | Spring Data JPA / Hibernate | Spring Data JDBC |
+| Technology | Spring Data JPA / Hibernate | Spring Data JDBC for simple projection persistence; `JdbcClient` for explicit query views and guarded projection SQL |
 | Applies to | Aggregate roots and their child entities | Projections, list views, detail views, reporting queries against PostgreSQL |
 | Annotated with | `@PersistenceAdapter` implementing a JMolecules `@Repository` interface | `@QueryService` with `@Transactional(readOnly = true)` |
 | Optimistic locking | `@Version` on every aggregate root | not applicable |
@@ -62,6 +62,8 @@ Supporting rules:
 - **JPA entities are not domain objects.** They are persistence-layer types living in `infrastructure`, mapped to and from domain objects by MapStruct ([ADR-0005](./ADR-0005-clean-architecture-ports-and-adapters.md)). This is the cost `NFR-MAINT-03` is worth paying — an ORM annotation never appears on `Order`.
 - **No lazy loading crosses an aggregate boundary.** A lazy reference from `Order` to another aggregate is a design error, not a tuning opportunity; cross-aggregate references are typed IDs ([ADR-0009](./ADR-0009-postgresql-source-of-truth.md)).
 - **Read queries name their SQL.** Every `@QueryService` method carries the statement it runs, so it can be checked against `NFR-PERF-01` and against the index that supports it (`P10`).
+- **Spring Data JDBC is not a mandate to hide SQL.** Use it for a module-owned, simple relational projection with ordinary identity-based persistence. A join, seek-paginated view, JSONB predicate, CTE, batch operation, locking query, or idempotent/ordered upsert uses `JdbcClient` with bound parameters instead.
+- **`JdbcTemplate` is a technical escape hatch, not the default.** Reserve it for primitives its API serves directly, such as outbox relay batch work and `FOR UPDATE SKIP LOCKED` coordination. New ordinary SQL uses `JdbcClient`.
 - Both share the single `DataSource` and transaction manager of [ADR-0009](./ADR-0009-postgresql-source-of-truth.md), so a read inside a command transaction sees that transaction's writes.
 
 ## 5. Consequences

@@ -135,6 +135,17 @@ NotFound:
   headers:
     X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
 
+ProductUnavailable:
+  description: >-
+    `ECP-GEN-4040` — the requested storefront product is unavailable. The
+    response deliberately does not disclose why, but includes its safe
+    containing-category recovery link.
+  content:
+    application/problem+json:
+      schema: { $ref: './schemas/catalog.yaml#/ProductUnavailable' }
+  headers:
+    X-Correlation-Id: { $ref: './headers.yaml#/CorrelationId' }
+
 RateLimited:
   description: >-
     `ECP-GEN-4290` — rate limit exceeded. The request is rejected **without being

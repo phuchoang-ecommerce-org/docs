@@ -57,7 +57,7 @@ In plain Spring, both are `@Service`. [`Technology Stack.md`](../Technology%20St
 | `@ValueObject` | `Money`, `Quantity`, `ReservationStatus`, `Address`, typed IDs | Immutable; no identity |
 | `@DomainEvent` | `OrderPaid`, `StockReserved`, `PaymentCaptured`, … | Past-tense name; immutable |
 | `@DomainService` | `PromotionStackingPolicy` and peers | **No repository field, no port field, no transaction** — the `Domain Model.md` §7 rule, as an ArchUnit assertion |
-| `@Repository` (JMolecules) | one per aggregate root | Interface declared in the domain layer, implemented in infrastructure |
+| `@Repository` (JMolecules) | one per aggregate root | Interface declared in `internal.domain.repository`, implemented in infrastructure; query ports and technical stores are not repositories |
 
 **Application and infrastructure layers — context-named Spring meta-annotations:**
 

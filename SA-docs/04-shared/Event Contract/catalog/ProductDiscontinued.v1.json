@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ecp.phuchoang.org/event-contracts/catalog/ProductDiscontinued.v1.json",
+  "allOf": [
+    {"$ref": "../envelope.v1.json"},
+    {
+      "properties": {
+        "eventType": {"const": "ProductDiscontinued"},
+        "eventVersion": {"const": 1},
+        "aggregateType": {"const": "Product"},
+        "payload": {
+          "type": "object",
+          "required": ["productId", "variantSkus"],
+          "properties": {
+            "productId": {"type": "string", "format": "uuid"},
+            "variantSkus": {
+              "type": "array",
+              "items": {"type": "string", "minLength": 1}
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
+  ]
+}

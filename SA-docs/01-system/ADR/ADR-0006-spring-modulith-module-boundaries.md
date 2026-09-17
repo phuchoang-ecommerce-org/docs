@@ -61,10 +61,11 @@ Two questions follow, and `Domain Model.md` §5.3 explicitly hands the second on
   ├── cart/                   ├── promotion/
   │                           ├── review/
   │
-  └── each module:  api/          public — the module's deliberate surface
-                    application/  internal — use cases, ports, orchestration
-                    domain/       internal — aggregates, VOs, domain services
-                    infrastructure/ internal — adapters
+  └── each module:  api/                              public — the deliberate surface
+                    internal/application/             use cases, ports, orchestration
+                    internal/domain/{model,event}/    aggregates, VOs, domain events
+                    internal/domain/repository/       one JMolecules repository per root
+                    internal/infrastructure/          adapters
 ```
 
 **Resolution of `Domain Model.md` §5.3.** The Shared Kernel gets its own `shared-kernel` module with two enforced properties:

@@ -190,7 +190,29 @@ categoryById:
         description: The category still holds products or child categories.
         content:
           application/problem+json:
-            schema: { $ref: '../components/schemas/common.yaml#/Problem' }
+            schema:
+              allOf:
+                - $ref: '../components/schemas/common.yaml#/Problem'
+                - type: object
+                  required: [blocking]
+                  properties:
+                    blocking:
+                      type: object
+                      required: [productCount, childCategoryCount]
+                      properties:
+                        productCount: { type: integer, format: int32, minimum: 0 }
+                        childCategoryCount: { type: integer, format: int32, minimum: 0 }
+            example:
+              type: https://ecp.example/errors/ECP-CAT-4090
+              title: Category still contains assigned records
+              status: 409
+              code: ECP-CAT-4090
+              instance: /api/v1/categories/018f3c2a-7b41-7c9e-9f10-2a4b6c8d0e12
+              correlationId: 0f9c2b3a-4d61-4e2f-9c77-1a2b3c4d5e6f
+              errors: []
+              blocking:
+                productCount: 12
+                childCategoryCount: 3
       '429': { $ref: '../components/responses.yaml#/RateLimited' }
 
 categoryProducts:
@@ -205,9 +227,6 @@ categoryProducts:
       (`FR-CAT-03`). Out-of-stock products are included and marked, not hidden.
       Only `PUBLISHED` products appear (`BR-CAT-02`). Sortable fields are
       `price`, `createdAt`, and `popularity` — each is index-backed (`P10`).
-      `cursor` is an opaque continuation token bound to this category, the
-      selected filters, and sort; pass it unchanged only with the same listing
-      inputs and discard it whenever any of them changes.
     security: []
     x-ecp-roles: [GUEST, CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
     x-ecp-traces:
@@ -339,8 +358,6 @@ productById:
       search, recommendations, or reviews must never prevent browsing
       (`NFR-AVAIL-02`). Availability shown here is advisory; the binding check
       happens inside the order-placement transaction (`ADR-0008` §4).
-      Variant `availability` is omitted while Catalog's temporary advisory
-      projection is unknown; when projected it is `{inStock: boolean}`.
     security: []
     x-ecp-roles: [GUEST, CUSTOMER, STAFF, WAREHOUSE_OPERATOR, CUSTOMER_SUPPORT, ADMINISTRATOR]
     x-ecp-traces:
@@ -359,7 +376,7 @@ productById:
           application/json:
             schema: { $ref: '../components/schemas/catalog.yaml#/Product' }
       '304': { $ref: '../components/responses.yaml#/NotModified' }
-      '404': { $ref: '../components/responses.yaml#/NotFound' }
+      '404': { $ref: '../components/responses.yaml#/ProductUnavailable' }
       '429': { $ref: '../components/responses.yaml#/RateLimited' }
   patch:
     operationId: updateProduct

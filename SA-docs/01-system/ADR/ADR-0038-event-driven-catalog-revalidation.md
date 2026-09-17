@@ -26,9 +26,9 @@ There is also a boundary question. [`Deployment Diagram.md`](../Deployment%20Dia
 
 ## 3. Considered Options
 
-**Option 1 — A Kafka consumer in `ecp-api` calls a signed revalidation endpoint on `ecp-web` with tags.** *(chosen)*
+**Option 1 — A Kafka consumer in `ecp-api` delivers a signed catalog event envelope to a revalidation endpoint on `ecp-web`.** *(chosen)*
 
-- **Pros:** Reuses the pattern [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md) §5.7 already runs for the Redis cache, including its consumer-group conventions, its idempotency, and its lag alarm — so the frontend's invalidation is observable by the apparatus that already exists. Kafka stays inside the data tier and `ecp-web` gains no broker client, no consumer-group membership, and no partition assignment to operate. Tag granularity means one price change invalidates one product, not the catalog. The call carries no content, so there is exactly one place a page's data comes from.
+- **Pros:** Reuses the pattern [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md) §5.7 already runs for the Redis cache, including its consumer-group conventions, its idempotency, and its lag alarm — so the frontend's invalidation is observable by the apparatus that already exists. Kafka stays inside the data tier and `ecp-web` gains no broker client, no consumer-group membership, and no partition assignment to operate. Tag granularity means one price change invalidates one product, not the catalog. The event supplies invalidation identifiers, never page content, and `ecp-web` alone derives tags from them.
 - **Cons:** It is an HTTP call between two application components that otherwise only talk in one direction, and the direction reverses here. `ecp-web` gains an inbound endpoint that purges cache, which is a denial-of-service primitive if it is ever reachable or unauthenticated. And a single HTTP call reaches a single replica — see §5.
 
 **Option 2 — `ecp-web` consumes Kafka directly.**
@@ -54,13 +54,13 @@ There is also a boundary question. [`Deployment Diagram.md`](../Deployment%20Dia
 |---|---|
 | Observer | A consumer group in `ecp-api`, `ecp.web-revalidation`, over `ecp.catalog.product.v1` and `ecp.catalog.category.v1` ([`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md) §4.2's topic catalogue) |
 | Transport | A signed `POST` to `ecp-web`'s internal revalidation route handler, on the internal network only |
-| Payload | **Tags, never content.** [`CQRS.md`](../../02-backend/CQRS.md) §6.3's `DEL`-never-`SET` rule, for the same reason: content would give one page two freshness mechanisms and a guaranteed disagreement |
+| Payload | A signed catalog event envelope, **never caller-supplied tags or page content**. `ecp-web` derives tags from the event identifiers under the versioned [`Private Web Revalidation Callback v1`](../../04-shared/Event%20Contract/web-revalidation.v1.md), so content cannot create a second freshness mechanism |
 | Granularity | `product:{id}` · `variant-price:{sku}` · `category:{slug}` — deliberately parallel to the Redis key scheme of [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md) §5.7 |
 | Backstop | Every statically generated route also carries a time-based `revalidate`. TTL is a backstop, not the mechanism ([ADR-0015](./ADR-0015-redis-cache-and-rate-limiting.md) §4) |
 | Observability | The consumer joins the existing invalidation-lag alarm. A silently dead consumer is otherwise indistinguishable from a working one |
 | Single path | The admin console never revalidates directly. It writes through `ecp-api` and the event does the rest |
 
-The wiring, the tag table, and the endpoint's security are in [`Data Fetching.md`](../../03-frontend/Data%20Fetching.md) §7.
+The wiring and tag table are in [`Data Fetching.md`](../../03-frontend/Data%20Fetching.md) §7; the endpoint's versioned request, signature, and response contract are in [`Private Web Revalidation Callback v1`](../../04-shared/Event%20Contract/web-revalidation.v1.md).
 
 ## 5. Consequences
 
@@ -80,7 +80,7 @@ The wiring, the tag table, and the endpoint's security are in [`Data Fetching.md
 
 ### Neutral / follow-on
 
-- The tag vocabulary is a candidate for `04-shared/` once the event contract folder exists ([`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md) §3.5). Today it is specified in [`Data Fetching.md`](../../03-frontend/Data%20Fetching.md) §7.1 and nowhere else, which is a known asymmetry.
+- The tag vocabulary and the callback's wire contract now live in `04-shared/Event Contract/`; [`Data Fetching.md`](../../03-frontend/Data%20Fetching.md) §7 remains the frontend-facing explanation of the same mapping.
 - Whether the shared cache handler and the shared session store (`F-02`) are one decision or two is left to whichever is taken first. They have the same shape and the same backing store.
 
 ## 6. Related Decisions

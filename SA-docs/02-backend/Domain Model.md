@@ -231,13 +231,13 @@ Stated once here and applied throughout §8, to avoid repeating the same reasoni
 
 | Aggregate | Root | Entities | Key Value Objects |
 |---|---|---|---|
-| `Account` | `Account` (per `srs.md`, keyed by email) | `Address` (list, one flagged default) | `EmailAddress`, `CredentialHash`, `Role`, `AccountStatus` |
+| `Account` | `Account` (per `srs.md`, keyed by email) | `CustomerAddress` (list, one flagged default), `IdentityToken` | `EmailAddress`, `CredentialHash`, `Role`, `AccountStatus` |
 
 | Invariant | Rule | Enforced by |
 |---|---|---|
 | Email identifies at most one account | `BR-CUS-01` | DB unique constraint (§7 global-constraint pattern) |
 | Unverified accounts can browse/cart but not order or review | `BR-CUS-02` | Cross-context check — Ordering's and Review's *application services* query `Account.verificationStatus` via this context's public API before proceeding, not a domain-layer dependency |
-| Verification/reset/refresh tokens are single-use, expiring | `BR-CUS-03` | `Account` aggregate method |
+| Verification/reset/refresh tokens are single-use, expiring | `BR-CUS-03` | `Account` aggregate method over its `IdentityToken` entities; conditional storage updates preserve the race guarantee |
 | Authentication failure reveals nothing about which credential was wrong | `BR-CUS-04` | Application service (constant-shape response regardless of failure reason) |
 | At most one default shipping address | `BR-CUS-05` | `Account` aggregate invariant over its `Address` entities |
 | A user may not self-grant a role they lack, nor revoke the last Administrator | `BR-AUD-03` | DB check constraint / count query (§7 global-constraint pattern) |
