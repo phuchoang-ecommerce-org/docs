@@ -2,7 +2,81 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ecp.phuchoang.org/event-contracts/catalog/CategoryChanged.v1.json",
   "allOf": [
-    {"$ref": "../envelope.v1.json"},
-    {"properties": {"eventType": {"const": "CategoryChanged"}, "eventVersion": {"const": 1}, "aggregateType": {"const": "Category"}, "payload": {"type": "object", "required": ["id", "name", "slug", "path", "depth", "sortOrder", "affectedCategorySlugs"], "properties": {"id": {"type": "string", "format": "uuid"}, "parentId": {"type": ["string", "null"], "format": "uuid"}, "name": {"type": "string", "minLength": 1}, "slug": {"type": "string", "minLength": 1}, "path": {"type": "string", "pattern": "^/.+/$"}, "depth": {"type": "integer", "minimum": 0}, "sortOrder": {"type": "integer"}, "affectedCategorySlugs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}}, "additionalProperties": true}}}
+    {
+      "$ref": "../envelope.v1.json"
+    },
+    {
+      "properties": {
+        "eventType": {
+          "const": "CategoryChanged"
+        },
+        "eventVersion": {
+          "const": 1
+        },
+        "aggregateType": {
+          "const": "Category"
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "id",
+            "name",
+            "slug",
+            "path",
+            "depth",
+            "sortOrder",
+            "affectedCategorySlugs"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "parentId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uuid"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "slug": {
+              "type": "string",
+              "minLength": 1
+            },
+            "path": {
+              "type": "string",
+              "pattern": "^/.+/$"
+            },
+            "depth": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sortOrder": {
+              "type": "integer"
+            },
+            "affectedCategorySlugs": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "affectedCategoryIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
   ]
 }
