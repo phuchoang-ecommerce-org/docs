@@ -1,0 +1,42 @@
+---
+import { countDocuments, type FolderNode } from '../lib/docs';
+import FolderTree from './FolderTree.astro';
+
+interface Props {
+  node: FolderNode;
+  depth?: number;
+}
+
+const { node, depth = 0 } = Astro.props;
+const isFolder = node.children.length > 0;
+const label = node.document?.title ?? node.name.replace(/-docs$/, '').replaceAll('-', ' ');
+---
+
+<li data-folder={isFolder ? '' : undefined} class:list={{ 'mt-1': depth > 0 }}>
+  {isFolder ? (
+    <details open={depth < 1} class="group">
+      <summary class="flex min-h-9 cursor-pointer list-none items-center justify-between gap-3 rounded-sm px-2 py-2 text-sm font-semibold text-ink transition-colors hover:bg-sage [&::-webkit-details-marker]:hidden">
+        <span class="flex min-w-0 items-center gap-2">
+          <span class="grid size-4 shrink-0 place-items-center text-moss" aria-hidden="true">
+            <span class="group-open:hidden">+</span><span class="hidden group-open:inline">−</span>
+          </span>
+          <span class="truncate capitalize">{label}</span>
+        </span>
+        <span class="shrink-0 font-mono text-xs font-normal text-stone">{countDocuments(node)}</span>
+      </summary>
+      <ul class="ml-3 border-l border-line pl-2" aria-label={`${label} contents`}>
+        {node.children.map((child) => <FolderTree node={child} depth={depth + 1} />)}
+      </ul>
+    </details>
+  ) : node.document ? (
+    <a
+      href={`/${node.document.path}`}
+      data-document
+      data-search={`${node.document.title} ${node.document.path}`.toLowerCase()}
+      class="group flex min-h-9 items-center gap-3 rounded-sm px-2 py-2 text-sm text-ink transition-colors hover:bg-sage hover:text-moss"
+    >
+      <span class="size-1.5 shrink-0 rounded-full bg-line group-hover:bg-moss" aria-hidden="true"></span>
+      <span class="min-w-0 truncate">{node.document.title}</span>
+    </a>
+  ) : null}
+</li>

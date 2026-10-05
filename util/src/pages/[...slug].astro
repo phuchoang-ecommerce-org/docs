@@ -1,0 +1,277 @@
+---
+import { marked } from 'marked';
+import { posix } from 'node:path';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getDocument, getDocuments } from '../lib/docs';
+
+export async function getStaticPaths() {
+  const documents = await getDocuments();
+  return documents.map((document) => ({
+    params: { slug: document.path },
+  }));
+}
+
+const requestedPath = Astro.params.slug ?? '';
+const document = await getDocument(requestedPath);
+if (!document) return Astro.redirect('/');
+
+function toSitePath(href: string, isImage = false) {
+  if (/^(?:[a-z]+:|\/\/|#)/i.test(href)) return href;
+  const [sourcePath, suffix = ''] = href.match(/^([^?#]*)(.*)$/)?.slice(1) ?? [href, ''];
+  const resolved = posix.normalize(posix.join(posix.dirname(document.path), decodeURIComponent(sourcePath)));
+  return `${isImage ? '/docs' : ''}/${encodeURI(resolved)}${suffix}`;
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[character] ?? character);
+}
+
+const renderer = new marked.Renderer();
+const renderLink = renderer.link.bind(renderer);
+const renderImage = renderer.image.bind(renderer);
+const renderCode = renderer.code.bind(renderer);
+renderer.link = (href, title, text) => renderLink(toSitePath(href), title, text);
+renderer.image = (href, title, text) => renderImage(toSitePath(href, true), title, text);
+renderer.code = (code, infostring, escaped) => {
+  const language = (infostring || '').match(/^\S+/)?.[0];
+  if (language === 'mermaid') {
+    return `<figure class="diagram" data-diagram>
+      <pre class="mermaid" data-mermaid>${escapeHtml(code)}</pre>
+      <figcaption class="diagram-caption"><span>Click the diagram or open it for a closer read.</span><button type="button" class="diagram-open" data-diagram-open>Open &amp; zoom</button></figcaption>
+    </figure>`;
+  }
+  return renderCode(code, infostring, escaped);
+};
+const html = await marked.parse(document.source, { gfm: true, breaks: false, renderer });
+const breadcrumbs = document.path.split('/');
+---
+
+<BaseLayout title={`${document.title} / ECP`}>
+  <div class="mx-auto min-h-screen max-w-7xl px-5 py-5 sm:px-8 sm:py-8 lg:px-12">
+    <header class="flex items-center justify-between border-b border-line pb-5">
+      <a href="/" class="group inline-flex items-center gap-3 text-sm font-semibold tracking-[0.18em] text-ink uppercase">
+        <span class="grid size-8 place-items-center rounded-full border border-moss text-[0.68rem] text-moss transition-colors group-hover:bg-moss group-hover:text-paper">E</span>
+        ECP / util
+      </a>
+      <a href="/#library" class="text-sm text-stone underline decoration-line underline-offset-4 hover:text-moss hover:decoration-moss">Library</a>
+    </header>
+
+    <main id="main" class="py-12 lg:grid lg:grid-cols-[13rem_minmax(0,46rem)] lg:justify-center lg:gap-16 lg:py-20">
+      <aside class="mb-10 lg:mb-0" aria-label="Document location">
+        <p class="text-xs font-semibold tracking-[0.18em] text-moss uppercase">Now reading</p>
+        <ol class="mt-4 flex flex-wrap gap-2 text-xs leading-5 text-stone lg:block lg:space-y-2">
+          {breadcrumbs.map((part, index) => <li>{index < breadcrumbs.length - 1 ? `${part} /` : part}</li>)}
+        </ol>
+        <a href="/" class="mt-8 inline-block text-sm font-medium text-moss underline decoration-moss/40 underline-offset-4 hover:decoration-moss">← Back to index</a>
+      </aside>
+      <article class="reader min-w-0" aria-label={document.title} set:html={html} />
+    </main>
+    <footer class="border-t border-line py-7 text-xs text-stone">ECP documentation · {document.path}</footer>
+  </div>
+  <dialog id="diagram-dialog" class="diagram-dialog" aria-labelledby="diagram-dialog-title">
+    <div class="diagram-dialog__header">
+      <p id="diagram-dialog-title" class="diagram-dialog__title">Diagram detail</p>
+      <div class="diagram-tools" aria-label="Diagram controls">
+        <button type="button" class="diagram-tool" data-diagram-action="zoom-out" aria-label="Zoom out">−</button>
+        <output class="w-12 text-center text-xs text-stone" data-diagram-level>100%</output>
+        <button type="button" class="diagram-tool" data-diagram-action="zoom-in" aria-label="Zoom in">+</button>
+        <button type="button" class="diagram-tool" data-diagram-action="reset" aria-label="Reset zoom">↺</button>
+        <button type="button" class="diagram-tool" data-diagram-action="close" aria-label="Close diagram">×</button>
+      </div>
+    </div>
+    <div class="diagram-stage" data-diagram-stage>
+      <div class="diagram-canvas" data-diagram-canvas></div>
+    </div>
+  </dialog>
+  <script>
+    const diagrams = Array.from(document.querySelectorAll<HTMLElement>('[data-mermaid]')).map((element) => ({
+      element,
+      source: element.textContent || '',
+    }));
+    const images = Array.from(document.querySelectorAll<HTMLImageElement>('.reader img'));
+    if (diagrams.length || images.length) {
+      const mermaid = diagrams.length ? (await import('mermaid')).default : undefined;
+      const dialog = document.querySelector<HTMLDialogElement>('#diagram-dialog');
+      const dialogTitle = dialog?.querySelector<HTMLElement>('#diagram-dialog-title');
+      const stage = dialog?.querySelector<HTMLElement>('[data-diagram-stage]');
+      const canvas = dialog?.querySelector<HTMLElement>('[data-diagram-canvas]');
+      const level = dialog?.querySelector<HTMLOutputElement>('[data-diagram-level]');
+      const media = window.matchMedia('(prefers-color-scheme: dark)');
+      let renderPass = 0;
+      let scale = 1;
+      let translateX = 0;
+      let translateY = 0;
+      let dragStartX = 0;
+      let dragStartY = 0;
+      let dragging = false;
+      let activeTrigger: HTMLElement | null = null;
+
+      const color = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      const applyTransform = () => {
+        if (!canvas || !level) return;
+        canvas.style.transform = `translate(-50%, -50%) translate(${translateX}px, ${translateY}px) scale(${scale})`;
+        level.value = `${Math.round(scale * 100)}%`;
+      };
+      const resetZoom = () => {
+        scale = 1;
+        translateX = 0;
+        translateY = 0;
+        applyTransform();
+      };
+      const zoomAt = (nextScale: number, clientX?: number, clientY?: number) => {
+        if (!stage) return;
+        const previousScale = scale;
+        scale = Math.min(5, Math.max(0.5, nextScale));
+        if (scale === previousScale) return;
+        if (clientX === undefined || clientY === undefined) {
+          translateX = 0;
+          translateY = 0;
+          applyTransform();
+          return;
+        }
+        const rect = stage.getBoundingClientRect();
+        const focusX = clientX - (rect.left + rect.width / 2);
+        const focusY = clientY - (rect.top + rect.height / 2);
+        const factor = scale / previousScale;
+        translateX = focusX - (focusX - translateX) * factor;
+        translateY = focusY - (focusY - translateY) * factor;
+        applyTransform();
+      };
+      const openVisual = (source: SVGElement | HTMLImageElement, trigger: HTMLElement, title: string) => {
+        if (!dialog || !canvas) return;
+        activeTrigger = trigger;
+        canvas.replaceChildren(source.cloneNode(true));
+        const copy = canvas.firstElementChild;
+        if (copy instanceof SVGElement) {
+          const viewBox = copy.getAttribute('viewBox')?.trim().split(/\s+/).map(Number);
+          if (viewBox?.length === 4) {
+            copy.setAttribute('width', String(viewBox[2]));
+            copy.setAttribute('height', String(viewBox[3]));
+          }
+        }
+        if (copy instanceof HTMLImageElement) {
+          copy.removeAttribute('class');
+          copy.alt = '';
+        }
+        if (dialogTitle) dialogTitle.textContent = title;
+        dialog.showModal();
+        resetZoom();
+        dialog.querySelector<HTMLElement>('[data-diagram-action="close"]')?.focus();
+      };
+      const attachZoom = (diagram: HTMLElement) => {
+        const button = diagram.parentElement?.querySelector<HTMLButtonElement>('[data-diagram-open]');
+        if (!diagram.querySelector('svg') || !button || diagram.dataset.zoomAttached === 'true') return;
+        const open = (trigger: HTMLElement) => {
+          const svg = diagram.querySelector<SVGElement>('svg');
+          if (svg) openVisual(svg, trigger, 'Mermaid diagram detail');
+        };
+        diagram.dataset.zoomAttached = 'true';
+        diagram.tabIndex = 0;
+        diagram.setAttribute('role', 'button');
+        diagram.setAttribute('aria-label', 'Open diagram in zoom viewer');
+        diagram.addEventListener('click', () => open(diagram));
+        diagram.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            open(diagram);
+          }
+        });
+        button.addEventListener('click', () => open(button));
+      };
+      const attachImageZoom = (image: HTMLImageElement) => {
+        if (image.dataset.zoomAttached === 'true') return;
+        const label = image.alt ? `Open ${image.alt} in zoom viewer` : 'Open image in zoom viewer';
+        const open = () => openVisual(image, image, image.alt || 'Image detail');
+        image.dataset.zoomAttached = 'true';
+        image.tabIndex = 0;
+        image.setAttribute('role', 'button');
+        image.setAttribute('aria-label', label);
+        image.addEventListener('click', open);
+        image.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            open();
+          }
+        });
+      };
+      const render = async () => {
+        if (!mermaid) return;
+        renderPass += 1;
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'strict',
+          theme: 'base',
+          themeVariables: {
+            background: color('--diagram-canvas'),
+            primaryColor: color('--diagram-node'),
+            primaryTextColor: color('--diagram-ink'),
+            primaryBorderColor: color('--diagram-line'),
+            lineColor: color('--diagram-line'),
+            secondaryColor: color('--diagram-canvas'),
+            tertiaryColor: color('--diagram-canvas'),
+            textColor: color('--diagram-ink'),
+            fontFamily: 'Avenir Next, Avenir, Segoe UI, sans-serif',
+            fontSize: '16px',
+          },
+          flowchart: { useMaxWidth: false, nodeSpacing: 56, rankSpacing: 68, padding: 18 },
+          sequence: { useMaxWidth: false, actorMargin: 64, width: 180, height: 68, boxMargin: 16, boxTextMargin: 8 },
+        });
+        for (const [index, diagram] of diagrams.entries()) {
+          try {
+            const { svg, bindFunctions } = await mermaid.render(`ecp-mermaid-${renderPass}-${index}`, diagram.source);
+            diagram.element.innerHTML = svg;
+            diagram.element.dataset.rendered = 'true';
+            diagram.element.removeAttribute('data-error');
+            bindFunctions?.(diagram.element);
+            attachZoom(diagram.element);
+          } catch (error) {
+            diagram.element.textContent = diagram.source;
+            diagram.element.dataset.error = 'true';
+            console.error('Mermaid diagram failed to render', error);
+          }
+        }
+      };
+      dialog?.addEventListener('close', () => activeTrigger?.focus());
+      dialog?.addEventListener('click', (event) => {
+        if (event.target === dialog) dialog.close();
+      });
+      dialog?.querySelector('[data-diagram-action="zoom-in"]')?.addEventListener('click', () => zoomAt(scale * 1.25));
+      dialog?.querySelector('[data-diagram-action="zoom-out"]')?.addEventListener('click', () => zoomAt(scale / 1.25));
+      dialog?.querySelector('[data-diagram-action="reset"]')?.addEventListener('click', resetZoom);
+      dialog?.querySelector('[data-diagram-action="close"]')?.addEventListener('click', () => dialog.close());
+      stage?.addEventListener('wheel', (event) => {
+        event.preventDefault();
+        zoomAt(scale * (event.deltaY < 0 ? 1.15 : 1 / 1.15), event.clientX, event.clientY);
+      }, { passive: false });
+      stage?.addEventListener('pointerdown', (event) => {
+        dragging = true;
+        dragStartX = event.clientX - translateX;
+        dragStartY = event.clientY - translateY;
+        stage.setPointerCapture(event.pointerId);
+        stage.classList.add('is-dragging');
+      });
+      stage?.addEventListener('pointermove', (event) => {
+        if (!dragging) return;
+        translateX = event.clientX - dragStartX;
+        translateY = event.clientY - dragStartY;
+        applyTransform();
+      });
+      stage?.addEventListener('pointerup', () => {
+        dragging = false;
+        stage.classList.remove('is-dragging');
+      });
+      dialog?.addEventListener('keydown', (event) => {
+        if (event.key === '+' || event.key === '=') zoomAt(scale * 1.25);
+        if (event.key === '-') zoomAt(scale / 1.25);
+        if (event.key === '0') resetZoom();
+      });
+      images.forEach(attachImageZoom);
+      if (mermaid) {
+        media.addEventListener('change', render);
+        await render();
+      }
+    }
+  </script>
+</BaseLayout>

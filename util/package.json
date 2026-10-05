@@ -1,22 +1,24 @@
 {
   "name": "ecommerce",
   "version": "1.0.0",
-  "description": "",
+  "description": "A quiet, focused reader for the Enterprise Commerce Platform documentation.",
   "main": "index.js",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "docs:diagrams": "node toSvg.js",
-    "docs:html": "node toHtml.js",
-    "docs:build": "npm run docs:diagrams && npm run docs:html",
+    "dev": "astro dev",
+    "copy:assets": "node copy-assets.mjs",
+    "build": "npm run copy:assets && astro build",
+    "preview": "astro preview",
+    "test": "npm run build",
+    "diagrams:build": "node toSvg.js",
     "docs:openapi:lint": "npx -y @redocly/cli@2 lint --config ../SA-docs/04-shared/OpenAPI/redocly.yaml",
     "docs:openapi:bundle": "npx -y @redocly/cli@2 bundle ecp@v1 --config ../SA-docs/04-shared/OpenAPI/redocly.yaml -o ../SA-docs/04-shared/OpenAPI/dist/openapi.bundled.yaml"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/phuchoang-ecommerce-org/docs.git"
+    "url": "git+https://github.com/phuchoang-ecommerce-org/doc.git"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +29,10 @@
   },
   "homepage": "https://github.com/phuchoang-ecommerce-org/docs#readme",
   "dependencies": {
-    "marked": "^12.0.2"
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.3.5",
+    "marked": "^12.0.2",
+    "mermaid": "^12.1.0",
+    "tailwindcss": "^4.3.3"
   }
 }

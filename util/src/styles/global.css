@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+  --font-serif: Iowan Old Style, "Palatino Linotype", Palatino, Georgia, serif;
+  --color-paper: var(--canvas);
+  --color-ink: var(--ink);
+  --color-moss: var(--moss);
+  --color-sage: var(--sage);
+  --color-stone: var(--stone);
+  --color-line: var(--line);
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --canvas: #f7f5ef;
+    --ink: #202822;
+    --moss: #365946;
+    --sage: #e5eadf;
+    --stone: #62685f;
+    --line: #d9d9d0;
+    --diagram-canvas: #fffdf7;
+    --diagram-ink: #162119;
+    --diagram-node: #e0eadf;
+    --diagram-line: #365946;
+    --diagram-muted: #667369;
+    --error-border: #b45309;
+    --error-canvas: #fffbeb;
+    --error-ink: #78350f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --canvas: #121713;
+      --ink: #edf0e9;
+      --moss: #a6d5b6;
+      --sage: #26392d;
+      --stone: #bbc2ba;
+      --line: #405047;
+      --diagram-canvas: #18211b;
+      --diagram-ink: #f3f7ef;
+      --diagram-node: #294937;
+      --diagram-line: #a6d5b6;
+      --diagram-muted: #c0cbbf;
+      --error-border: #fbbf24;
+      --error-canvas: #33280d;
+      --error-ink: #fef3c7;
+    }
+  }
+  html { scroll-behavior: smooth; }
+  body { @apply min-h-screen bg-paper font-sans text-ink antialiased; }
+  ::selection { @apply bg-sage text-ink; }
+  :focus-visible { @apply outline-2 outline-offset-3 outline-moss; }
+}
+
+@layer components {
+  .reader h1 { @apply mt-0 font-serif text-4xl leading-tight tracking-[-0.03em] sm:text-5xl; }
+  .reader h2 { @apply mt-14 border-t border-line pt-8 font-serif text-3xl tracking-[-0.025em]; }
+  .reader h3 { @apply mt-9 font-sans text-lg font-semibold; }
+  .reader p, .reader li { @apply text-[1.05rem] leading-8 text-ink; }
+  .reader p { @apply my-6; }
+  .reader ul, .reader ol { @apply my-6 space-y-2 pl-6; }
+  .reader ul { @apply list-disc; }
+  .reader ol { @apply list-decimal; }
+  .reader a { @apply font-medium text-moss underline decoration-moss/40 underline-offset-4 hover:decoration-moss; }
+  .reader blockquote { @apply my-8 border-l-2 border-moss pl-5 italic text-stone; }
+  .reader hr { @apply my-12 border-0 border-t border-line; }
+  .reader code { @apply rounded-sm bg-sage px-1.5 py-0.5 font-mono text-[0.85em] text-ink; }
+  .reader pre { @apply my-7 overflow-x-auto rounded-sm border border-line bg-sage/50 p-5 text-sm leading-6; }
+  .reader pre code { @apply bg-transparent p-0; }
+  .reader figure.diagram { @apply my-8; }
+  .reader pre.mermaid { @apply my-0 min-h-48 bg-paper p-5; background: var(--diagram-canvas); }
+  .reader pre.mermaid[data-rendered="true"] { @apply cursor-zoom-in; }
+  .reader pre.mermaid[data-rendered="true"]:hover { border-color: var(--moss); }
+  .reader pre.mermaid svg { @apply m-0 block h-auto max-w-none; }
+  .reader pre.mermaid[data-error="true"] { border-color: var(--error-border); background: var(--error-canvas); color: var(--error-ink); }
+  .diagram-caption { @apply flex flex-wrap items-center justify-between gap-3 border-x border-b border-line bg-sage/40 px-4 py-3 text-xs text-stone; }
+  .diagram-open { @apply min-h-9 rounded-sm border border-line bg-paper px-3 py-2 text-sm font-semibold text-ink transition-colors hover:border-moss hover:bg-sage; }
+  .diagram-dialog { position: fixed; inset: 0; width: min(92vw, 96rem); height: min(88dvh, 62rem); max-width: none; max-height: none; margin: auto; border: 1px solid var(--line); background: var(--canvas); color: var(--ink); padding: 0; }
+  .diagram-dialog::backdrop { background: color-mix(in srgb, var(--ink) 62%, transparent); }
+  .diagram-dialog__header { @apply flex min-h-16 items-center justify-between gap-4 border-b border-line px-4 sm:px-6; }
+  .diagram-dialog__title { @apply min-w-0 truncate font-serif text-xl; }
+  .diagram-tools { @apply flex items-center gap-1; }
+  .diagram-tool { @apply grid size-9 place-items-center rounded-sm border border-line bg-paper text-sm font-semibold text-ink transition-colors hover:border-moss hover:bg-sage disabled:cursor-not-allowed disabled:opacity-50; }
+  .diagram-stage { position: relative; height: calc(100% - 4rem); overflow: hidden; background: var(--diagram-canvas); cursor: grab; touch-action: none; }
+  .diagram-stage.is-dragging { cursor: grabbing; }
+  .diagram-canvas { position: absolute; left: 50%; top: 50%; transform-origin: center; }
+  .diagram-canvas svg, .diagram-canvas img { display: block; max-width: none !important; max-height: none !important; margin: 0 !important; }
+  .reader img[data-zoom-attached="true"] { @apply cursor-zoom-in; }
+  .reader table { @apply my-8 block w-full overflow-x-auto border-collapse text-left text-sm; }
+  .reader th { @apply border-b-2 border-ink px-3 py-3 font-semibold; }
+  .reader td { @apply border-b border-line px-3 py-3 align-top leading-6; }
+  .reader img, .reader svg { @apply my-8 h-auto max-w-full; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+}
