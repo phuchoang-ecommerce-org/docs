@@ -4,17 +4,9 @@
 **Audience:** Engineering, Architecture Review
 **Related documents:** [Solution Architecture](../Solution%20Architecture.md) · [Technology Stack](../Technology%20Stack.md) · [Domain Model](../../02-backend/Domain%20Model.md) · [Frontend Architecture](../../03-frontend/Frontend%20Architecture.md) · [UI Design System](../../03-frontend/UI%20Design%20System.md)
 
----
+## 1. Scope
 
-## 1. What This Folder Is
-
-[`Solution Architecture.md`](../Solution%20Architecture.md) §5 records *what* was decided for each business problem `P1`–`P17`. This folder records *why that decision and not another one* — the alternatives weighed, the trade-offs accepted, and the status of each choice.
-
-Each record follows the MADR shape established in [ADR-0001](./ADR-0001-record-architecture-decisions.md): Context and Problem Statement · Decision Drivers · Considered Options (with pros and cons) · Decision Outcome · Consequences · Related Decisions.
-
-`Solution Architecture.md` remains authoritative for the narrative. These records elaborate it; they do not replace it.
-
----
+[`Solution Architecture.md`](../Solution%20Architecture.md) §5 records the decisions for `P1`–`P17`. These ADRs record status, context, rejected options, outcome, and consequences. `Solution Architecture.md` remains authoritative.
 
 ## 2. Status
 
@@ -24,17 +16,13 @@ Each record follows the MADR shape established in [ADR-0001](./ADR-0001-record-a
 | `Proposed` | Made here for the first time, awaiting ratification in architecture review. |
 | `Superseded by ADR-NNNN` | Replaced by a later record. The original file is never deleted or rewritten. |
 
-**Exception:** `ADR-0004` ("Java 21 (LTS) on Spring Boot 3.x, built with Maven") was deleted outright rather than superseded — it was never committed to version control, so no external reader ever depended on it existing. Its number is retired and not reused; its still-relevant content (Java 21, Spring MVC over WebFlux) and its still-relevant risks (virtual-thread pinning, tooling currency) were carried forward into [ADR-0027](./ADR-0027-java-21-spring-boot-4-gradle.md), which now also covers the framework version and build tool it originally decided. Once a record has been committed, this exception no longer applies — supersession, not deletion, is the rule from that point on.
+`ADR-0004` was never committed. Its number is retired, and [ADR-0027](./ADR-0027-java-21-spring-boot-4-gradle.md) carries its remaining decisions and risks. Committed ADRs are superseded, never deleted or rewritten.
 
-**`Accepted` versus `Proposed` is assigned by rule, not by preference.** A record is `Accepted` when the outcome it states is already recorded in [`Solution Architecture.md`](../Solution%20Architecture.md), [`Domain Model.md`](../../02-backend/Domain%20Model.md), or [`Technology Stack.md`](../Technology%20Stack.md) — the record reconstructs the context and the alternatives, it does not invent the outcome. It is `Proposed` when the decision exists nowhere else in the repository and this record is the first place it is made.
+An ADR is `Accepted` when its outcome already exists in [`Solution Architecture.md`](../Solution%20Architecture.md), [`Domain Model.md`](../../02-backend/Domain%20Model.md), or [`Technology Stack.md`](../Technology%20Stack.md). It is `Proposed` when it introduces the decision. Promotion requires its own commit.
 
-A `Proposed` record is never quietly promoted. Promotion is its own commit.
+## 3. Records
 
----
-
-## 3. The Records
-
-Each record's `**Traces to:**` header carries its full list of business problems, requirements, and rules. That list is not repeated here: an index copy is an abridgement, and an abridgement of a traceability list is worse than no copy, because it reads as complete. For coverage across the whole requirement set, see [`BA-docs/traceability-matrix.md`](../../../BA-docs/traceability-matrix.md).
+Each ADR contains its full `Traces to` list. Use the [traceability matrix](../../../BA-docs/traceability-matrix.md) for requirement coverage.
 
 ### Cross-cutting
 
@@ -91,40 +79,17 @@ Each record's `**Traces to:**` header carries its full list of business problems
 
 ---
 
-## 4. Reading Order
+## 4. Reading order
 
-```nano
-0001                     why these records exist, and how to read them
-  ↓
-0002 · 0003              the two decisions everything else assumes:
-                         one deployable, one REST API
-  ↓
-0028                     where that one deployable physically runs
-  ↓
-0027, 0005 → 0018,       backend — runtime, structure, data, events, security, governance
-0029 → 0030,
-0032 → 0034              backend — the event backbone's wire format, relay, and cache topology
-0019 → 0026              frontend — rendering, language, design system, data, session, motion
-0035 → 0039              frontend — structure, API access, URL state, revalidation, budgets
-```
+Read `0001`, then `0002`, `0003`, and `0028`. For backend work, read `0027`, `0005`–`0018`, `0029`–`0030`, and `0032`–`0034`. For frontend work, read `0019`–`0026` and `0035`–`0039`. Start with [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md) and [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md) when time is limited.
 
-`0027` is out of numeric order with its siblings: it is the backend's runtime/framework/build record and belongs first in the reading order, but was written after the frontend records because it supersedes and absorbs what was originally ADR-0004 (deleted; see §2).
+## 5. Add a record
 
-`0032`–`0034` come last for the same kind of reason as `0027` comes first: they are the operational half of decisions `0012` and `0015` already made, and they only make sense after those. Each discharges a deferral that [`Backend Architecture.md`](../../02-backend/Backend%20Architecture.md) collects.
-
-`0035`–`0039` are the frontend's equivalent, and they read the same way: `0019`–`0026` decided the frontend's shape and each of them deferred its follow-on questions to a `03-frontend/` file that did not exist. These five are what those questions turned into once the file was written — structure, API access, URL state, revalidation, and budgets. [`Frontend Architecture.md`](../../03-frontend/Frontend%20Architecture.md) §1 is the index to the six documents they sit beneath.
-
-Two records carry more weight than the rest and are worth reading first if time is short: [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md), which is how the platform avoids selling stock it does not have, and [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md), without which the "modular" in modular monolith is only a claim.
-
----
-
-## 5. Adding a Record
-
-1. Take the next number in the sequence — currently **`ADR-0040`**. Numbers are never reused, including for superseded records.
+1. Use the next number, currently `ADR-0040`. Never reuse a number.
 2. Name the file `ADR-00NN-<kebab-case-title>.md`.
-3. Copy the structure from any existing record: metadata block, then the six numbered sections. The metadata block is `**Status:**`, `**Date:**`, and `**Traces to:**` only — every record in this folder is an Architecture Decision Record decided by Solution Architecture, so neither fact is repeated per file, and the documents a record relates to are reached through its inline links and its §6.
-4. Give `Considered Options` at least one option that was genuinely rejected, with real trade-offs. If there isn't one, the decision probably didn't need a record.
-5. Fill `Consequences` honestly — the negative section is the part a future reader will need.
+3. Copy an existing record. Keep only `Status`, `Date`, and `Traces to` in the metadata block.
+4. Include at least one rejected option with its real trade-offs.
+5. Record negative consequences.
 6. Add a row to the table above.
 
-To supersede a record, write the new one, then set the old record's status to `Superseded by ADR-00NN` and leave its content untouched.
+To supersede a record, add the new ADR, set the old status to `Superseded by ADR-00NN`, and leave the old content unchanged.

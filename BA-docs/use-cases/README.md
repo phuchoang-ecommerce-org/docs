@@ -6,62 +6,46 @@
 **Version:** 1.0
 **Status:** Draft for stakeholder review
 
-Every numbered file in this folder is a **Use Case Specification — domain** for the audience above; the per-file headers carry only what differs between them.
+## 1. Scope
 
----
-
-## 1. Purpose of This Document
-
-The exception flows are the point. `FR-ORD-08` can say that placing an order and reserving stock must be atomic in a single line; it takes a use case to say what the customer sees when the reservation succeeds and the payment does not, what happens to the reserved units, and how long they stay reserved. **P5** through **P8** — inconsistent rule enforcement, lost business events, partial failure in money-critical flows, and overselling under concentrated demand — are business problems until they are written as exception flows, at which point they become test cases.
-
-Every use case here is specified in full. There is no abbreviated tier: a use case with no documented exception flow is a use case whose failure behaviour nobody has decided, and deciding it later, under delivery pressure, is how P5 and P7 happen.
-
----
+This index covers 87 use cases in 14 domain files. Each use case defines success, alternate, and exception flows. The exception flows make `P5`–`P8` testable by stating the actor response and final system state after a failure.
 
 ## 2. Actors
 
-Actor definitions are normative in [`../srs.md`](../srs.md) §2.3 and are not reproduced here — a second copy is a second thing to drift, and this one had already drifted before it was removed.
+Actor definitions and role authority are normative in [`../srs.md`](../srs.md) §2.3.
 
 ![Actors and system boundary](../diagrams/system-context.svg)
 
-### 2.1 Role Authority
+`UC-AUD-03` specifies enforcement. `BR-AUD-02` requires the same decision at every entry point.
 
-See [`../srs.md`](../srs.md) §2.3 for the normative role × domain authority table. `UC-AUD-03` specifies how it is enforced, and `BR-AUD-02` requires that the same decision is reached whatever entry point a request arrives through.
-
----
-
-## 3. How to Read a Use Case
+## 3. Use case format
 
 Every use case in this specification uses the following structure.
 
 | Field | Meaning |
 |---|---|
-| **Primary actor** | The actor whose goal the use case serves |
-| **Supporting actors** | Other actors and external providers the platform calls upon |
-| **Stakeholders & interests** | Who cares about the outcome and what they need from it |
-| **Priority** | MoSCoW, inherited from the requirements realised |
-| **Trigger** | The event that starts the use case |
-| **Preconditions** | What must already be true; the use case is not attempted otherwise |
-| **Success postconditions** | What is true once it completes successfully |
-| **Failure postconditions** | What is true if it does not — stated explicitly, because "nothing happened" is a claim that must be verified, not assumed |
-| **Frequency** | How often it occurs, which informs the performance targets that apply |
-| **Traceability** | The `FR`/`BR`/`NFR` identifiers realised, and the `P` business problems addressed |
+| **Primary actor** | Actor whose goal starts the use case |
+| **Supporting actors** | Other actors or external providers involved |
+| **Stakeholders & interests** | Affected parties and required outcomes |
+| **Priority** | MoSCoW priority inherited from the source requirements |
+| **Trigger** | Event that starts the use case |
+| **Preconditions** | Required state before the use case starts |
+| **Success postconditions** | State after success |
+| **Failure postconditions** | State after failure |
+| **Frequency** | Expected rate used by performance requirements |
+| **Traceability** | Realized `FR`/`BR`/`NFR` IDs and related `P` IDs |
 
 Followed by:
 
-- **Main success scenario** — numbered steps, the path where everything works.
-- **Alternate flows** (`A1`, `A2`, …) — valid variations that still reach the goal, each anchored to the step it branches from.
-- **Exception flows** (`E1`, `E2`, …) — paths where the goal is not reached, each stating what the actor is told and what state the system is left in.
-- **Business rules applied** — the rules from [`../srs.md`](../srs.md) §4 that constrain this use case.
-- **Assumptions & open questions** — where present, what remains to be confirmed.
+- Main success scenario: numbered success path.
+- Alternate flows (`A1`, `A2`, ...): valid branches anchored to a main step.
+- Exception flows (`E1`, `E2`, ...): failed goals, actor response, and final state.
+- Business rules applied: rules from [`../srs.md`](../srs.md) §4.
+- Assumptions and open questions: unresolved items.
 
+Fields with no value are omitted.
 
-A field with no value is omitted rather than printed with an em-dash: an absent
-**Supporting actors** row means none, and an absent **Preconditions** row means none.
-
----
-
-## 4. Use Case Inventory
+## 4. Inventory
 
 **87 use cases across 14 domains.**
 
@@ -241,7 +225,6 @@ A field with no value is omitted rather than printed with an em-dash: an absent
 
 ---
 
-## 5. Cross-Cutting Use Cases
+## 5. Cross-cutting use cases
 
-`UC-AUD-01`, `UC-AUD-03`, and `UC-AUD-04` are exercised by nearly every other use case and are
-not repeated in each. Which use cases include them, and on what trigger, is specified where the three are specified: [`14-audit-access-control.md`](./14-audit-access-control.md).
+`UC-AUD-01`, `UC-AUD-03`, and `UC-AUD-04` apply across domains and are not repeated in each use case. [`14-audit-access-control.md`](./14-audit-access-control.md) defines their triggers.

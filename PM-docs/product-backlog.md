@@ -8,11 +8,11 @@
 
 ---
 
-## 1. What This Document Is
+## 1. Purpose
 
-The ordered, estimated, single list of everything that must be built. It is the **only** source of work for both lanes; neither lane keeps a private list.
+This is the ordered and estimated source of work for both lanes. Neither lane keeps a separate backlog.
 
-It does not restate the stories. [`../BA-docs/user-stories/`](../BA-docs/user-stories/README.md) holds each story's *As a / I want / So that* and its Given/When/Then acceptance criteria, and that file is normative — where this document and a user-story file disagree, **the user-story file is right and this is stale**. What this document adds is the four things a backlog needs and a specification does not: **order, size, lane split, and the contract surface each story touches.**
+[`../BA-docs/user-stories/`](../BA-docs/user-stories/README.md) is normative for story text and acceptance criteria. This backlog adds order, size, lane split, and contract surface. If the documents conflict, this backlog is stale.
 
 ---
 
@@ -20,33 +20,33 @@ It does not restate the stories. [`../BA-docs/user-stories/`](../BA-docs/user-st
 
 | Column | Meaning |
 |---|---|
-| **ID** | `US-<DOMAIN>-<nn>`, 1:1 with `UC-<DOMAIN>-<nn>` by construction ([user-stories §2](../BA-docs/user-stories/README.md)) |
+| **ID** | `US-<DOMAIN>-<nn>`, 1:1 with `UC-<DOMAIN>-<nn>` ([user-stories §2](../BA-docs/user-stories/README.md)) |
 | **Story** | Short title. The full story is in the linked domain file |
-| **P** | MoSCoW, inherited unchanged from the source use case. Never re-decided here |
-| **BE** / **FE** | Story points for each lane's slice. `0` means the lane has no work in this story — an internal or system-actor story |
-| **Sprint** | The sprint each slice is scheduled in, from [`release-plan.md`](./release-plan.md). The two are frequently **different**, and that is the plan working: the frontend builds against the Prism mock and often lands a screen before the endpoint behind it exists |
-| **Contract surface** | The OpenAPI `operationId`s and the `ecp-web` routes the story touches — from [`OpenAPI/`](../SA-docs/04-shared/OpenAPI/README.md) and [`Routing.md`](../SA-docs/03-frontend/Routing.md) |
+| **P** | MoSCoW priority from the source use case |
+| **BE** / **FE** | Story points per lane. `0` means no work for that lane |
+| **Sprint** | Scheduled sprint per lane from [`release-plan.md`](./release-plan.md). FE may use the Prism mock before the endpoint exists |
+| **Contract surface** | OpenAPI `operationId`s and `ecp-web` routes from [`OpenAPI/`](../SA-docs/04-shared/OpenAPI/README.md) and [`Routing.md`](../SA-docs/03-frontend/Routing.md) |
 
-**Estimation scale.** Fibonacci; **1 point ≈ half an ideal developer-day**. Sizing rules and velocity are in [`scrum-framework.md`](./scrum-framework.md) §4.
+**Estimation:** Fibonacci; **1 point ≈ half an ideal developer-day**. See [`scrum-framework.md`](./scrum-framework.md) §4.
 
-**A story is one item, not two.** The lane split is how the work is *scheduled*, not how it is *accepted*. `US-ORD-05` is Done when the backend slice, the frontend slice, and the integration check in [`definition-of-done.md`](./definition-of-done.md) §5 have all passed — not when the backend slice merges.
+A story remains one item across both lanes. It is Done only after both slices and the integration check in [`definition-of-done.md`](./definition-of-done.md) §5 pass.
 
 ---
 
 ## 3. Ordering Principle
 
-The backlog is ordered **Must-first, then by technical dependency**, in that priority. Two constraints do the real ordering work and neither is negotiable:
+Order: **Must first, then technical dependency**.
 
-- **Backend order is forced by the module graph.** [`Module Dependency Diagram.md`](../SA-docs/02-backend/Module%20Dependency%20Diagram.md) §3 makes every context depend on `identity`, and `ordering` depend on `cart`, `inventory`, and `promotion`. `identity` therefore cannot be reordered later and `ordering` cannot be reordered earlier.
-- **Frontend order is forced by the layer model.** [`Feature Structure.md`](../SA-docs/03-frontend/Feature%20Structure.md) §2 points dependencies `app/` → `features/` → `lib/` → `components/`, so the fetch client, session custody, and design-system primitives precede every screen that uses them.
+- **Backend:** every context depends on `identity`; `ordering` depends on `cart`, `inventory`, and `promotion` ([module graph §3](../SA-docs/02-backend/Module%20Dependency%20Diagram.md)).
+- **Frontend:** `app/` → `features/` → `lib/` → `components/`; shared client, session, and UI primitives come before their screens ([layer model §2](../SA-docs/03-frontend/Feature%20Structure.md)).
 
-Within those constraints, `Should` and `Could` stories are deferred wholesale to Release 3. No `Should` story is scheduled ahead of any `Must` story.
+All `Should` and `Could` stories are in Release 3. No `Should` story precedes a `Must` story.
 
 ---
 
 ## 4. User Stories
 
-All 87 stories, grouped by domain in SRS §1.5 domain-code order.
+All 87 stories in the domain order from SRS §1.5.
 
 
 ### 4.1 Customer & Identity — 10 stories · BE 39 · FE 30
@@ -239,7 +239,7 @@ Stories: [`../BA-docs/user-stories/14-audit-access-control.md`](../BA-docs/user-
 
 ### 4.15 Coverage Assertion
 
-Stated explicitly so an omission is visible rather than mistaken for an oversight, in the manner of [`Routing.md`](../SA-docs/03-frontend/Routing.md) §10:
+Coverage by priority:
 
 | Priority | Count | Scheduled in |
 |---|---:|---|
@@ -248,15 +248,13 @@ Stated explicitly so an omission is visible rather than mistaken for an oversigh
 | Could | 4 | Release 3 (S30–S32) |
 | **Total** | **87** | Every story appears in exactly one sprint per lane |
 
-This matches [`../BA-docs/use-cases/README.md`](../BA-docs/use-cases/README.md) §4 exactly: 87 use cases, 87 stories, 1:1, no gaps and no additions. A story with `—` in a lane column has no work for that lane; it is not unscheduled.
+This matches [`../BA-docs/use-cases/README.md`](../BA-docs/use-cases/README.md) §4: 87 use cases and 87 stories, with no gaps or additions. `—` means the lane has no work; it does not mean unscheduled.
 
 ---
 
 ## 5. Enabler Epics
 
-Work with no user story that must exist anyway. These are not invented: they are the "No" rows of [`Testing and Benchmark Strategy.md`](../SA-docs/01-system/Testing%20and%20Benchmark%20Strategy.md) §8's current-state table, plus the ADR commitments the scaffold has not yet discharged.
-
-**Enablers are not tolerated as background work.** Each is a backlog item with points, a sprint, and a lane, because the failure mode [`ADR-0018`](../SA-docs/01-system/ADR/ADR-0018-architecture-governance-ci-gate.md) §5 names — *"slow builds create pressure to skip them, which is exactly how the gate fails"* — starts with an enabler that was never scheduled.
+Enablers cover the "No" rows in [`Testing and Benchmark Strategy.md`](../SA-docs/01-system/Testing%20and%20Benchmark%20Strategy.md) §8 and open ADR commitments. Each has points, a sprint, and a lane.
 
 
 ### 5.1 Backend Lane — 228 points
@@ -328,7 +326,7 @@ Work with no user story that must exist anyway. These are not invented: they are
 | **Backend lane** | 423 | 228 | **651** | 32.5 sprints |
 | **Frontend lane** | 289 | 171 | **460** | 23.0 sprints |
 
-**The backend lane is the critical path, by roughly ten sprints.** This is a structural property of the system, not a scheduling accident: the backend implements 155 operations across 13 modules with CQRS, an event backbone, and three read stores, while the frontend consumes that same contract through one fetch client. [`release-plan.md`](./release-plan.md) §6 says what fills the frontend lane's reserve and why it is an asset rather than waste.
+**The backend lane is the critical path by about ten sprints:** 155 operations across 13 modules, CQRS, an event backbone, and three read stores. [`release-plan.md`](./release-plan.md) §6 assigns the frontend reserve.
 
 ---
 
@@ -340,4 +338,3 @@ Work with no user story that must exist anyway. These are not invented: they are
 | `NFR-SCAL-07`, `NFR-AVAIL-01`, `NFR-MAINT-04`/`-06` | Not tests — a cost trend, a production uptime measurement, and a design review (§2 of that document). Carrying them as backlog items trains the team to ignore the column |
 | The 13 open items across the SA documents | Architecture decisions awaiting ratification, not development work. They surface in the backlog only once decided |
 | Everything in SRS §8 | Out of scope for this release by specification — loyalty, multi-vendor, multi-currency, native mobile. They are extension points the delivered system must not foreclose, not deferred stories |
-

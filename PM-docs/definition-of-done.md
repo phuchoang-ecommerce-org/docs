@@ -6,21 +6,13 @@
 **Status:** Draft for stakeholder review
 **Related documents:** [`scrum-framework.md`](./scrum-framework.md) · [`integration-plan.md`](./integration-plan.md) · [`../SA-docs/01-system/Testing and Benchmark Strategy.md`](../SA-docs/01-system/Testing%20and%20Benchmark%20Strategy.md) · [`../SA-docs/01-system/Security.md`](../SA-docs/01-system/Security.md)
 
----
+## 1. Authority
 
-## 1. Where These Come From
-
-Almost nothing here is new. [`Testing and Benchmark Strategy.md`](../SA-docs/01-system/Testing%20and%20Benchmark%20Strategy.md) already specifies seven test layers, a coverage policy, and a requirement→suite mapping; [`Security.md`](../SA-docs/01-system/Security.md) §12 already owns security verification; [`ADR-0018`](../SA-docs/01-system/ADR/ADR-0018-architecture-governance-ci-gate.md) already decides which gates fail the build.
-
-This document does one thing those cannot: it states **when an individual backlog item may be called finished**. A strategy describes suites; a Definition of Done describes a moment.
-
-Where this document and a strategy document disagree, **the strategy document is right and this is stale.**
-
----
+This document defines when a backlog item is Ready or Done. [`Testing and Benchmark Strategy.md`](../SA-docs/01-system/Testing%20and%20Benchmark%20Strategy.md), [`Security.md`](../SA-docs/01-system/Security.md) §12, and [`ADR-0018`](../SA-docs/01-system/ADR/ADR-0018-architecture-governance-ci-gate.md) remain authoritative. If they conflict with this file, this file is stale.
 
 ## 2. Definition of Ready
 
-An item may not enter a sprint until all six hold. An item that fails goes back to Refinement — never into the sprint "to be clarified during."
+An item enters a sprint only when all six criteria pass. Otherwise, it returns to Refinement.
 
 | # | Criterion |
 |---|---|
@@ -31,9 +23,7 @@ An item may not enter a sprint until all six hold. An item that fails goes back 
 | 5 | Its permission-matrix cell is identified for every operation it touches |
 | 6 | No unresolved contract question remains. If one exists, it is amended per [`integration-plan.md`](./integration-plan.md) §5 **before** the sprint, not during it |
 
----
-
-## 3. Definition of Done — Backend Slice
+## 3. Definition of Done: backend slice
 
 | # | Criterion | Source |
 |---|---|---|
@@ -51,11 +41,9 @@ An item may not enter a sprint until all six hold. An item that fails goes back 
 | 12 | No credential, key, or connection string in an image, a log, an audit entry, or the repository | Deployment §5; `NFR-SEC-07` |
 | 13 | **Every production declaration added or changed by the slice has accurate Javadoc:** package and type purpose; record components, constants, constructors, and methods; inputs, outputs, invariants, failure behavior, and temporary scope where relevant. The owning module's `javadoc` task completes with no warnings. | `P15`; `NFR-MAINT-05`; [`ADR-0018`](../SA-docs/01-system/ADR/ADR-0018-architecture-governance-ci-gate.md) |
 
-**Additionally, for a story with a concurrency guarantee** (`US-INV-01`, `US-ORD-05`, `US-PRM-03`): an **L5 test against Testcontainers PostgreSQL**, not H2. An approximation of a concurrency guarantee is not a guarantee, and this is the rule most likely to be traded away for build speed (Testing Strategy §6.4).
+Stories with a concurrency guarantee (`US-INV-01`, `US-ORD-05`, `US-PRM-03`) also require an L5 test against Testcontainers PostgreSQL, not H2.
 
----
-
-## 4. Definition of Done — Frontend Slice
+## 4. Definition of Done: frontend slice
 
 | # | Criterion | Source |
 |---|---|---|
@@ -73,9 +61,7 @@ An item may not enter a sprint until all six hold. An item that fails goes back 
 | 12 | The route's rendering class (`R1`–`R4`) and cache posture match [`Routing.md`](../SA-docs/03-frontend/Routing.md) §3. Nothing in `(auth)`, `(account)`, `(admin)`, cart or checkout is cached or indexed |
 | 13 | The screen renders correctly against **both** the Prism mock **and** the real `ecp-api` | [`integration-plan.md`](./integration-plan.md) §2.3 |
 
----
-
-## 5. Definition of Done — the Story
+## 5. Definition of Done: story
 
 A story is Done when **both** slices satisfy their lane's list **and**:
 
@@ -87,13 +73,11 @@ A story is Done when **both** slices satisfy their lane's list **and**:
 | 4 | Any contract drift it surfaced was amended in `openapi.yaml`, not worked around |
 | 5 | Nothing was left as a `TODO` that the acceptance criteria required |
 
-**The `Integrated` column is where this is enforced.** A merged, green slice sits there until the gate. Two lanes each reporting complete against a system nobody has run is the specific failure this column exists to prevent.
+Merged slices wait in `Integrated` until the gate passes.
 
----
+## 6. Definition of Done: release
 
-## 6. Definition of Done — a Release
-
-The `AC-01`–`AC-06` table of [`Testing and Benchmark Strategy.md`](../SA-docs/01-system/Testing%20and%20Benchmark%20Strategy.md) §11, completed honestly. Its current expected state at the end of Release 2:
+Use the `AC-01`–`AC-06` table from [`Testing and Benchmark Strategy.md`](../SA-docs/01-system/Testing%20and%20Benchmark%20Strategy.md) §11. Expected state after Release 2:
 
 | Criterion | Verified by | Expected status |
 |---|---|---|
@@ -104,21 +88,15 @@ The `AC-01`–`AC-06` table of [`Testing and Benchmark Strategy.md`](../SA-docs/
 | `AC-05` Reporting does not impact transactions | `NFR-PERF-05` concurrent load | **Unverified — deferred** |
 | `AC-06` Production-quality architecture | L5 + L6 + Security §12, **and** peak-load evidence | **Partially met** — the fault-injection half passes; the peak-load half is deferred |
 
-**`AC-05` and `AC-06` are recorded as not-yet-met, not as in progress.** The load rig they depend on is deliberately deferred, with five dated triggers that end the deferral (Testing Strategy §7.9). Restating that here is the point: the plan must not quietly claim what the strategy explicitly says is unverified.
+`AC-05` and `AC-06` remain unverified until the deferred load rig provides evidence. A release is Done when each status is accurate.
 
-A release is Done when this table is **filled in truthfully**, not when every row says met.
+## 7. Coverage policy
 
----
-
-## 7. Coverage Policy
-
-Taken unchanged from [`Testing and Benchmark Strategy.md`](../SA-docs/01-system/Testing%20and%20Benchmark%20Strategy.md) §10, because it is the right policy and restating it differently would create a second thing to drift.
-
-**No global line-coverage percentage is a gate.** A percentage is satisfied by testing whatever is cheapest to test, which is rarely what carries risk — getters reach 90% faster than exception flows do. Four mandatory rules instead:
+[`Testing and Benchmark Strategy.md`](../SA-docs/01-system/Testing%20and%20Benchmark%20Strategy.md) §10 is authoritative. No global line-coverage percentage is a gate. Four rules are mandatory:
 
 1. Every business rule in SRS §4 has at least one L1 test naming its `BR-` id.
 2. Every `Must` use case's **exception** flows are covered, not only its main flow.
 3. Every OpenAPI operation appears in the contract check and the `NFR-SEC-01` permission matrix.
 4. Every domain event has an L4 test asserting a consumer reacts idempotently.
 
-Line coverage is still measured and reported — a module trending downward is worth a conversation. It is not a gate.
+Measure and report line coverage, but do not use it as a gate.

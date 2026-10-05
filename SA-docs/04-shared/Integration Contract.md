@@ -9,36 +9,30 @@
 
 ## 1. Purpose and Scope
 
-Five documents point at `04-shared/` for a contract that did not exist: [`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md) for OpenAPI and versioning, [`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) for event contracts, [`ADR-0016`](../01-system/ADR/ADR-0016-jwt-refresh-rotation-rbac.md) for the permission matrix, [`ADR-0020`](../01-system/ADR/ADR-0020-typescript-strict-mode.md) for generated client types, and [`Domain Model.md`](../02-backend/Domain%20Model.md) §5.3 for the boundary between contract artefacts and domain code. This document is that contract.
-
-**What is normative here.** Everything that crosses a boundary the platform does not control on both sides:
+This document defines contracts for boundaries the platform does not control on both sides:
 
 - the REST surface every client class uses — web storefront, admin console, and the future mobile client (SRS §8);
 - the Kafka event envelope every consumer deserialises, including consumers that do not exist yet;
 - the error vocabulary a client is expected to branch on;
 - the role/operation grid that authorisation is verified against.
 
-**What is not.** Internal, in-process interactions. A Spring Modulith event between two modules in the same deployable is governed by [`Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md) §5, not by this document — it is a compile-time dependency, and the compiler is a better contract than prose.
+It does not govern in-process module interactions. [`Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md) §5 governs those compile-time dependencies. [`Deployment Diagram.md`](../01-system/Deployment%20Diagram.md) defines the physical boundaries.
 
 ### 1.1 Where the OpenAPI document lives
 
-[`04-shared/OpenAPI/`](./OpenAPI/README.md) holds the OpenAPI 3.1 description of the REST surface — 121 paths, 155 operations, across all fourteen domains.
+[`04-shared/OpenAPI/`](./OpenAPI/README.md) is the hand-authored OpenAPI 3.1 contract for 121 paths and 155 operations across fourteen domains. It supports generated client types under [`ADR-0020`](../01-system/ADR/ADR-0020-typescript-strict-mode.md). [`ADR-0031`](../01-system/ADR/ADR-0031-contract-first-openapi.md) supersedes ADR-0003's generated-first approach. Before controllers exist, review, `redocly lint`, and the checks in [`OpenAPI/README.md`](./OpenAPI/README.md) §8 verify it. After controllers exist, CI fails when the generated description differs.
 
-**It is hand-authored, and that is a deliberate reversal.** This section previously said the folder stayed empty until the controller layer existed, because [`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md) §4 required the document be *"generated rather than hand-written, so it cannot drift."* [`ADR-0031`](../01-system/ADR/ADR-0031-contract-first-openapi.md) supersedes that row. The concern about drift was right; the mechanism changed. **Drift is now prevented by verification rather than by generation**: once controllers exist, CI diffs the generated description against the published one and fails the build on divergence, so a mismatch forces a human to say which of the two is wrong. Until then the document is checked by review, by `redocly lint`, and by the coverage assertions in [`OpenAPI/README.md`](./OpenAPI/README.md) §8.
-
-The reason for reversing is in [`ADR-0031`](../01-system/ADR/ADR-0031-contract-first-openapi.md) §1, and it is short: waiting for the controller layer meant there was no contract at all, which blocked [`ADR-0020`](../01-system/ADR/ADR-0020-typescript-strict-mode.md), left QA nothing to test against, and would have let the wire format be decided one controller at a time without review.
-
-So the split is: **§2–§5 are the rules the OpenAPI document must comply with; the OpenAPI document is the enumeration of endpoints.** This document still never lists endpoints one by one — that separation is unchanged, and it is why the two files do not duplicate each other.
+Sections 2–5 define REST rules. OpenAPI enumerates endpoints.
 
 ### 1.2 Status
 
-Every section here is a first-time decision. Per [ADR/README](../01-system/ADR/README.md) §2 that makes the document `Proposed` as a whole. Two sections carry additional weight and are flagged where they appear: **§4 (error taxonomy)**, which closes a gap [`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md) §5 explicitly left open, and **§6 (event envelope)**, which closes one [`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §5 deferred. Neither is quietly promoted; both want ratification, and either may justify an ADR of its own.
+The document is `Proposed` under [ADR/README](../01-system/ADR/README.md) §2 because it contains first-time decisions. Sections 4 and 6 close gaps left by ADR-0003 and ADR-0012 and need explicit ratification.
 
 ---
 
 ## 2. REST Conventions
 
-One REST/JSON API serves every client class ([`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md)). All six roles enter through it, and authorisation is applied once at the API/application boundary.
+One REST/JSON API serves every client class ([`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md)). The API/application boundary authorises all six roles.
 
 | Aspect | Rule | Traces to |
 |---|---|---|
@@ -61,15 +55,15 @@ One REST/JSON API serves every client class ([`ADR-0003`](../01-system/ADR/ADR-0
 | `PATCH` | Partial update. | `200`, `204` | `400`, `404`, `409` |
 | `DELETE` | Remove. Idempotent — deleting an absent resource returns `204`, not `404`. | `204` | `403`, `409` |
 
-Three distinctions that are otherwise argued about on every code review:
+Status distinctions:
 
-- **`401` vs `403`.** `401` means *not authenticated* — no credential, or an expired one. `403` means *authenticated and not permitted*. A client must be able to distinguish these, because only the first is worth refreshing a token for.
-- **`404` vs `403` for resources a caller does not own.** A customer requesting another customer's order gets `404`, not `403`. Returning `403` confirms the order exists, which leaks information across a tenancy boundary.
-- **`409` vs `422`.** `409` is a conflict with current state that may succeed later (insufficient stock, promotion exhausted, order already cancelled). `422` is a request that is well-formed but semantically impossible and will never succeed as written. Clients retry the first class and never the second.
+- `401`: not authenticated. `403`: authenticated but not permitted. Only `401` may trigger token refresh.
+- An unowned resource returns `404`, not `403`, to hide its existence.
+- `409`: current-state conflict that may succeed later. `422`: the request cannot succeed as written. Clients may retry `409`, never `422`.
 
 ### 2.2 Idempotency
 
-**`Idempotency-Key` is required on `POST /api/v1/orders` and on payment initiation.** It is not applied globally — [`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md) §4 scopes it to exactly the operations whose repetition is a business defect.
+**`Idempotency-Key` is required on `POST /api/v1/orders` and payment initiation.** [`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md) §4 limits it to operations where repetition is a business defect.
 
 | Rule | Detail |
 |---|---|
@@ -80,7 +74,7 @@ Three distinctions that are otherwise argued about on every code review:
 | Retention | Keys are retained at least 24 hours; a key reused after expiry is treated as new. |
 | Concurrency | Two simultaneous requests with the same key: exactly one is processed; the other blocks briefly and returns the same response. |
 
-This is the mechanism `BR-ORD-03` ("repeated submission of the same confirmed checkout yields the same single order"), `FR-ORD-09`, and `NFR-REL-02` require. `NFR-REL-02` specifically requires it to hold **under concurrent submission**, which is why the last row is part of the contract and not an implementation detail.
+This implements `BR-ORD-03`, `FR-ORD-09`, and `NFR-REL-02`, including concurrent submission.
 
 The equivalent property on the inbound side — provider callbacks applied at most once per attempt (`BR-PAY-01`, `FR-PAY-05`) — is §6.4.
 
@@ -88,7 +82,7 @@ The equivalent property on the inbound side — provider callbacks applied at mo
 
 ## 3. Pagination, Filtering, and Sorting
 
-Every collection endpoint is paginated. There is no unpaginated list endpoint, because one added later is a breaking change to every client that assumed it returned everything.
+Every collection endpoint is paginated. No unpaginated list endpoint is allowed.
 
 ### 3.1 Envelope
 
@@ -107,9 +101,9 @@ Every collection endpoint is paginated. There is no unpaginated list endpoint, b
 
 ### 3.2 Cursor, not offset
 
-Cursor pagination is the default. Offset (`?page=7`) is rejected for two reasons that both bite in production: it produces duplicated and skipped rows when the underlying set changes between requests — routine on an order list — and its cost grows with depth, which is precisely the `P10` problem indexing exists to avoid.
+Cursor pagination is the default; offset pagination is rejected. Each cursor is an opaque, versioned HMAC-signed keyset token. It contains sort values and a UUID tie-breaker and is bound to endpoint, resource scope, sort, and normalized filters. The server reads **`size + 1`** rows, returns at most `size`, and builds `page.next` from the last returned row. It never uses `OFFSET` or loads the full candidate set.
 
-Every cursor is an opaque, versioned HMAC-signed keyset token. It contains the ordered sort value or values and a UUID tie-breaker, and is bound to the endpoint, resource scope, sort, and normalized filter set that produced it. The server reads **`size + 1`** rows, returns at most `size`, and derives `page.next` from the final returned row; it never uses `OFFSET` or materialises the complete candidate set. A client passes `page.next` back verbatim and discards it whenever any listing input changes. A malformed, tampered, or incompatible cursor is `400` validation failure — it is never treated as a first-page request. Signing keys rotate with an active key for issuance and one previous verification key, so tokens issued immediately before a rotation remain usable until that previous key is retired.
+Clients pass `page.next` unchanged and discard it when a listing input changes. A malformed, tampered, or incompatible cursor returns `400`; it never starts a new first page. Rotation keeps one active signing key and one previous verification key.
 
 ### 3.3 Filtering and sorting
 
@@ -123,7 +117,7 @@ Every cursor is an opaque, versioned HMAC-signed keyset token. It contains the o
 
 ## 4. Error Taxonomy
 
-**Status: `Proposed`.** [`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md) §5 states plainly: *"Error-code taxonomy is not decided here; `04-shared/Error Codes` is reserved for it."* This section is that decision, made for the first time.
+**Status: `Proposed`.** This section closes the error-taxonomy gap from [`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md) §5.
 
 ### 4.1 Shape
 
@@ -150,7 +144,7 @@ RFC 9457 `application/problem+json`, one shape for every error the platform retu
 | `correlationId` | Echoes the request's correlation id (§6.2), so a user-reported failure is findable in logs and traces (`NFR-OBS-03`). |
 | `errors` | Field-level detail; empty except on validation failures (§4.3). |
 
-**`title` and `detail` are not user-facing copy.** The client maps `code` to its own localised message. This matters for the deferred multi-language capability (SRS §8) — translation is a client concern, and building it into the API would make every new language a backend release.
+`title` and `detail` are not user-facing. The client maps `code` to localised copy; translation does not require a backend release.
 
 ### 4.2 Code scheme
 
@@ -173,7 +167,7 @@ RFC 9457 `application/problem+json`, one shape for every error the platform retu
 
 The enumeration this section seeded now lives in [`Error Codes.md`](./Error%20Codes.md) §3 — every `ECP-<DOMAIN>-<NNNN>` in force, the HTTP status it carries, what it means, the rule it enforces, and the operations that return it. It is the copy `Backend Architecture.md` §6.3 names as the one CI diffs the domain enums against, so it is the only copy kept.
 
-Two codes are worth knowing before reading further: **`ECP-INV-4091`** (insufficient stock) and **`ECP-PRM-4090`** (promotion usage limit reached by a concurrent redemption). Both are the visible surface of a concurrency guarantee rather than a client mistake, and both are expected under peak load rather than exceptional — a client that treats either as a bug will retry wrongly.
+`ECP-INV-4091` and `ECP-PRM-4090` are expected concurrency outcomes under peak load, not client defects.
 
 ### 4.5 Rules
 
@@ -196,15 +190,15 @@ Two codes are worth knowing before reading further: **`ECP-INV-4091`** (insuffic
 | Where the decision is made | One synchronous `AuthorizationService` call from the application layer of the handling module, before the command executes. Never in a domain object, never in a client. | `BR-AUD-02`, Domain Model §5.2 |
 | Rate limiting | Per caller. Authentication endpoints carry a stricter limit and **fail closed**; other endpoints fail open. `429` + `Retry-After`. | `NFR-SEC-05`, [ADR-0015](../01-system/ADR/ADR-0015-redis-cache-and-rate-limiting.md) |
 
-**The frontend enforces nothing.** Hiding an admin control is a UX decision; it is never an authorisation decision. Every endpoint behaves identically whether or not the client rendered a button for it — which is what makes `BR-AUD-02`'s "same decision whatever entry point" (`FR-AUD-06`, `AC-02`) testable rather than aspirational.
+**The frontend enforces nothing.** Hiding a control is a UX choice. The API applies the same decision for every entry point (`BR-AUD-02`, `FR-AUD-06`, `AC-02`).
 
 ---
 
 ## 6. Event Envelope and Topic Naming
 
-**Status: `Proposed`.** [`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §5 deferred topic naming, partition counts, retention, and serialisation format to `Backend Architecture.md`. The parts that are a *contract* — what a consumer can rely on — are decided here. The operational parameters are now settled in [`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) §4, and the serialisation format in [`ADR-0032`](../01-system/ADR/ADR-0032-json-event-serialisation-and-schema-contract.md).
+**Status: `Proposed`.** This section defines the consumer contract deferred by ADR-0012. [`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) §4 defines operational parameters; [`ADR-0032`](../01-system/ADR/ADR-0032-json-event-serialisation-and-schema-contract.md) defines serialisation.
 
-Everything in this section applies to **Kafka-transported events only**. In-process Modulith events are an internal mechanism, not a contract ([`Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md) §5).
+This section applies only to Kafka events. In-process Modulith events are internal ([`Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md) §5).
 
 ### 6.1 Envelope
 
@@ -235,7 +229,7 @@ Everything in this section applies to **Kafka-transported events only**. In-proc
 
 ### 6.2 Correlation
 
-A correlation id is issued at the edge and threaded through: HTTP request → application service → domain event → outbox row → Kafka envelope → every downstream consumer's own logs and events. It also appears in every error response (§4.1). This is the whole of `NFR-OBS-03` — one identifier that survives every hop.
+The edge issues one correlation id. It flows through the HTTP request, application service, domain event, outbox row, Kafka envelope, consumer logs, downstream events, and error responses (§4.1). This satisfies `NFR-OBS-03`.
 
 ### 6.3 Topics and partitioning
 
@@ -246,17 +240,17 @@ A correlation id is issued at the edge and threaded through: HTTP request → ap
 | Partition key | **`aggregateId`, always.** |
 | Retention, partition count, replication | [`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) §4.2–§4.3 — 30-day retention, `cleanup.policy=delete`, partitions per topic, `RF=1` on the single-broker topology. A **partition-count increase rehashes keys and breaks ordering for every aggregate in flight**, so it is a versioned change, not a tuning knob. |
 
-**Partitioning by `aggregateId` is not a tuning choice.** [`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §5 states the hazard directly: *"Event ordering holds only within a partition. Order lifecycle events must be partitioned by order id, or a consumer can observe `OrderPaid` before `OrderCreated`."* Any other key makes the order lifecycle unobservable in order.
+`aggregateId` is mandatory because ordering exists only within a partition. Another key can expose `OrderPaid` before `OrderCreated` ([`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §5).
 
 ### 6.4 Consumer obligations
 
-Non-negotiable, and the reason they are in a contract rather than a guideline is that at-least-once delivery makes every one of them a correctness requirement:
+At-least-once delivery requires every consumer to:
 
-1. **Idempotent, without exception.** Keyed on `eventId` or on a natural business key. [`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §5 names the failure modes: duplicate emails, double-counted analytics, duplicate audit entries.
-2. **Tolerate unknown fields.** A publisher may add fields at any time (§8). A consumer that fails on an unrecognised field converts every additive change into a breaking one.
+1. Be idempotent by `eventId` or a natural business key.
+2. Tolerate unknown fields (§8).
 3. **Tolerate reordering across aggregates.** Ordering is guaranteed within a partition and nowhere else.
-4. **Never block the publisher.** Retry with backoff, then dead-letter and alert. `NFR-AVAIL-02` requires a failing non-essential capability to leave checkout alone.
-5. **Bind only the fields you use.** This is what keeps a consumer decoupled from its publisher and extraction cheap ([`Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md) §5).
+4. Never block the publisher. Retry with backoff, then dead-letter and alert (`NFR-AVAIL-02`).
+5. Bind only used fields ([`Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md) §5).
 
 The same idempotency requirement applies to inbound provider callbacks: a payment settlement notification is applied at most once per attempt however many times the provider delivers it (`BR-PAY-01`, `FR-PAY-05`), correlating to an order by a stable reference.
 
@@ -278,15 +272,15 @@ The contract surface, from [`Domain Model.md`](../02-backend/Domain%20Model.md) 
 | `PromotionActivated`, `PromotionRedeemed`, `PromotionExpired` | `promotion` | In-process (Partnership) **and** Kafka (Reporting) | Ordering (in-process); Audit, Reporting (Kafka) | Promotion id, order id, discount `Money`, usage count |
 | `ReviewSubmitted`, `ReviewPublished`, `ReviewModerated` | `review` | Kafka | Catalog (rating display), Notification, Audit | Review id, product id, customer id, rating, moderation status. **Never** review body text to Reporting |
 
-`notification`, `audit`, and `reporting` are universal consumers — they subscribe to every Kafka topic above rather than to a listed subset ([`Domain Model.md`](../02-backend/Domain%20Model.md) §5.2). Audit exposes no mutation API at all, so `BR-AUD-01`'s immutability is enforced by construction, not by a runtime check.
+`notification`, `audit`, and `reporting` subscribe to every Kafka topic ([`Domain Model.md`](../02-backend/Domain%20Model.md) §5.2). Audit exposes no mutation API (`BR-AUD-01`).
 
-Two rows deserve a second look. `CartCheckedOut` carries **unpriced** lines — a `CartLine` never has a price (`BR-CRT-04`), and pricing happens once at placement (`BR-ORD-06`). And the `Payment*` events carry a provider *reference*, never an instrument: `NFR-SEC-07` is a constraint on payloads, not only on logs.
+`CartCheckedOut` carries unpriced lines (`BR-CRT-04`); placement sets prices once (`BR-ORD-06`). `Payment*` events carry a provider reference, never a payment instrument (`NFR-SEC-07`).
 
 ---
 
 ## 8. Schema Evolution
 
-Applies identically to REST responses and event payloads. The rule is **additive by default**.
+REST responses and event payloads are **additive by default**.
 
 ### 8.1 Non-breaking — ship freely, no version change
 
@@ -310,15 +304,16 @@ Applies identically to REST responses and event payloads. The rule is **additive
 | REST | New URI prefix: `/api/v2/...`. Both serve concurrently. | `v1` is announced deprecated, carries a `Deprecation` header, and is removed no earlier than **two release cycles** after every known client has migrated. |
 | Events | `eventVersion` increments; a **new topic** `...v2` is published. The publisher writes both for a transition window. | `v1` is retired only when every consumer group has confirmed migration — including consumers the publisher does not own. |
 
-**A published event's schema is owned jointly by its publisher and its consumers** ([`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §4). A publisher cannot unilaterally make a breaking change, and dual-publishing during transition is the cost of that.
+Publisher and consumers jointly own a published event schema ([`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §4). Breaking changes require agreement and dual-publishing during migration.
 
 ### 8.4 The standing risk
 
-[`Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md) §5 deliberately removes the compile-time link between a Kafka publisher and its consumers — that is what keeps the module graph acyclic and future extraction cheap. The price is paid here: **nothing in the compiler catches a consumer that misreads a field.** Contract tests against the schema published in `04-shared/Event Contract` are the only mechanism that does.
+The compiler does not check Kafka consumers. JSON Schema 2020-12 files at `04-shared/Event Contract/<context>/<EventType>.v<N>.json` provide the contract ([`ADR-0032`](../01-system/ADR/ADR-0032-json-event-serialisation-and-schema-contract.md) §4). Each event needs two L3 tests:
 
-[`ADR-0032`](../01-system/ADR/ADR-0032-json-event-serialisation-and-schema-contract.md) §4 now names them: JSON Schema 2020-12 files at `04-shared/Event Contract/<context>/<EventType>.v<N>.json`, and **two** L3 tests rather than one — a publisher-side test validating a real outbox row against the schema, and a **consumer-side** test asserting that every field the consumer binds exists in the publisher's schema and is `required` there. The second is the one that closes this paragraph's gap, because it is the only test that looks across the boundary the compiler no longer spans. [`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) §9 rules B8 and B9 make a *missing* schema or a *missing* test a build failure, since a contract test nobody wrote protects nothing.
+- Publisher: validate a real outbox row against the schema.
+- Consumer: verify that every bound field exists and is `required`.
 
-What remains open is smaller but real: enforcement is CI-time, not publish-time. A registry would refuse an incompatible schema at the broker; this arrangement does not, and [`ADR-0032`](../01-system/ADR/ADR-0032-json-event-serialisation-and-schema-contract.md) §5 records that as the standing cost of avoiding one.
+[`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) §9 rules B8 and B9 fail the build for a missing schema or test. Enforcement is CI-time, not broker publish-time; ADR-0032 §5 records this open cost.
 
 ---
 
@@ -343,9 +338,9 @@ Derived directly from SRS §2.3's role authority summary, which is **normative f
 | Audit trail | — | — | — | — | read | read |
 | Role management | — | — | — | — | — | manage |
 
-**"own" is a runtime check, not a role check.** A Customer may read *their* order; the role grants the capability and ownership grants the instance. Both are evaluated server-side, and a caller requesting a resource they do not own receives `404` rather than `403` (§2.1).
+`own` is a server-side runtime check. Role grants the capability; ownership grants the instance. An unowned resource returns `404`, not `403` (§2.1).
 
-**No role has `manage` on the audit trail.** Not an omission — `BR-AUD-01` and `NFR-OBS-02` require the trail be unamendable *through any interface, by any role*, and [`ADR-0017`](../01-system/ADR/ADR-0017-append-only-audit-log.md) enforces this by exposing no mutation API at any layer and granting the database role only `INSERT` and `SELECT`. The grid's blank cell is the visible half of a guarantee made structurally.
+No role can manage the audit trail. `BR-AUD-01` and `NFR-OBS-02` require no mutation API; the database role has only `INSERT` and `SELECT` ([`ADR-0017`](../01-system/ADR/ADR-0017-append-only-audit-log.md)).
 
 Every row becomes an authorisation rule at the API/application boundary, never a client-side assumption.
 
@@ -361,16 +356,14 @@ Every row becomes an authorisation rule at the API/application boundary, never a
 | Permission matrix | Identity & Access, tracking SRS §2.3 | Changes here follow the SRS, not the reverse. If the grid and SRS §2.3 disagree, **SRS §2.3 is right** and this document is stale. |
 | Published OpenAPI | The module owning the resource, in [`04-shared/OpenAPI/`](./OpenAPI/README.md) | Hand-authored and normative ([ADR-0031](../01-system/ADR/ADR-0031-contract-first-openapi.md)). Once controllers exist, CI diffs the generated description against it and fails the build on divergence; a mismatch is resolved in the same change by fixing whichever of the two is wrong. |
 
-Three standing rules:
+Standing rules:
 
-1. **Machine-checkable artefacts win over prose — in one direction only.** Where the OpenAPI document's *enumeration* disagrees with reality, fix the code or the document; the CI gate ([ADR-0031](../01-system/ADR/ADR-0031-contract-first-openapi.md)) makes that a build failure rather than a discussion. But where the OpenAPI document's *rules* disagree with §2–§5 of this document, **this document is right**: it is the law, and the OpenAPI file is the enumeration written under it.
-2. **A `Proposed` section is never quietly promoted.** §4 and §6 are first-time decisions. Promotion to `Accepted` is its own commit, per [ADR-0001](../01-system/ADR/ADR-0001-record-architecture-decisions.md).
-3. **A contract change that reaches an external consumer is a release event**, not a refactor. This includes every Kafka topic, because a consumer may exist that no one on the publishing team knows about — which is the entire point of `P2`.
+1. When endpoint enumeration differs, fix code or OpenAPI; CI fails until they match. When OpenAPI rules differ from §§2–5, this document is normative.
+2. Promotion from `Proposed` to `Accepted` requires its own commit ([ADR-0001](../01-system/ADR/ADR-0001-record-architecture-decisions.md)).
+3. A contract change reaching an external consumer is a release event, including Kafka changes (`P2`).
 
 ---
 
-## 11. Next Step
+## 11. Pending ratification
 
-`Backend Architecture.md` implements this contract: the controller layer that must match the OpenAPI document in [`04-shared/OpenAPI/`](./OpenAPI/README.md), the CI gate that verifies it does ([ADR-0031](../01-system/ADR/ADR-0031-contract-first-openapi.md)), the outbox relay and topic configuration, and the error-code registry. The physical boundary these contracts cross is drawn in [`01-system/Deployment Diagram.md`](../01-system/Deployment%20Diagram.md); the internal boundaries they do *not* govern are in [`02-backend/Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md).
-
-Two items here want ratification rather than implementation: the **error taxonomy** (§4) and the **event envelope** (§6). Both close gaps that [`ADR-0003`](../01-system/ADR/ADR-0003-rest-api-style.md) and [`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) named and left open, and either may deserve promotion into an ADR of its own.
+The error taxonomy (§4) and event envelope (§6) need ratification. They close gaps recorded by ADR-0003 and ADR-0012.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "ECP Documentation Editor"
+  short_description: "Condense ECP docs into clear B1 technical prose"
+  default_prompt: "Use $ecp-doc-editor to shorten this ECP document without changing its technical meaning."

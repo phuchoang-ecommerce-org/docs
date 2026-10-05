@@ -1,1 +1,7 @@
 SUMMARY*.java
+.DS_Store
+docs.html
+util/dist/
+util/public/docs/
+util/node_modules/
+util/.astro/

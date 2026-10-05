@@ -12,17 +12,11 @@
 
 ### 1.1 What this document is
 
-[`traceability-matrix.md`](../../BA-docs/traceability-matrix.md) asks whether *"every problem reaches a requirement, and every requirement a test."* Its first half is answered: 17/17 problems reach a requirement, 129/129 functional requirements reach a use case, no orphans. Its second half is not. The SRS names a verification method for all 39 non-functional requirements — *"fault-injection test at each step," "concurrency test at `NFR-SCAL-06` peak," "load test at volume"* — and no document says which suite performs any of them, on what stack, at what cadence, or with what result.
-
-[ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) closed part of that gap: it decided the architecture gate is `Accepted` and sketched a seven-row test strategy it marked `Proposed`, because *"the repository names no testing framework at all."* This document turns those seven rows into a strategy — layers, ownership, gates, cadence, and a benchmark definition specific enough to run.
-
-[`Security.md`](./Security.md) §12 remains **authoritative for security verification**. Its requirement→test table (`NFR-SEC-01`–`07`, `NFR-OBS-01`–`02`, `AC-02`) and its ArchUnit security rules are not restated here; §2 below points at them and covers only what they leave.
+This document maps non-functional requirements to test layers, owners, gates, cadence, and runtime budgets. It expands the `Proposed` test stack in [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md). [`Security.md`](./Security.md) §12 remains authoritative for security verification.
 
 ### 1.2 What this document deliberately is not
 
-**It does not specify a load-testing rig.** §7 defines a *quick smoke benchmark* — a two-minute run answering "is the read path in the right order of magnitude" — and nothing larger. The full-scale apparatus `NFR-SCAL-01`–`06` eventually require (10,000-product catalog, 100,000 customers, 10× peak, sustained soak, concurrent reporting load) is **deferred, not delivered**. §7.9 states the conditions under which it stops being deferrable, so the deferral is a dated decision rather than an omission.
-
-This is a deliberate sequencing choice, and it has a cost worth naming: until that rig exists, `NFR-SCAL-01`–`06`, `NFR-PERF-05`, and `NFR-AVAIL-01` are **unverified**, and `AC-05` and `AC-06` cannot be claimed. §11 records them as unverified rather than as passing.
+§7 defines a two-minute smoke benchmark, not the full load rig. The 10,000-product catalog, 100,000 customers, 10× peak, soak, and concurrent reporting tests are deferred until a §7.9 trigger occurs. Until then, `NFR-SCAL-01`–`06`, `NFR-PERF-05`, and `NFR-AVAIL-01` are **unverified**. `AC-05` and `AC-06` cannot be claimed.
 
 ### 1.3 Section status
 
@@ -65,13 +59,13 @@ The SRS states a verification method per requirement. This maps each to the suit
 | `NFR-OBS-03` | Trace inspection | L4 — one correlation id asserted across REST → outbox → Kafka → projection |
 | `NFR-OBS-04` | Metrics review | L4 — assert the Micrometer meters named in [Deployment](./Deployment%20Diagram.md) §8 exist |
 
-**Three requirements are not tests and should stop being counted as coverage:** `NFR-SCAL-07` (a cost trend), `NFR-AVAIL-01` (production uptime), and `NFR-MAINT-04`/`-06` (design review). Listing them as "untested" every sprint trains reviewers to ignore the column.
+`NFR-SCAL-07` is an operational measure, `NFR-AVAIL-01` is production monitoring, and `NFR-MAINT-04`/`-06` require design review. Do not count them as automated test gaps.
 
 ---
 
 ## 3. Test Layers
 
-Seven layers, expanding [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) §4's table with cadence, gate, and a runtime budget. The budget is what keeps §4's split honest.
+Seven layers expand [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) §4 with cadence, gate, and runtime budget.
 
 | # | Layer | Stack | Runs on | Gate | Budget |
 |---|---|---|---|---|---|
@@ -85,15 +79,13 @@ Seven layers, expanding [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gat
 
 L1–L3 form the fast suite; L4–L6 the slow suite; L7 is neither and runs against a deployed process rather than a test context.
 
-**L2 is in the fast suite on purpose.** [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) §5 names the failure mode directly — *"slow builds create pressure to skip them, which is exactly how the gate fails"* — and the architecture rules are the ones that must never be skipped. They need no container and belong nowhere else.
-
-**L3 did not appear in ADR-0018 §4** and is added here. Between a domain unit test and a full module integration test there is a gap where `@RestControllerAdvice` error mapping ([Integration Contract](../04-shared/Integration%20Contract.md) §4), request validation, and pagination-envelope shape live. Testing those through Testcontainers is a container start-up to assert a JSON field name.
+L2 stays in the fast suite and never starts a container. L3 adds request validation, `@RestControllerAdvice` mapping, and pagination-envelope checks without a full module context.
 
 ---
 
 ## 4. Fast Suite and Slow Suite
 
-Two Gradle tasks and one script, so the split is a build fact rather than a convention:
+The build defines the split:
 
 | Task | Layers | Container needed | Where |
 |---|---|---|---|
@@ -102,11 +94,9 @@ Two Gradle tasks and one script, so the split is a build fact rather than a conv
 | `./gradlew check` | both of the above | Yes | Pre-merge |
 | `k6 run bench/smoke.js` | L7 | A running stack | Nightly, and by hand before a performance-relevant merge |
 
-Rules that make the split hold:
-
-- **`test` never starts a container.** A Testcontainers import in a fast-suite source set is itself an ArchUnit rule, or the boundary erodes within a month.
-- **Testcontainers reuse is on for local runs, off in CI.** Locally, a reused container turns an 8-minute L4 run into roughly one. In CI, reuse hides cross-test state.
-- **The slow suite fails the build on `main`, not only on the PR.** A test that only ever runs pre-merge is a test nobody notices going red after a dependency bump.
+- `test` never starts a container. Enforce this with an ArchUnit rule over fast-suite source sets.
+- Testcontainers reuse is on locally and off in CI.
+- The slow suite fails `main` as well as pull requests.
 
 ---
 
@@ -127,42 +117,34 @@ Rules that make the split hold:
 
 ### 6.1 L1 — Domain unit
 
-The 40 business rules of SRS §4, asserted against aggregates with no framework present. This is the dividend of [ADR-0005](./ADR/ADR-0005-clean-architecture-ports-and-adapters.md): the rules that matter most are testable in milliseconds.
-
-Priority order follows [`traceability-matrix.md`](../../BA-docs/traceability-matrix.md) §6's own observation that `P7` and `P8` concentrate in exception flows: `BR-INV-01` (never oversell), `BR-ORD-01`/`-02`/`-03`/`-06`, `BR-PAY-01`/`-02`, `BR-PRM-03`. Each gets its happy path *and* every exception flow the use case documents — the exception flows are the requirement.
+L1 tests the 40 business rules in SRS §4 against aggregates without a framework. Prioritize `BR-INV-01`, `BR-ORD-01`/`-02`/`-03`/`-06`, `BR-PAY-01`/`-02`, and `BR-PRM-03`. Cover their success and exception flows.
 
 ### 6.2 L2 — Architecture
 
-The rule table in [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) §4 plus the security rules in [`Security.md`](./Security.md) §12.2, unchanged. Nothing is added here; both tables are authoritative where they stand.
-
-One operational note: `ApplicationModules.of(EcpApplication.class).verify()` is a single test method whose failure message is the whole diagnosis. It should not be wrapped, softened, or caught.
+L2 runs the rules from [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) §4 and [`Security.md`](./Security.md) §12.2. Run `ApplicationModules.of(EcpApplication.class).verify()` directly; do not catch or replace its failure.
 
 ### 6.3 L4 — Module integration
 
-Spring Modulith's `Scenario` API, exercising the runtime event flow of [`Module Dependency Diagram.md`](../02-backend/Module%20Dependency%20Diagram.md) §4: publish a domain event, assert the downstream module reacted, assert the projection converged.
+Use Spring Modulith `Scenario` to publish an event, verify the downstream reaction, and verify projection convergence. [ADR-0030](./ADR/ADR-0030-spring-data-mongodb-read-model-access.md) §4 requires:
 
-Two properties matter more than the happy path, and both come from [ADR-0030](./ADR/ADR-0030-spring-data-mongodb-read-model-access.md) §4:
-
-- **Idempotency.** Redelivering the same event leaves the document byte-identical. `NFR-REL-06`'s at-least-once guarantee makes redelivery normal, not exceptional.
+- **Idempotency.** Redelivering the same event leaves the document byte-identical.
 - **Ordering.** An out-of-order event does not overwrite newer state.
 
-Neither is meaningful against a mock, which is why MongoDB is a container here.
+Run these checks against MongoDB, not a mock.
 
 ### 6.4 L5 — Persistence and concurrency
 
-The load-bearing suite. `NFR-REL-03` — *"concurrent purchase attempts never confirm more orders than there is stock to fulfil"* — is the single guarantee the whole reservation model of [ADR-0011](./ADR/ADR-0011-optimistic-locking-reservation-model.md) exists to provide, and it is verifiable in exactly one way: N threads racing one SKU against real PostgreSQL, asserting that successes equal stock and every loser saw a clean rejection rather than a partial write.
+Run N threads against one SKU in real PostgreSQL. Successful orders must equal available stock; all other requests must fail without a partial write. H2 cannot verify this guarantee.
 
-**An in-memory database cannot verify this.** H2's optimistic-locking behaviour is an approximation of PostgreSQL's, and an approximation of a concurrency guarantee is not a guarantee. [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) §4 says so; it is repeated here because it is the rule most likely to be traded away for build speed.
-
-`NFR-REL-01`'s fault injection sits alongside it: fail at each step of order placement — after reservation, after promotion redemption, after order insert, after outbox write — and assert the outcome is fully applied or fully absent, never partial.
+For `NFR-REL-01`, inject failure after reservation, promotion redemption, order insert, and outbox write. Each result must be fully applied or fully absent.
 
 ### 6.5 L6 — Event delivery
 
-Testcontainers Kafka with the broker stopped mid-relay. Assert: no accepted business event is lost (`NFR-REL-05`), every event reaches every dependent consumer at least once (`NFR-REL-06`), and the outbox drains on recovery without manual repair. The transactional outbox of [ADR-0012](./ADR/ADR-0012-transactional-outbox-and-kafka.md) is otherwise an untested claim.
+Stop Testcontainers Kafka during relay. Verify no accepted event is lost, every consumer receives it at least once, and the outbox drains after recovery.
 
 ### 6.6 Contract tests
 
-[ADR-0031](./ADR/ADR-0031-contract-first-openapi.md) makes the hand-authored specification **normative** and says the CI gate verifying controllers against it *"is a CI gate to be built alongside the controllers."* This strategy names its shape:
+[ADR-0031](./ADR/ADR-0031-contract-first-openapi.md) makes the hand-authored specification normative. The contract gate checks:
 
 | Direction | Check |
 |---|---|
@@ -171,7 +153,7 @@ Testcontainers Kafka with the broker stopped mid-relay. Assert: no accepted busi
 | Response shape | L3 and L4 responses validated against the operation's schema, so drift surfaces as a failing test rather than a frontend bug. |
 | Permission cells | The `NFR-SEC-01` matrix test of [`Security.md`](./Security.md) §12.1 is generated from the spec × the permission matrix, so a new operation with no matrix cell fails the build. |
 
-**On Spring REST Docs.** The scaffold already carries `spring-boot-starter-restdocs` and an Asciidoctor task. REST Docs generates documentation *from* tests; [ADR-0031](./ADR/ADR-0031-contract-first-openapi.md) makes the specification the source and the code the thing verified. The two point in opposite directions, and the ADR wins: the spec is the oracle. REST Docs is retained only as a source of request/response examples, never as the description of the API. If it is not used for that, the dependency and its Asciidoctor task should be removed rather than left to imply a contract strategy the ADRs rejected.
+Spring REST Docs may generate request and response examples. It is not the API source of truth. Remove it and Asciidoctor if the project does not use those examples.
 
 ### 6.7 Frontend
 
@@ -184,11 +166,7 @@ Testcontainers Kafka with the broker stopped mid-relay. Assert: no accepted busi
 | Token contrast | Assertion over the token pairs of [ADR-0022](./ADR/ADR-0022-ma-design-tokens.md) | Measured ratios, not eyeballed |
 | E2E | Playwright, a **thin** suite | The purchase path of `NFR-AVAIL-01`, and nothing else |
 
-**The E2E suite stays small on purpose.** Every behaviour reachable by a cheaper test belongs in that cheaper test; `NFR-SEC-01` in particular is a backend property and is verified by the §12.1 matrix, never by driving a browser — [ADR-0019](./ADR/ADR-0019-nextjs-app-router-rendering-strategy.md) §4 is explicit that *"the frontend enforces nothing."*
-
-[`Frontend Architecture.md`](../03-frontend/Frontend%20Architecture.md) §8 maps its own claims onto these layers and names the four it puts in the E2E and integration suites specifically: that no token reaches the browser, that CSRF is required on every cookie-authenticated write, that refresh is serialised under concurrency, and that the CSP is served unwidened per route group.
-
-Per-route-class performance budgets follow [ADR-0019](./ADR/ADR-0019-nextjs-app-router-rendering-strategy.md) §4's classification, with the static catalog routes carrying the tightest. Measuring them is §7.9's second trigger, not part of the smoke run.
+Keep E2E tests to cross-boundary behavior. Backend tests verify `NFR-SEC-01`. [`Frontend Architecture.md`](../03-frontend/Frontend%20Architecture.md) §8 assigns token custody, CSRF, refresh serialization, and CSP checks. Frontend performance budgets are separate from §7.
 
 ---
 
@@ -196,7 +174,7 @@ Per-route-class performance budgets follow [ADR-0019](./ADR/ADR-0019-nextjs-app-
 
 ### 7.1 Two kinds of measurement
 
-[`Technology Stack.md`](./Technology%20Stack.md) lists "Benchmark performance" with no definition, and the word covers two things that need separating:
+Separate the nightly smoke benchmark from the deferred load rig:
 
 | | **Smoke benchmark** — built now | **Load rig** — deferred |
 |---|---|---|
@@ -207,19 +185,19 @@ Per-route-class performance budgets follow [ADR-0019](./ADR/ADR-0019-nextjs-app-
 | Result | A trend line and a coarse pass/fail | A ratified statement about capacity |
 | Cost | Negligible | A real project |
 
-The smoke benchmark answers a narrower question than the SRS asks, and answers it every night for nearly nothing. That is its entire justification.
+The smoke benchmark provides a nightly trend. It does not verify scale.
 
 ### 7.2 The rules
 
-1. **Short.** If it takes longer than a slow test suite, it will be run less often than one, and a benchmark nobody runs measures nothing.
-2. **Comparative before absolute.** Its primary output is *movement against the last run*, not a certificate against `NFR-PERF-01`. A 40 % regression on an unratified host is a real signal; a 280 ms p95 on a laptop is not a passed requirement.
-3. **Reported, never build-failing.** [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) §4 already fixes this. A benchmark that blocks merges on a shared CI runner's noise gets disabled within a fortnight, and then nothing is measured at all.
-4. **Same process shape as production.** The `bootJar` of [Deployment](./Deployment%20Diagram.md) §3, on the same image versions — not a Gradle `bootRun` with dev tooling attached.
-5. **Warm-up discarded.** The JVM's first thirty seconds measure JIT compilation, not the platform.
+1. Finish within the slow-suite budget.
+2. Compare with the previous run before judging absolute latency on an unratified host.
+3. Report results; do not fail the build.
+4. Run the production `bootJar` and image versions, not `bootRun`.
+5. Discard the first 30 seconds of JVM warm-up.
 
 ### 7.3 Scope — five scenarios
 
-The read path plus one write. Deliberately the smallest set that covers the four latency NFRs.
+Measure four read paths and one write path.
 
 | # | Scenario | Requirement | Threshold | Why this one |
 |---|---|---|---|---|
@@ -229,9 +207,7 @@ The read path plus one write. Deliberately the smallest set that covers the four
 | S4 | `GET /search/suggestions?q=…` | `NFR-PERF-04` | p95 < 150 ms | The tightest budget in the SRS; regressions show here first |
 | S5 | `PUT /cart/items/{id}` — quantity amendment | `NFR-PERF-02` | p95 < 800 ms | One transactional write, to keep the write path from being measured only by the load rig |
 
-**Order placement is excluded.** It consumes reserved stock, so it is not idempotent across runs and would need inventory reset between iterations — which is a load-rig concern. Its latency is covered by S5's shape; its *correctness* is L5's job, and L5 is the suite that matters for it.
-
-**S1 is cache-warm on purpose, and this is a limitation, not a feature.** A warm-cache p95 says nothing about the cold-start behaviour that a deployment or a Redis eviction actually produces. §7.8 records it.
+Order placement is excluded because it consumes stock and needs reset between runs. L5 verifies its correctness. S1 uses a warm cache and does not measure deployment or eviction cold starts.
 
 ### 7.4 Tool
 
@@ -243,7 +219,7 @@ The read path plus one write. Deliberately the smallest set that covers the four
 | JMH | Wrong level. It measures method throughput inside one JVM; every threshold here is an HTTP-boundary latency. It becomes the right tool if a specific hot path needs micro-analysis. |
 | `hey` / `oha` | Right weight, but no scenario scripting and no per-scenario thresholds — S1–S5 would become five ad-hoc invocations with the interpretation left to whoever ran them. |
 
-The k6 selection is `Proposed` and follows [ADR-0001](./ADR/ADR-0001-record-architecture-decisions.md): it is decided here for the first time and is not promoted quietly.
+k6 remains `Proposed` until ratified.
 
 ### 7.5 Run profile
 
@@ -256,7 +232,7 @@ The k6 selection is `Proposed` and follows [ADR-0001](./ADR/ADR-0001-record-arch
 | Total | ~2 minutes plus seeding | Rule 1 of §7.2 |
 | Output | k6 JSON summary committed to the run log, not to the repository | Trend over time is the deliverable |
 
-**Ten virtual users is not "thousands of concurrent customers."** `NFR-SCAL-04` is untouched by this run and remains unverified.
+Ten virtual users do not verify `NFR-SCAL-04`.
 
 ### 7.6 The script
 
@@ -299,7 +275,7 @@ export default function () {
 }
 ```
 
-Paths are illustrative until the controllers exist; the authoritative forms are in [`openapi.yaml`](../04-shared/OpenAPI/README.md), and the script's paths must be reconciled against it when the endpoints land. S5 needs an authenticated session; the cookie handling of [ADR-0025](./ADR/ADR-0025-httponly-cookie-session.md) is a `setup()` step to be added once the auth endpoints exist.
+Paths are illustrative until controllers exist. Reconcile them with [`openapi.yaml`](../04-shared/OpenAPI/README.md). Add authenticated-session setup for S5 when the auth endpoints exist.
 
 ### 7.7 Reading a result
 
@@ -310,11 +286,11 @@ Paths are illustrative until the controllers exist; the authoritative forms are 
 | One threshold fails by > 20 %, or regresses > 40 % from the previous run | A real regression | Investigate before merging the change that caused it |
 | `http_req_failed` exceeds 1 % | Not a performance result at all | The benchmark is invalid; fix correctness first |
 
-**k6 measures client-observed latency; the SRS specifies server-side latency excluding external provider time.** Client-observed is a superset, so a pass is conclusive and a marginal failure is not. Separating the two requires the Micrometer timers of [Deployment](./Deployment%20Diagram.md) §8, which is where a marginal result should be taken — not into a longer k6 run.
+k6 measures client-observed latency. The SRS measures server-side latency without provider time. Use the Micrometer timers from [Deployment](./Deployment%20Diagram.md) §8 to analyze marginal failures.
 
 ### 7.8 What this benchmark cannot tell you
 
-The section that keeps the run honest. None of the following is verified by anything in §7:
+§7 does not verify:
 
 - **Scale.** `NFR-SCAL-01`–`04` — 10,000 products, 100,000 customers, thousands of orders/day, thousands of concurrent customers. The dataset and the VU count are both deliberately far below all four.
 - **Peak.** `NFR-SCAL-06`'s 10× absorption, and therefore `NFR-REL-03` *at peak*. L5 verifies the oversell guarantee at correctness scale; whether it holds at 10× is a different question with a different answer.
@@ -326,7 +302,7 @@ The section that keeps the run honest. None of the following is verified by anyt
 
 ### 7.9 When the deferral ends
 
-The load rig stops being deferrable when any one of these is true. Each is observable, so the deferral has an end condition rather than a hope:
+Build the load rig when any trigger occurs:
 
 | Trigger | Why it forces the rig |
 |---|---|
@@ -358,13 +334,13 @@ Checked against the repository as it stands. The scaffold is a single Gradle pro
 | `bench/` directory | No | §7 | The script of §7.6 has nowhere to live yet |
 | Compose data tier | Partial — Elasticsearch, MongoDB, Redis | §7.5 | **No PostgreSQL and no Kafka**, which are the two the deployment topology is built on |
 
-**Two rows deserve emphasis.** PostgreSQL is absent from both the test containers and the Compose file while being the source of truth in [ADR-0009](./ADR/ADR-0009-postgresql-source-of-truth.md); and the ArchUnit gate that [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) marks `Accepted` has no code behind it. Everything else in this table is ordinary scaffolding work.
+The highest-risk gaps are PostgreSQL test support and the missing `Accepted` ArchUnit gate.
 
 ---
 
 ## 9. Pipeline Stages
 
-[ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) §5 records the CI provider as undecided. This proposes the stages, which are provider-independent.
+The CI provider is undecided. These stages are provider-independent.
 
 | Stage | Runs | Gate | Budget |
 |---|---|---|---|
@@ -382,9 +358,7 @@ Stages 1–2 run on every push; 3–6 on every pull request and on `main`; 7 nig
 
 ## 10. Coverage Policy
 
-[ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md) §5 leaves coverage policy open. **No global line-coverage percentage is proposed**, and the reason is the one `P15` describes: a percentage is satisfied by testing whatever is cheapest to test, which is rarely what carries risk. Getters reach 90 % faster than exception flows do.
-
-Four mandatory-coverage rules instead, each checkable and each tied to something the traceability chain already tracks:
+No global line-coverage percentage is a gate. Four coverage rules are mandatory:
 
 | Rule | Rationale |
 |---|---|
@@ -393,7 +367,7 @@ Four mandatory-coverage rules instead, each checkable and each tied to something
 | Every OpenAPI operation appears in the §6.6 contract check and the [`Security.md`](./Security.md) §12.1 permission matrix | 155 operations; an uncovered cell is an unverified authorisation decision |
 | Every domain event in [Integration Contract](../04-shared/Integration%20Contract.md) §7 has an L4 test asserting a consumer reacts idempotently | Redelivery is normal under `NFR-REL-06`, not exceptional |
 
-Line coverage is still *measured and reported* — a module trending downward is worth a conversation. It is not a gate.
+Measure and report line coverage, but do not gate on it.
 
 ---
 
@@ -408,7 +382,7 @@ Line coverage is still *measured and reported* — a module trending downward is
 | `AC-05` Reporting does not impact transactions | `NFR-PERF-05` concurrent load | **Unverified — deferred** (§7.9) |
 | `AC-06` Production-quality architecture | L5 + L6 + [`Security.md`](./Security.md) §12, *and* peak-load evidence | **Partially blocked** — the peak-load half is deferred (§7.9); the fault-injection half is blocked on Testcontainers PostgreSQL |
 
-`AC-05` and `AC-06` are recorded as not-yet-met rather than in progress. That is the honest consequence of §1.2's deferral, and it is stated here so the gap is visible at strategy level rather than discovered during acceptance — the same reason [`Solution Architecture.md`](./Solution%20Architecture.md) §12 gives for its own table.
+Keep `AC-05` and `AC-06` unverified until the required load evidence exists.
 
 ---
 
@@ -427,8 +401,9 @@ Line coverage is still *measured and reported* — a module trending downward is
 
 ---
 
-## 13. Next Step
+## 13. Next steps
 
-The order is fixed by dependency, not preference. Testcontainers PostgreSQL first — it unblocks L5, and L5 carries the two reliability guarantees the architecture is most exposed on. ArchUnit second, because [ADR-0018](./ADR/ADR-0018-architecture-governance-ci-gate.md)'s gate is `Accepted` and unimplemented, which is the one state a governance decision must not stay in. The §7 benchmark last: it measures endpoints that do not exist yet, so it is worth writing when the first catalog controller lands and not before.
-
-`Backend Architecture.md` — a stub at present — is where the Gradle multi-project layout of §8 and the source-set split of §4 are settled. This document assumes that layout and should be reconciled with it once it exists.
+1. Add Testcontainers PostgreSQL to unblock L5.
+2. Implement the `Accepted` ArchUnit and JMolecules gate.
+3. Add the §7 benchmark when the first catalog controller exists.
+4. Reconcile the test source sets with [`Backend Architecture.md`](../02-backend/Backend%20Architecture.md) and the implementation repositories.

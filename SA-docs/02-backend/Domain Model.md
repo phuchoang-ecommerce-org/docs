@@ -6,16 +6,11 @@
 
 ---
 
-## 1. Purpose of This Document
+## 1. Purpose
 
-[Solution Architecture](../01-system/Solution%20Architecture.md) commits the platform to Domain-Driven Design as a governing style (§3), names seven business modules as a starting point for Strategic Design (§5, P1), and names the DDD tactical building blocks — Aggregate Root, Entity, Value Object, Domain Service, Domain Event — as the mechanism by which business invariants are enforced (§5, P5). It does not define what those modules actually own, how they relate to one another, or what their aggregates and invariants are. This document is that definition.
+This document defines the bounded contexts, relationships, aggregates, invariants, events, and repositories required by `P1` and `P5` in [Solution Architecture](../01-system/Solution%20Architecture.md).
 
-It is organized in two parts, matching how DDD itself separates the two concerns:
-
-- **Part I — Strategic Design** answers *what are the boundaries of the business, and how do they relate to each other?* It classifies subdomains by business importance, reconciles the 14 business-analysis domains into a set of bounded contexts, maps the relationships between them, and fixes a shared vocabulary.
-- **Part II — Tactical Design** answers *what, concretely, lives inside each boundary?* It defines the aggregates, entities, value objects, domain services, domain events, and repositories that implement each bounded context, and the invariants (`BR-*`) each one enforces.
-
-Everything here is scoped by what [`srs.md`](../../BA-docs/srs.md) §4–§5 and the [use cases](../../BA-docs/use-cases/) already specify. Nothing here invents new business behavior; it gives the already-specified behavior a structure that [Backend Architecture](./Backend%20Architecture.md) and the Spring Modulith module scaffold can implement directly, and that ArchUnit/JMolecules (SA §8) can verify.
+[`srs.md`](../../BA-docs/srs.md) §4–§5 and the [use cases](../../BA-docs/use-cases/) remain normative for behavior. This document structures that behavior for [Backend Architecture](./Backend%20Architecture.md), Spring Modulith, ArchUnit, and JMolecules.
 
 ---
 
@@ -23,7 +18,7 @@ Everything here is scoped by what [`srs.md`](../../BA-docs/srs.md) §4–§5 and
 
 ## 2. Subdomain Classification
 
-DDD asks that investment be proportional to business differentiation, not spread evenly. This is a classification of *business importance*, not technical difficulty — Promotion, for example, turns out to carry Core-grade concurrency invariants (§5.5) while remaining strategically Supporting, because the discount rules themselves are not what the business competes on.
+The classification reflects business differentiation, not technical difficulty. Promotion has strong concurrency rules but remains Supporting.
 
 | Class | Bounded Contexts | Why |
 |---|---|---|
@@ -35,7 +30,7 @@ DDD asks that investment be proportional to business differentiation, not spread
 
 ## 3. From 14 Business Domains to 12 Bounded Contexts
 
-[`srs.md`](../../BA-docs/srs.md) §2.2 fixes 14 business/domain codes (`CUS`, `CAT`, `SCH`, `INV`, `CRT`, `ORD`, `PAY`, `SHP`, `PRM`, `REV`, `NTF`, `ADM`, `RPT`, `AUD`). [Solution Architecture](../01-system/Solution%20Architecture.md) §5 P1 names only 7 modules (Catalog, Inventory, Ordering, Payment, Shipping, Promotion, Customer). This section is the reconciliation neither document performs — it is a deliberate strategic decision, not an oversight, and each divergence from a 1:1 mapping is justified below rather than left implicit.
+This table maps the 14 SRS domain codes to 12 bounded contexts and records each non-1:1 decision.
 
 | BA domain code(s) | Bounded Context | Reconciliation |
 |---|---|---|
@@ -54,15 +49,13 @@ DDD asks that investment be proportional to business differentiation, not spread
 | `RPT` | **Reporting & Analytics** | Its own context — Generic, pure CQRS read side. |
 | `AUD` | **Audit** | Its own context — Generic. Note: the *authorization decision* logic (`BR-AUD-02`) lives in Identity & Access as an Open Host Service, not here. Audit owns only the immutable log of what happened. |
 
-**Final set — 12 bounded contexts:** Identity & Access, Catalog, Inventory, Cart & Wishlist, Ordering, Payment, Shipping, Promotion, Review, Notification, Audit, Reporting & Analytics.
-
-This is not scope creep against Solution Architecture: SA's 7 named modules plus the Cart module it already implies account for 8; the remaining 4 (Review, Notification, Audit, Reporting & Analytics) are either drawn as separate boxes in SA §3's own architecture diagram or directly implied by the event-consumer pattern SA already commits to in P2/P13/P17.
+**Final set:** Identity & Access, Catalog, Inventory, Cart & Wishlist, Ordering, Payment, Shipping, Promotion, Review, Notification, Audit, and Reporting & Analytics. Solution Architecture already shows or implies all twelve through `P2`, `P13`, and `P17`.
 
 ---
 
 ## 4. Bounded Contexts
 
-Each context owns its own domain model, application services, infrastructure, and a deliberate public API — everything else is private to it (SA §5 P1). "Does not own" is stated explicitly for each because it is usually the more load-bearing decision.
+Each context owns its model, application services, infrastructure, and public API. Everything else is private (`P1`).
 
 | Context | Purpose | Owns | Explicitly does not own |
 |---|---|---|---|
@@ -129,17 +122,13 @@ flowchart TB
 
 ### 5.1 The Order-Placement Partnership
 
-This is the central design decision in this document. `BR-ORD-02` requires that creating an order and reserving its stock be "a single indivisible operation... including under system failure." Reading `UC-ORD-05` and `UC-PRM-02` together shows this indivisibility is not two-way, it is three-way:
-
-> `UC-PRM-02` E7 — *"Limit reached by a concurrent redemption... Exactly one succeeds; the other is told the promotion is exhausted. The limit holds under concurrency for the same reason `BR-INV-01` does — over-redemption is unbudgeted spend."*
-
-`UC-ORD-05` step 3 re-prices the order and re-validates any voucher immediately before step 4's atomic reserve-and-create. Promotion usage-limit consumption is, structurally, the identical oversell problem as stock. Placing an order is therefore one local transaction spanning three aggregates in three different bounded contexts:
+`BR-ORD-02`, `UC-ORD-05`, and `UC-PRM-02` E7 require one local transaction across three aggregates:
 
 - **`Order`** (Ordering) — enforces `BR-ORD-01`, `BR-ORD-02`, `BR-ORD-03` as its own single-aggregate invariants.
 - **`StockItem`** (Inventory) — enforces `BR-INV-01` as its own single-aggregate invariant.
 - **`Promotion`** (Promotion) — enforces its usage-cap counter as its own single-aggregate invariant.
 
-Each aggregate's invariant is single-aggregate. Atomicity *across* the three comes from one shared local database transaction — today's modular monolith — not from a wider aggregate boundary. This is a documented, deliberate departure from "one aggregate per transaction," scoped specifically to what `BR-ORD-02` requires, not a general license to touch multiple aggregates casually elsewhere.
+Each invariant remains inside its aggregate. The shared database transaction provides cross-context atomicity. This exception applies only to `BR-ORD-02`.
 
 Ordering owns two outbound ports for this, structurally identical to the external `PaymentProcessor`/`ShippingProvider` ports SA §4 already names, even though today's implementations are internal:
 
@@ -148,7 +137,7 @@ Ordering owns two outbound ports for this, structurally identical to the externa
 | `StockReservationPort` | Ordering | In-process adapter calling Inventory's application service inside the same transaction | Saga/compensating-action adapter against an extracted Inventory service |
 | `PromotionRedemptionPort` | Ordering | In-process adapter calling Promotion's application service inside the same transaction | Saga/compensating-action adapter against an extracted Promotion service |
 
-Because it is one local transaction today, a mid-placement failure (`UC-INV-01` E3: "failure part-way through a multi-line reservation") does not need an explicit compensating action *now* — plain transaction rollback releases everything already taken, for free. The Saga/compensating-action design is what §5.1's port table exists to make a swap-in, not a rewrite, if Inventory or Promotion is ever extracted into its own service (SA §11).
+A mid-placement failure (`UC-INV-01` E3) rolls back the local transaction. If Inventory or Promotion is extracted, the same ports use saga and compensation adapters (SA §11).
 
 ### 5.2 Relationship Table
 
@@ -174,12 +163,12 @@ Because it is one local transaction today, a mid-placement failure (`UC-INV-01` 
 
 ### 5.3 Shared Kernel
 
-A small, behavior-only set of Value Objects is shared across all 12 contexts: `Money` (amount + currency + precision, per SA §10's explicit requirement that a monetary value is never a bare number), typed identity wrappers (`CustomerId`, `ProductId`, `SkuId`, `OrderId`, …), and `Address`. Kept deliberately tiny to avoid the coupling trap a Shared Kernel invites if it grows.
+The Shared Kernel contains only `Money`, typed identity wrappers, and `Address`.
 
 Two governance rules:
 
 1. **Zero outbound dependencies.** The kernel depends on none of the 12 contexts — it must sit structurally beneath all of them, or Spring Modulith's module-boundary check has nothing meaningful to verify.
-2. **Physical home is not `04-shared`.** [`SA-docs/README.md`](../README.md#folder-layout) §1.1 reserves `04-shared/` for API/contract artifacts (OpenAPI, DTOs, event contracts, a permission matrix) — not domain code. This kernel needs its own module (e.g., a `shared-kernel` package beneath the backend source tree). This is a forward-pointer for [Backend Architecture](./Backend%20Architecture.md) to resolve, not a decision this document can make on its own.
+2. **Physical home is not `04-shared`.** [`SA-docs/README.md`](../README.md#folder-layout) §1.1 reserves it for contract artifacts. Backend Architecture places the kernel in its own `shared-kernel` module.
 
 ---
 
@@ -200,28 +189,14 @@ Terms that shift meaning across contexts, or that are easy to conflate:
 
 # Part II — Tactical Design
 
-## 7. Tactical Design Principles
+## 7. Tactical Design Rules
 
-Stated once here and applied throughout §8, to avoid repeating the same reasoning twelve times.
-
-**Building blocks**, per JMolecules' vocabulary (SA §5 P5, §8):
-
-- **Aggregate Root** — the only object outside the aggregate is allowed to hold a reference to; the transaction and consistency boundary.
-- **Entity** — has identity and a lifecycle, but is only ever reached through its aggregate root.
-- **Value Object** — no identity, defined entirely by its attributes, immutable.
-- **Domain Event** — an immutable record that something significant happened, named in the past tense.
-- **Domain Service** — see the rule immediately below.
-- **Repository** — one per aggregate root, never per entity.
-
-**Domain Service vs. Application Service.** This distinction is drawn once, explicitly, because it is the one most often blurred in practice: anything that loads or saves more than one aggregate *instance*, opens a unit of work/transaction, or crosses a module's public-API boundary is **Application Service** (orchestration/use-case) work — it does not belong in the domain layer, and SA §8's ArchUnit rule ("Domain must not depend on Infrastructure") would reject it there anyway. A **Domain Service** stays pure: given already-loaded Value Objects/Entities, it returns a decision, with no repository access and no cross-module I/O. Example of a genuine Domain Service: `PromotionStackingPolicy`, which computes `BR-PRM-03`'s deterministic stacking outcome from a list of already-loaded `Promotion` value objects — no I/O, no orchestration. The Order-Placement Partnership's coordination (§5.1), by contrast, is Application Service work, because it spans aggregate instances across bounded contexts.
-
-**Outbound port pattern for cross-context calls**, internal or external. SA §4 already defines this shape for external integrations (`PaymentProcessor`, `ShippingProvider`, `NotificationSender`). This document applies the identical shape to *internal* cross-context calls that must survive a future service extraction: `StockReservationPort` and `PromotionRedemptionPort` (§5.1), each with an in-process adapter today and a Saga-capable adapter after extraction. The domain/application layer depends only on the port; which adapter answers it is an infrastructure decision.
-
-**Global cross-aggregate constraints.** Several rules are cardinality/uniqueness constraints that cross aggregate *instances* and therefore cannot be single-aggregate invariants regardless of how boundaries are drawn: `BR-CAT-01` (SKU uniqueness across the whole catalog), `BR-CUS-01` (email uniqueness across all accounts), `BR-CAT-03` (a category may not become its own ancestor), `BR-REV-02` (at most one review per customer per product), `BR-AUD-03` (a user may not revoke the last remaining Administrator). Stated once: **a database unique/check constraint is the actual enforcement point** for each of these; an optional domain-service pre-check against a repository exists only to give fast user feedback, never as the source of truth. This is standard practice and is not repeated per rule in §8.
-
-**Multi-vendor forward-compatibility.** SA §10 commits that "Catalog, Inventory, and Order Aggregates can carry an explicit seller/ownership attribute without redesign." Concretely, `Product`, `StockItem`, and `Order` each carry a reserved, currently-unused `ownerId`/`sellerId` field — stated here explicitly, per aggregate in §8, so it is not silently forgotten when multi-vendor is eventually built.
-
-**Proportional rigor.** Investment matches the subdomain classification in §2: **full** aggregate/invariant/event/repository detail for Ordering, Inventory, Payment, Promotion, Cart & Wishlist, Catalog, Identity & Access, and Shipping; **light** treatment (entity list + one relationship paragraph, no full invariant walkthrough) for Review, Notification, Audit, and Reporting & Analytics. This is a feature of correct subdomain classification, not an inconsistency — a Generic subdomain is, by definition, not where differentiating design effort belongs.
+- Only aggregate roots are referenced outside an aggregate. Repositories exist per aggregate root, never per entity.
+- Application Services load or save multiple aggregate instances, open transactions, and cross module APIs. Domain Services are pure and perform no repository or cross-module I/O. `PromotionStackingPolicy` is a Domain Service; the §5.1 partnership is an Application Service.
+- Cross-context calls use ports. `StockReservationPort` and `PromotionRedemptionPort` have in-process adapters now and saga-capable adapters after extraction.
+- Database constraints enforce `BR-CAT-01`, `BR-CUS-01`, `BR-CAT-03`, `BR-REV-02`, and `BR-AUD-03`. Repository pre-checks provide feedback but are not authoritative.
+- `Product`, `StockItem`, and `Order` reserve an unused `ownerId` or `sellerId` for the multi-vendor path in SA §10.
+- Sections 8.1–8.8 define full tactical models. Review, Notification, Audit, and Reporting use the lighter treatment set by §2.
 
 ---
 
@@ -272,9 +247,9 @@ Stated once here and applied throughout §8, to avoid repeating the same reasoni
 |---|---|---|---|
 | `StockItem` | `StockItem` (identity: `Sku` + `WarehouseId`) | `StockReservation` (child, not a separate aggregate) | `Quantity`, `ReservationStatus` (Held / Committed / Released) |
 
-`StockItem` is the single-aggregate consistency boundary. `quantityOnHand` and `quantityReserved` are counters on the root; `availableQuantity` is derived (`quantityOnHand − quantityReserved`), never stored independently. A `StockReservation` is a child entity because its state transition and the counter update it causes must be atomic — `UC-INV-03` step 3 states decrementing stock and marking the reservation committed happen "as one operation," which is exactly what a single-aggregate invariant guarantees and a two-aggregate design would have to re-earn via a transaction.
+`StockItem` is the consistency boundary. It stores `quantityOnHand` and `quantityReserved`; `availableQuantity` is derived. `StockReservation` is a child because its transition and counter update are atomic (`UC-INV-03` step 3).
 
-An order line spanning multiple warehouses is modeled as multiple independent `StockReservation` parts, each against its own `StockItem`, each committed or released independently — evidenced directly by `UC-INV-02` A3 and `UC-INV-03` A1/A2, both of which describe partial commit/release as a legal outcome. There is no cross-warehouse aggregate; the "this order line's stock came from three parts" concept is a plain set of `(StockItemId, StockReservationId)` identity references held on the `Order` side (§8.5), not a domain object with its own invariants.
+An order line across warehouses uses independent `StockReservation` parts (`UC-INV-02` A3, `UC-INV-03` A1/A2). `Order` stores their `(StockItemId, StockReservationId)` references; there is no cross-warehouse aggregate.
 
 `StockItem` carries a reserved, currently-unused `ownerId`/`sellerId` field (§7 multi-vendor forward-compatibility).
 
@@ -356,7 +331,7 @@ stateDiagram-v2
 |---|---|---|---|
 | `Payment` (per order) | `Payment` | `PaymentAttempt`, `Refund` | `Money`, `IdempotencyKey`, `AttemptOutcome` |
 
-Same tactical rigor as Inventory deliberately, since the problem shape is identical: an idempotency-keyed, exactly-once state transition plus a running total that must hold under concurrent/duplicate delivery.
+Payment uses idempotency-keyed state transitions and a concurrency-safe running total.
 
 | Invariant | Rule | Enforced by |
 |---|---|---|
@@ -389,7 +364,7 @@ Same tactical rigor as Inventory deliberately, since the problem shape is identi
 |---|---|---|---|
 | `Promotion` | `Promotion` | — | `DiscountRule`, `ValidityWindow`, `UsageCounter` |
 
-Redemption-slot claiming is a single-aggregate invariant on `Promotion`, symmetric to `StockItem`'s stock claiming (§8.3) — this symmetry is exactly why the Order-Placement Partnership (§5.1) treats Ordering↔Promotion the same way it treats Ordering↔Inventory.
+`Promotion` owns redemption-slot claiming. The §5.1 partnership treats it like stock claiming.
 
 | Invariant | Rule | Enforced by |
 |---|---|---|
@@ -410,34 +385,32 @@ Redemption-slot claiming is a single-aggregate invariant on `Promotion`, symmetr
 
 ### 8.10 Notification (light)
 
-A thin `NotificationRequest` entity (recipient, channel, triggering event, delivery outcome) rather than a rich aggregate — this context is fundamentally an event-driven dispatcher, not a domain with its own business invariants beyond delivery guarantees. `BR-NTF-01` (delivered at least once, or recorded undeliverable, never silently dropped) and `BR-NTF-02` (opt-out applies to promotional, never transactional, notifications) are dispatcher-level rules, not aggregate invariants.
+`NotificationRequest` stores recipient, channel, triggering event, and outcome. The dispatcher enforces `BR-NTF-01` and `BR-NTF-02`; they are not aggregate invariants.
 
 **External integration:** `NotificationSender` port (Anticorruption Layer to the Email Service Provider).
 **Repository:** `NotificationRequestRepository`.
 
 ### 8.11 Audit (light)
 
-`AuditEntry` (actor, action, entity, before/after values, timestamp, reason) — append-only by construction: the repository and application service for this context expose no update or delete operation at all, for any role, through any interface. This is how `BR-AUD-01` holds structurally rather than as a runtime check that could be bypassed by a new entry point. Populated as a downstream Conformist subscriber to domain events from all 11 other contexts.
+`AuditEntry` stores actor, action, entity, before/after values, timestamp, and reason. The repository and application service expose no update or delete operation (`BR-AUD-01`). Audit consumes events from the other 11 contexts.
 
 **Repository:** `AuditEntryRepository` (append-only interface — no `update`/`delete` methods exist).
 
 ### 8.12 Reporting & Analytics (light)
 
-No meaningful aggregates — pure CQRS read side. Downstream Conformist subscriber to domain events from all 11 other contexts, materializing projections into MongoDB/Elasticsearch per SA §5 P13. `BR-RPT-01` (revenue counts only Paid-or-beyond orders, excluding refunds/returns from the periods they occur in) is a projection-computation rule, not an aggregate invariant. Zero upstream influence — no other context designs around this one's needs (§5.2).
+Reporting is a CQRS read side with no aggregate. It projects events from the other 11 contexts into MongoDB or Elasticsearch (`P13`). `BR-RPT-01` is a projection rule. Reporting has no upstream influence.
 
 ---
 
 ## 9. Domain Events Catalog
 
-The catalogue is [`Integration Contract.md`](../04-shared/Integration%20Contract.md) §7 — every event name against its publishing context, its transport, its known consumers, and its payload. It is the normative contract for what crosses a boundary, so it is the copy kept; the event names this document's §8 aggregates publish are the same strings.
-
-Two properties of the catalogue matter to the domain model rather than to the contract. **Notification, Audit, and Reporting & Analytics are universal consumers** — generic subdomains subscribing to nearly every context, which is why they appear in almost every row and why none of the twelve core contexts depends on them. And **an event's transport is a consequence of its context map relationship**, not a free choice: a Partnership or Shared Kernel pairing stays in-process, while a Conformist or Customer/Supplier pairing across a future extraction boundary goes through the outbox to Kafka (§7).
+[`Integration Contract.md`](../04-shared/Integration%20Contract.md) §7 is the normative event catalogue. Notification, Audit, and Reporting are universal consumers. Partnerships stay in-process; relationships across extraction boundaries use the outbox and Kafka.
 
 ---
 
 ## 10. Business Rule Traceability
 
-Every `BR-*` from [`srs.md`](../../BA-docs/srs.md) §4, mapped to where it is actually enforced. Mirrors the convention already established in [`traceability-matrix.md`](../../BA-docs/traceability-matrix.md).
+Every `BR-*` from [`srs.md`](../../BA-docs/srs.md) §4 maps to its enforcement point.
 
 | Rule | Bounded Context | Aggregate / Mechanism | Section |
 |---|---|---|---|
@@ -493,6 +466,4 @@ flowchart TB
     Tactical --> Next["Backend Architecture.md — Clean Architecture layering<br/>Spring Modulith module scaffold<br/>ArchUnit rules<br/>04-shared/ API & event contracts"]
 ```
 
-This document turns [Solution Architecture](../01-system/Solution%20Architecture.md)'s P1/P5 commitments into a concrete model: 12 bounded contexts (§3–§4), a context map with one central, evidence-backed hard boundary — the three-way Order-Placement Partnership (§5.1) — and a full tactical breakdown for every Core and high-invariant Supporting context, traced back to every `BR-*` rule in the SRS (§10).
-
-What this unlocks next: [Backend Architecture](./Backend%20Architecture.md) (still a stub) can now define the Clean Architecture layering and package structure that houses these aggregates; the Spring Modulith module scaffold can be generated directly from §4's context list; ArchUnit rules can be written against the Domain Service/Application Service distinction in §7; and `04-shared/` can define the API and event contracts for the Domain Events Catalog in §9.
+The model defines 12 bounded contexts, the three-way Order-Placement Partnership, tactical models, and enforcement points for every `BR-*`. [Backend Architecture](./Backend%20Architecture.md) defines their package structure, module scaffold, and ArchUnit rules. [`Integration Contract.md`](../04-shared/Integration%20Contract.md) defines the API and event contracts.

@@ -23,7 +23,7 @@ The repository already anticipates the fix: [`SA-docs/README.md`](../../README.m
 - Architecture quality must be a verifiable property rather than institutional memory (`P15`, `NFR-MAINT-05`).
 - `AC-04` — "the system remains maintainable as complexity increases" — is judged partly on whether a newcomer can reconstruct *why* the system looks the way it does.
 - The frontend architecture is being decided now, for the first time; those decisions need somewhere to live that is not a stub file.
-- Whatever format is chosen must survive `node util/toHtml.js` and match the house conventions already used across `docs/`.
+- Whatever format is chosen must render in the Astro documentation reader and match the house conventions already used across `docs/`.
 
 ## 3. Considered Options
 

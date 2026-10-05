@@ -6,38 +6,26 @@
 **Version:** 1.0
 **Status:** Draft for stakeholder review
 
-Every numbered file in this folder is a **User Story Specification — domain** for the audience above; the per-file headers carry only what differs between them.
+## 1. Scope
 
----
+These 87 stories derive from the 87 [use cases](../use-cases/README.md). The use case is normative if the two disagree.
 
-## 1. Purpose of This Document
+## 2. Mapping
 
-This document restates the same 87 use cases as **user stories with acceptance criteria** — the format a backlog is built from and a test is written against. It is a derivation, not a second analysis: each story's "So that" clause comes from its source use case's stated stakeholder interest, and each acceptance criterion comes from that use case's main scenario, alternate flows, and exception flows restated as Given/When/Then. Where the two disagree, the use case is normative.
+`US-<DOMAIN>-<nn>` maps directly to `UC-<DOMAIN>-<nn>` with no gaps. For example, `US-ORD-05` maps to `UC-ORD-05`. Stories inherit the source use case's MoSCoW priority. [`srs.md`](../srs.md) §1.5 defines the domain codes, and [`traceability-matrix.md`](../traceability-matrix.md) §3 records the mapping rule.
 
----
-
-## 2. Identifier Scheme and Numbering
-
-Every story carries the identifier `US-<DOMAIN>-<nn>`, using the same domain codes as [`../srs.md`](../srs.md) §1.5. **Numbering is 1:1 with the use cases**: `US-CUS-01` realises `UC-CUS-01`, `US-ORD-05` realises `UC-ORD-05`, and so on, with no exceptions and no gaps. This is why no separate `UC → US` traceability table exists elsewhere — the mapping is the identifier itself. See [`../traceability-matrix.md`](../traceability-matrix.md) §3 for the note recording this rule.
-
-A story's **priority** is inherited unchanged from its source use case's MoSCoW priority ([`../srs.md`](../srs.md) §1.5).
-
----
-
-## 3. How to Read a Story
+## 3. Story format
 
 | Field | Meaning |
 |---|---|
-| **As a / I want / So that** | The actor, the goal, and the benefit — the goal restates the use case's trigger and primary actor; the benefit is drawn from that actor's stated interest in **Stakeholders & interests** |
-| **Realises** | The `UC` this story derives from, and the `FR` identifiers that use case's own Traceability row cites |
+| **As a / I want / So that** | Actor, goal, and stakeholder interest from the source use case |
+| **Realises** | Source `UC` and its traced `FR` identifiers |
 | **Priority** | Inherited from the source use case |
-| **Acceptance Criteria** | Given/When/Then bullets: one or two covering the main success scenario, one per alternate flow, one per exception flow |
+| **Acceptance Criteria** | Given/When/Then cases for success, alternate, and exception flows |
 
-An acceptance criterion never introduces a condition the source use case did not already specify. Where a use case's exception flow describes *why* a rule exists (a business-rule citation, a reference to a business problem `P1`–`P17`), the acceptance criterion states only the testable behaviour — the *why* stays in the use case, which remains the place to read it.
+Acceptance criteria cannot add conditions that are absent from the source use case. Business rationale stays in the use case.
 
----
-
-## 4. Story Inventory
+## 4. Inventory
 
 **87 stories across 14 domains, one per use case in [`../use-cases/`](../use-cases/README.md).**
 
@@ -58,6 +46,4 @@ An acceptance criterion never introduces a condition the source use case did not
 | Reporting & Analytics | [`13-reporting-analytics.md`](./13-reporting-analytics.md) | 6 |
 | Audit & Access Control | [`14-audit-access-control.md`](./14-audit-access-control.md) | 4 |
 
-Story `US-<DOMAIN>-<nn>` corresponds to use case `UC-<DOMAIN>-<nn>` by construction (§2), so the per-story listing — id, title, actor, priority — is not repeated here. It is in [`../use-cases/README.md`](../use-cases/README.md) §4, which carries the same rows against their
-`UC-` identifiers.
-
+The [use case inventory](../use-cases/README.md#4-inventory) lists each ID, title, actor, and priority. This index does not repeat it.

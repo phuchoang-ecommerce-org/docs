@@ -8,18 +8,18 @@
 
 ---
 
-## 1. Shape of the Plan
+## 1. Plan
 
-**36 two-week sprints across three releases — 33 delivery sprints plus 3 Integration Hardening sprints.** At the velocity assumed in [`scrum-framework.md`](./scrum-framework.md) §4 that is approximately **17 months** for one backend developer and one frontend developer.
+**36 two-week sprints across three releases:** 33 delivery sprints and 3 Integration Hardening sprints. At the assumed velocity in [`scrum-framework.md`](./scrum-framework.md) §4, one backend developer and one frontend developer need about **17 months**.
 
-That number is stated plainly rather than compressed to look better. Two levers change it, and only two:
+Two changes can move the date:
 
 | Lever | Effect |
 |---|---|
-| A second backend developer | The backend lane is the critical path by roughly ten sprints. A second backend developer is worth far more than a second frontend developer, and moves the release in |
-| Cutting Release 3 | The 12 `Should` and 4 `Could` stories are three sprints. Dropping them ships the `Must` set — which SRS §1.5 defines as the viable release — around Sprint 29 |
+| A second backend developer | The backend lane is the critical path by about ten sprints |
+| Cut Release 3 | Ship the viable `Must` set at about Sprint 29; omit 12 `Should` and 4 `Could` stories |
 
-Adding a frontend developer does **not** move the date. The frontend lane already carries reserve (§6).
+A second frontend developer does **not** move the date because the frontend lane has reserve (§6).
 
 ---
 
@@ -29,15 +29,15 @@ Adding a frontend developer does **not** move the date. The frontend lane alread
 |---|---|---|---|
 | **R1 — Transactable Storefront** | S00 – S23 + IH-1, IH-2 | A customer registers, browses, searches, carts, checks out, pays, and tracks a delivery. Operators manage catalog, inventory, promotions, orders, payments and shipments | The purchase path works end to end against the real API |
 | **R2 — Operations Console** | S24 – S29 + IH-3 | Reviews, account and role administration, reporting read models and screens, the audit trail, and full contract verification across all 155 operations | All 71 `Must` stories delivered — the viable release of SRS §1.5 |
-| **R3 — Discovery, Depth & Launch** | S30 – S32 | The 12 `Should` and 4 `Could` stories, then launch readiness | An honest statement of what is verified and what is not |
+| **R3 — Discovery, Depth & Launch** | S30 – S32 | The 12 `Should` and 4 `Could` stories, then launch readiness | Verified and unverified claims recorded |
 
-**The `Must` cut line is the end of Sprint 29.** Everything after it is capability the release can ship without, by the Product Owner's own MoSCoW assignment.
+**The `Must` cut line is the end of Sprint 29.** Later work is optional under the Product Owner's MoSCoW assignment.
 
 ---
 
-## 3. Sequencing — Why This Order and Not Another
+## 3. Sequencing
 
-### 3.1 The backend order is forced
+### 3.1 Backend
 
 ```mermaid
 flowchart LR
@@ -59,15 +59,15 @@ flowchart LR
   ID --> AUD["audit<br/>S28"]
 ```
 
-This is [`Module Dependency Diagram.md`](../SA-docs/02-backend/Module%20Dependency%20Diagram.md) §3's graph read as a topological order. `identity` is first because all twelve other modules call its `AuthorizationService`. `ordering` is late because it is the only module with three cross-context edges, and every one of them must exist first.
+The order follows [`Module Dependency Diagram.md`](../SA-docs/02-backend/Module%20Dependency%20Diagram.md) §3. `identity` is first because all twelve other modules call its `AuthorizationService`. `ordering` follows its three dependencies.
 
-**`audit` is split, deliberately.** `UC-AUD-03` (RBAC) and `UC-AUD-04` (rate limiting) are cross-cutting and land in **S04**, with `identity`, because `BR-AUD-02` requires the same authorisation decision whatever entry point a request arrives through — that is not something added per controller later. `UC-AUD-01` (record an audit entry) lands in **S12**, once there are commands worth auditing. Only the trail *search* waits for S28.
+`audit` is split. `UC-AUD-03` and `UC-AUD-04` land with `identity` in **S04** because `BR-AUD-02` applies to every entry point. `UC-AUD-01` lands in **S12**. Audit search waits for **S28**.
 
-### 3.2 The frontend order is forced too, by a different rule
+### 3.2 Frontend
 
-[`Feature Structure.md`](../SA-docs/03-frontend/Feature%20Structure.md) §2 points dependencies `app/` → `features/` → `lib/` → `components/`. So `lib/api`, `lib/session` and the design-system primitives precede every screen, and the route groups precede the routes inside them.
+The order follows `app/` → `features/` → `lib/` → `components/` ([`Feature Structure.md`](../SA-docs/03-frontend/Feature%20Structure.md) §2). `lib/api`, `lib/session`, design-system primitives, and route groups come before their consumers.
 
-**But the frontend is not bound to the backend's order**, and the plan exploits that repeatedly:
+The frontend can build against the Prism mock before the backend endpoint exists:
 
 | Screen | Frontend builds it | Backend delivers it | Gap |
 |---|---|---|---|
@@ -79,13 +79,13 @@ This is [`Module Dependency Diagram.md`](../SA-docs/02-backend/Module%20Dependen
 | Reporting screens | S23–S24 | S26–S27 | 3 sprints ahead |
 | Audit trail | S25 | S28 | 3 sprints ahead |
 
-Every one of those is built against the Prism mock and integrated at the next gate. This is the contract-first dividend, and it is the reason the plan does not need the two lanes to move in lockstep.
+Each screen integrates with the real API at the next gate.
 
 ---
 
 ## 4. The Sprint Map
 
-Each sprint below lists both lanes with their point loads. `▸ G<n>` marks a Contract Sync gate at the sprint's end; `IH` sprints carry no story points at all.
+Each sprint lists both lane loads. `▸ G<n>` marks an end-of-sprint Contract Sync. `IH` sprints carry no story points.
 
 
 ---
@@ -101,7 +101,7 @@ Each sprint below lists both lanes with their point loads. `▸ G<n>` marks a Co
 | `EN-BUILD-1` Gradle multi-project: 14 subprojects, version catalog, `app` composition root, `bootJar` | 14 |
 | **Total** | **14** |
 
-The Gradle multi-project layout of [`Module Dependency Diagram.md`](../SA-docs/02-backend/Module%20Dependency%20Diagram.md) §2 exists with all fourteen subprojects and an empty, compiling `app`.
+Exit: all fourteen backend subprojects and the empty `app` compile.
 
 | Frontend lane | Pts |
 |---|---:|
@@ -109,7 +109,7 @@ The Gradle multi-project layout of [`Module Dependency Diagram.md`](../SA-docs/0
 | *Lane reserve — see §6* | *4* |
 | **Total** | **14** |
 
-The frontend toolchain is complete and every gate is wired before a single screen exists — because a boundary rule added after the code is a refactor, not a gate.
+Exit: every frontend gate runs before screen work starts.
 
 
 ---
@@ -126,7 +126,7 @@ The frontend toolchain is complete and every gate is wired before a single scree
 | `EN-DATA-1` PostgreSQL + Kafka in `compose.yaml`; Testcontainers PostgreSQL + JDBC driver | 7 |
 | **Total** | **20** |
 
-ArchUnit fails on a deliberately planted violation, then passes when it is removed. That demonstration is the deliverable, not the passing build.
+Exit: ArchUnit fails on a planted violation and passes after its removal.
 
 | Frontend lane | Pts |
 |---|---:|
@@ -134,7 +134,7 @@ ArchUnit fails on a deliberately planted violation, then passes when it is remov
 | `EN-MOCK-1` Prism mock harness — `npm run mock:api` off `openapi.yaml`, seeded examples | 6 |
 | **Total** | **20** |
 
-`npm run mock:api` serves `openapi.yaml` through Prism and the fetch client returns typed, Zod-parsed data from it.
+Exit: Prism serves `openapi.yaml`; the fetch client returns typed, Zod-parsed data.
 
 
 **▸ G0 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
@@ -154,16 +154,11 @@ ArchUnit fails on a deliberately planted violation, then passes when it is remov
 | `EN-WIRE-1` Problem+JSON `@RestControllerAdvice`, error-code registry enums, pagination envelope, correlation-id filter | 12 |
 | **Total** | **20** |
 
-Problem+JSON, the pagination envelope, the error registry, and the correlation filter land before the first domain controller, so no wire format is decided one controller at a time.
-
 | Frontend lane | Pts |
 |---|---:|
 | `EN-FE-SHELL-1` Root layout, CSP nonce, middleware, four route-group layouts, header/footer/account sidebar/admin shell | 14 |
 | `EN-FE-DS-1` Design system: Button, Input, Card | 6 |
 | **Total** | **20** |
-
-The four route groups and their layouts exist as empty shells with the right cookie posture and CSP nonce.
-
 
 ---
 
@@ -182,8 +177,6 @@ The four route groups and their layouts exist as empty shells with the right coo
 | `EN-WIRE-2` Redis two-instance topology; cache-aside and rate-limiter infrastructure | 5 |
 | **Total** | **20** |
 
-First real controllers. `identity` is first because all twelve other modules depend on it.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-CUS-01` Register Customer Account | 3 |
@@ -193,7 +186,7 @@ First real controllers. `identity` is first because all twelve other modules dep
 | `EN-FE-DS-2` Design system: Form, EmptyState, Skeleton, Badge, motion + reduced-motion baseline | 11 |
 | **Total** | **20** |
 
-The `(auth)` group is complete against the mock, including the non-disclosure rule that sign-in and reset failures read identically.
+Exit: the `(auth)` group applies the same response text to sign-in and reset failures.
 
 
 **▸ G1 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
@@ -215,7 +208,7 @@ The `(auth)` group is complete against the mock, including the non-disclosure ru
 | `EN-OBS-1` Structured JSON logging to stdout; management port; liveness/readiness | 2 |
 | **Total** | **20** |
 
-`AuthorizationService`, RBAC, and the Redis limiter — `BR-AUD-02` requires the same decision whatever entry point a request arrives through, so this cannot be retrofitted per controller.
+`BR-AUD-02` requires one authorisation decision across all entry points.
 
 | Frontend lane | Pts |
 |---|---:|
@@ -224,9 +217,6 @@ The `(auth)` group is complete against the mock, including the non-disclosure ru
 | `US-AUD-04` Enforce API Rate Limit | 2 |
 | `EN-FE-API-2` Session custody: `ecp_session` cookie, `/api/csrf` signed double-submit, serialised refresh, `/api/auth/*` | 10 |
 | **Total** | **19** |
-
-Session custody: the `ecp_session` cookie, signed double-submit CSRF, and serialised refresh.
-
 
 ---
 
@@ -245,8 +235,6 @@ Session custody: the `ecp_session` cookie, signed double-submit CSRF, and serial
 | `US-CUS-10` View Purchase History | 3 |
 | **Total** | **19** |
 
-Profile, addresses, password change and reset, purchase-history read.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-CUS-06` Change Password | 2 |
@@ -257,7 +245,7 @@ Profile, addresses, password change and reset, purchase-history read.
 | `EN-FE-DS-3` Design system: Table, Modal, Tooltip, pagination control | 3 |
 | **Total** | **19** |
 
-The `(account)` group, and the ownership `404` that must never say "you don't have permission".
+Ownership failures return `404` and do not reveal the permission check.
 
 
 **▸ G2 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
@@ -279,8 +267,6 @@ The `(account)` group, and the ownership `404` that must never say "you don't ha
 | `EN-WIRE-3` Catalog read cache-aside + invalidation keys | 8 |
 | **Total** | **21** |
 
-Category tree, category listings, variants, and the Redis cache-aside path `NFR-PERF-01` depends on.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-CAT-01` Browse Category Tree | 5 |
@@ -289,7 +275,7 @@ Category tree, category listings, variants, and the Redis cache-aside path `NFR-
 | *Lane reserve — see §6* | *1* |
 | **Total** | **17** |
 
-`/` and `/c/[...slug]` as `R1` static routes with the product grid streaming.
+`/` and `/c/[...slug]` are `R1` static routes; the product grid streams.
 
 
 ---
@@ -314,8 +300,6 @@ dependencies; estimates, `S07`, `G3`, and milestone dates are unchanged.
 | `EN-OBS-2` Micrometer meters named in Deployment §8 | 5 |
 | **Total** | **18** |
 
-Product detail, its indexes, and the cursor-pagination query design.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-CAT-03` View Product Details | 8 |
@@ -323,7 +307,7 @@ Product detail, its indexes, and the cursor-pagination query design.
 | `EN-FE-SHELL-2` `loading.tsx` / `error.tsx` / `not-found.tsx` placement and `<Suspense>` discipline per Routing §8 | 9 |
 | **Total** | **20** |
 
-Four independent boundaries on one page — a reviews failure must not take down the page.
+The page has four independent boundaries. A reviews failure does not fail the page.
 
 
 **▸ G3 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
@@ -342,7 +326,7 @@ Four independent boundaries on one page — a reviews failure must not take down
 | `EN-EVENT-1` Transactional outbox table + polling relay + event envelope + topic catalogue | 21 |
 | **Total** | **21** |
 
-The transactional outbox, the polling relay, the envelope, and the topic catalogue. The single largest enabler in the plan and the one everything downstream assumes.
+All later event work depends on `EN-EVENT-1`.
 
 | Frontend lane | Pts |
 |---|---:|
@@ -351,7 +335,7 @@ The transactional outbox, the polling relay, the envelope, and the topic catalog
 | *Lane reserve — see §6* | *5* |
 | **Total** | **13** |
 
-The admin console leads the backend by a sprint, built entirely against the mock.
+The admin console is built against the mock one sprint before the backend.
 
 
 ---
@@ -369,8 +353,6 @@ The admin console leads the backend by a sprint, built entirely against the mock
 | `EN-EVENT-2` Catalog events published; consumer idempotency and ordering guards | 8 |
 | **Total** | **21** |
 
-Catalog writes publish events; consumers are idempotent and ordering-guarded.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-ADM-05` Manage Inventory Adjustments | 3 |
@@ -379,7 +361,7 @@ Catalog writes publish events; consumers are idempotent and ordering-guarded.
 | *Lane reserve — see §6* | *3* |
 | **Total** | **15** |
 
-Event-driven ISR revalidation through `/api/internal/revalidate` — one invalidation path, not two.
+`/api/internal/revalidate` is the only ISR invalidation path.
 
 
 **▸ G4 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
@@ -423,8 +405,6 @@ Event-driven ISR revalidation through `/api/internal/revalidate` — one invalid
 | `EN-EVENT-3` Elasticsearch search read model, projected from catalog events | 8 |
 | **Total** | **21** |
 
-Elasticsearch projected from catalog events; keyword, facets, and sort.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-SCH-01` Search Products by Keyword | 5 |
@@ -432,7 +412,7 @@ Elasticsearch projected from catalog events; keyword, facets, and sort.
 | `EN-FE-API-4` URL search-param encoding contract (ADR-0037); R2 streamed sections | 10 |
 | **Total** | **20** |
 
-`/search` as `R2` with streamed results and the URL search-param encoding contract.
+`/search` uses `R2`, streamed results, and the URL search-param contract.
 
 
 ---
@@ -450,7 +430,7 @@ Elasticsearch projected from catalog events; keyword, facets, and sort.
 | `US-INV-03` Commit Reserved Stock on Fulfilment | 5 |
 | **Total** | **18** |
 
-The reservation model under real PostgreSQL: N threads racing one SKU. `NFR-REL-03` is verifiable in exactly one way and this is it.
+Exit for `NFR-REL-03`: N threads race one SKU against PostgreSQL without oversell.
 
 | Frontend lane | Pts |
 |---|---:|
@@ -459,7 +439,7 @@ The reservation model under real PostgreSQL: N threads racing one SKU. `NFR-REL-
 | *Lane reserve — see §6* | *9* |
 | **Total** | **9** |
 
-Availability displayed as advisory and labelled — it never blocks add-to-cart.
+Availability is advisory and labelled. It never blocks add-to-cart.
 
 
 **▸ G5 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
@@ -481,7 +461,7 @@ Availability displayed as advisory and labelled — it never blocks add-to-cart.
 | `US-AUD-01` Record Audit Entry | 8 |
 | **Total** | **21** |
 
-Adjustments, levels, and `UC-AUD-01` on every command path.
+`UC-AUD-01` applies to every command path.
 
 | Frontend lane | Pts |
 |---|---:|
@@ -491,7 +471,7 @@ Adjustments, levels, and `UC-AUD-01` on every command path.
 | *Lane reserve — see §6* | *5* |
 | **Total** | **13** |
 
-The order-status discriminated union — an unhandled state is a build failure, not a blank action bar.
+An unhandled order status fails the build.
 
 
 ---
@@ -511,8 +491,6 @@ The order-status discriminated union — an unhandled state is a build failure, 
 | `EN-WIRE-4` Guest-cart cookie handling and cart identity resolution | 5 |
 | **Total** | **20** |
 
-Cart lines and the guest-cart cookie identity resolution.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-CRT-01` Add Item to Cart | 3 |
@@ -522,7 +500,7 @@ Cart lines and the guest-cart cookie identity resolution.
 | *Lane reserve — see §6* | *5* |
 | **Total** | **13** |
 
-`/cart` with optimistic quantity edits that revert visibly on failure.
+Optimistic quantity edits revert visibly on failure.
 
 
 **▸ G6 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
@@ -544,8 +522,6 @@ Cart lines and the guest-cart cookie identity resolution.
 | `EN-DATA-4` L5 persistence & concurrency suite scaffolding (schema-per-test-class) | 5 |
 | **Total** | **21** |
 
-Merge on login, the expiry scheduler, and consumer retry/dead-lettering.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-CRT-05` Merge Guest Cart on Login | 3 |
@@ -554,7 +530,7 @@ Merge on login, the expiry scheduler, and consumer retry/dead-lettering.
 | *Lane reserve — see §6* | *7* |
 | **Total** | **11** |
 
-The checkout funnel is built against the mock, three sprints ahead of its endpoints.
+The checkout funnel uses the mock three sprints before its endpoints.
 
 
 ---
@@ -572,7 +548,7 @@ The checkout funnel is built against the mock, three sprints ahead of its endpoi
 | `US-PRM-03` Apply Promotion to Order | 8 |
 | **Total** | **21** |
 
-`UC-PRM-02` E7 is structurally the same oversell problem as `BR-INV-01` and gets the same treatment.
+`UC-PRM-02` E7 uses the same concurrency control as `BR-INV-01`.
 
 | Frontend lane | Pts |
 |---|---:|
@@ -583,7 +559,7 @@ The checkout funnel is built against the mock, three sprints ahead of its endpoi
 | *Lane reserve — see §6* | *5* |
 | **Total** | **13** |
 
-The voucher field fails on `ECP-PRM-4090` — the field, never the checkout.
+`ECP-PRM-4090` fails the voucher field, not checkout.
 
 
 **▸ G7 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
@@ -604,8 +580,6 @@ The voucher field fails on `ECP-PRM-4090` — the field, never the checkout.
 | `EN-CONTRACT-1` Contract test spec→code across delivered operations | 13 |
 | **Total** | **21** |
 
-Flash sale launch, deactivation, expiry, and the first contract test direction.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-PRM-01` Create Promotion | 5 |
@@ -613,9 +587,6 @@ Flash sale launch, deactivation, expiry, and the first contract test direction.
 | `US-PRM-05` Deactivate or Expire Promotion | 2 |
 | *Lane reserve — see §6* | *8* |
 | **Total** | **10** |
-
-`/admin/promotions` list → detail → action.
-
 
 ---
 
@@ -633,17 +604,12 @@ Flash sale launch, deactivation, expiry, and the first contract test direction.
 | `US-ORD-04` Review Order Summary | 5 |
 | **Total** | **18** |
 
-Initiate, shipping and billing, voucher application, order summary.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-ORD-05` Place Order | 5 |
 | `US-ORD-06` View Order Details | 5 |
 | *Lane reserve — see §6* | *8* |
 | **Total** | **10** |
-
-Frontend reserve absorbs any backend slip from the preceding four sprints.
-
 
 **▸ G8 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
 
@@ -662,7 +628,7 @@ Frontend reserve absorbs any backend slip from the preceding four sprints.
 | `EN-EVENT-5` Order lifecycle events on the outbox; ordering topic partitioning | 5 |
 | **Total** | **18** |
 
-The Order-Placement Partnership — the one deliberately porous boundary in the system. `StockReservationPort` and `PromotionRedemptionPort` inside one transaction, plus fault injection at each step.
+`StockReservationPort` and `PromotionRedemptionPort` run in one transaction. Tests inject faults at each step.
 
 | Frontend lane | Pts |
 |---|---:|
@@ -672,7 +638,7 @@ The Order-Placement Partnership — the one deliberately porous boundary in the 
 | *Lane reserve — see §6* | *8* |
 | **Total** | **10** |
 
-`placeOrder` with an `Idempotency-Key` minted once per attempt and never regenerated.
+`placeOrder` creates one `Idempotency-Key` per attempt and never regenerates it.
 
 
 ---
@@ -691,17 +657,12 @@ The Order-Placement Partnership — the one deliberately porous boundary in the 
 | `US-ORD-10` Advance Order Status | 8 |
 | **Total** | **19** |
 
-View, track, cancel, and the operator's status transitions.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-SHP-01` Calculate Shipping Fee | 2 |
 | `US-SHP-05` View Shipment Tracking | 5 |
 | *Lane reserve — see §6* | *11* |
 | **Total** | **7** |
-
-Frontend CI stages join the pipeline.
-
 
 **▸ G9 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
 
@@ -723,8 +684,6 @@ Frontend CI stages join the pipeline.
 | `US-SHP-06` Confirm Delivery | 3 |
 | **Total** | **21** |
 
-Quotes, shipments, carrier events, delivery confirmation.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-PAY-01` Select Payment Method | 3 |
@@ -732,9 +691,6 @@ Quotes, shipments, carrier events, delivery confirmation.
 | `US-SHP-06` Confirm Delivery | 2 |
 | *Lane reserve — see §6* | *10* |
 | **Total** | **8** |
-
-The Playwright purchase path — the whole thin suite, and deliberately no larger.
-
 
 ---
 
@@ -774,7 +730,7 @@ The Playwright purchase path — the whole thin suite, and deliberately no large
 | `US-PAY-03` Handle Payment Gateway Result | 8 |
 | **Total** | **19** |
 
-Provider ACL, authorisation, and the signed provider callback. The callback terminates at `nginx` and never passes through `ecp-web`.
+The signed provider callback terminates at `nginx` and never passes through `ecp-web`.
 
 | Frontend lane | Pts |
 |---|---:|
@@ -785,7 +741,7 @@ Provider ACL, authorisation, and the signed provider callback. The callback term
 | `US-NTF-03` View In-App Notifications | 5 |
 | **Total** | **23** |
 
-`/checkout/payment/processing` polls; the provider return is a route handler, not a page.
+`/checkout/payment/processing` polls. The provider return is a route handler, not a page.
 
 
 **▸ G10 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
@@ -807,7 +763,7 @@ Provider ACL, authorisation, and the signed provider callback. The callback term
 | `EN-OBS-3` Correlation id traced REST → outbox → Kafka → projection | 5 |
 | **Total** | **20** |
 
-Cash on delivery, retry, refund, and the unmatched-payment reconciliation queue.
+The payment flow includes the unmatched-payment reconciliation queue.
 
 | Frontend lane | Pts |
 |---|---:|
@@ -838,7 +794,7 @@ Cash on delivery, retry, refund, and the unmatched-payment reconciliation queue.
 | `EN-BENCH-1` `bench/smoke.js` — k6 scenarios S1–S5 reconciled against `openapi.yaml` | 5 |
 | **Total** | **21** |
 
-Email and in-app delivery as Kafka consumers, plus the k6 smoke script reconciled against the real endpoints.
+Email and in-app delivery are Kafka consumers. The k6 script uses the delivered endpoints.
 
 | Frontend lane | Pts |
 |---|---:|
@@ -847,9 +803,6 @@ Email and in-app delivery as Kafka consumers, plus the k6 smoke script reconcile
 | `US-RPT-05` View Order and Conversion Statistics | 5 |
 | *Lane reserve — see §6* | *5* |
 | **Total** | **13** |
-
-The notification centre and the bell.
-
 
 **▸ G11 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
 
@@ -869,17 +822,12 @@ The notification centre and the bell.
 | `EN-EVENT-6` Review rating-summary projection; MongoDB read-model idempotency tests | 8 |
 | **Total** | **18** |
 
-The verified-buyer rule and the rating-summary projection.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-RPT-04` View Inventory Report | 3 |
 | `EN-CI-3` Frontend CI stages: type check, lint, boundary + cycle check, codegen drift | 8 |
 | *Lane reserve — see §6* | *7* |
 | **Total** | **11** |
-
-Reviews are an advisory section — a failure is a section empty state, never a page error.
-
 
 ---
 
@@ -897,8 +845,6 @@ Reviews are an advisory section — a failure is a section empty state, never a 
 | `EN-CONTRACT-2` Contract test code→spec; undocumented endpoint fails the build | 5 |
 | **Total** | **20** |
 
-Account management, role grants, session termination, bulk actions, and the code→spec contract direction.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-AUD-02` Search Audit Trail | 5 |
@@ -906,7 +852,7 @@ Account management, role grants, session termination, bulk actions, and the code
 | *Lane reserve — see §6* | *5* |
 | **Total** | **13** |
 
-Frontend runs its e2e suite against real endpoints for the first time.
+The frontend e2e suite runs against the real API.
 
 
 **▸ G12 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
@@ -927,15 +873,12 @@ Frontend runs its e2e suite against real endpoints for the first time.
 | `US-RPT-05` View Order and Conversion Statistics | 5 |
 | **Total** | **18** |
 
-`CON-06` holds at the process level: reporting queries must not compete with transactions.
+`CON-06`: reporting queries must not compete with transactions.
 
 | Frontend lane | Pts |
 |---|---:|
 | *Lane reserve — see §6* | *18* |
 | **Total** | **0** |
-
-The accessibility sweep — axe, token contrast, and a manual screen-reader pass.
-
 
 ---
 
@@ -952,16 +895,13 @@ The accessibility sweep — axe, token contrast, and a manual screen-reader pass
 | `EN-CI-1` CI stages 1–4 of Testing Strategy §9 | 8 |
 | **Total** | **21** |
 
-`NFR-PERF-06` permits five minutes; an operator deciding on a five-minute-old figure must know that is what they are doing.
+Each reporting screen shows projection age. `NFR-PERF-06` allows up to five minutes.
 
 | Frontend lane | Pts |
 |---|---:|
 | `EN-FE-E2E-2` Accessibility sweep: axe in component tests, token-contrast assertions, manual screen-reader pass | 13 |
 | *Lane reserve — see §6* | *5* |
 | **Total** | **13** |
-
-The per-route-class budget gate.
-
 
 **▸ G13 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
 
@@ -980,7 +920,7 @@ The per-route-class budget gate.
 | `EN-CONTRACT-3` Permission-matrix test generated from spec × matrix, all 155 operations | 13 |
 | **Total** | **18** |
 
-No edit or delete control exists to draw, in the UI or the data model. Plus the permission-matrix test generated from spec × matrix, all 155 operations.
+The UI and data model have no audit edit or delete operation. The permission-matrix test covers all 155 operations.
 
 | Frontend lane | Pts |
 |---|---:|
@@ -1006,16 +946,13 @@ Frontend reserve.
 | `EN-OBS-4` NFR-AVAIL-02 dependency-failure harness (stop ES/Mongo, assert purchase path) | 5 |
 | **Total** | **21** |
 
-Broker killed mid-relay; the outbox drains on recovery without manual repair; read-model rebuild drill.
+Exit: after a broker failure mid-relay, the outbox drains without manual repair and the read model can be rebuilt.
 
 | Frontend lane | Pts |
 |---|---:|
 | `EN-FE-E2E-3` Release 2 regression walk — every `(admin)` route driven against the real API | 8 |
 | *Lane reserve — see §6* | *10* |
 | **Total** | **8** |
-
-Regression walk over every `(admin)` route against the real API.
-
 
 **▸ G14 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
 
@@ -1026,7 +963,7 @@ Regression walk over every `(admin)` route against the real API.
 
 **Release 2 · both lanes · no new stories · no story points.**
 
-**Goal.** The whole system, and an honest statement of what is still unverified.
+**Goal.** Verify the whole system and record every unverified claim.
 
 | # | Must be demonstrated | Source |
 |---:|---|---|
@@ -1060,8 +997,6 @@ Regression walk over every `(admin)` route against the real API.
 | `US-SCH-06` View Trending Products and New Arrivals | 3 |
 | **Total** | **18** |
 
-Suggestions, related products, frequently-bought-together, trending, new arrivals, featured categories.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-CAT-05` View Featured Categories | 3 |
@@ -1072,7 +1007,7 @@ Suggestions, related products, frequently-bought-together, trending, new arrival
 | *Lane reserve — see §6* | *1* |
 | **Total** | **17** |
 
-Recommendation rails degrade silently — an outage is not an event a customer should be told about.
+Recommendation rail failures do not surface a customer error.
 
 
 ---
@@ -1092,8 +1027,6 @@ Recommendation rails degrade silently — an outage is not an event a customer s
 | `US-SHP-02` Estimate Delivery Date | 3 |
 | **Total** | **21** |
 
-The remaining `Should` stories plus personalised recommendations.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-SCH-07` Receive Personalised Recommendations | 3 |
@@ -1104,7 +1037,7 @@ The remaining `Should` stories plus personalised recommendations.
 | *Lane reserve — see §6* | *3* |
 | **Total** | **15** |
 
-The personalised rail is the one dynamic section inside a static page, and it streams into its own boundary.
+The personalised rail streams as the only dynamic section in its static page.
 
 
 **▸ G15 — Contract Sync.** The checklist in [`integration-plan.md`](./integration-plan.md) §3, applied to the domains delivered in this increment.
@@ -1128,8 +1061,6 @@ The personalised rail is the one dynamic section inside a static page, and it st
 | `US-RPT-06` Export Report | 5 |
 | **Total** | **23** |
 
-Review moderation, notification preferences, customer report, report export — then the launch-readiness review.
-
 | Frontend lane | Pts |
 |---|---:|
 | `US-REV-02` Edit Own Review | 3 |
@@ -1140,7 +1071,7 @@ Review moderation, notification preferences, customer report, report export — 
 | `US-RPT-06` Export Report | 5 |
 | **Total** | **19** |
 
-`AC-05` and `AC-06` are recorded as unverified pending the load rig, per Testing Strategy §11.
+`AC-05` and `AC-06` remain unverified pending the load rig (Testing Strategy §11).
 
 
 **▸ Release Readiness Review** — the `AC-01`–`AC-06` table of [`definition-of-done.md`](./definition-of-done.md) §6, completed honestly.
@@ -1173,44 +1104,40 @@ Review moderation, notification preferences, customer report, report export — 
 | `G15` | S31 | Release 3 `Should` stories |
 | **RR** | S32 | Release Readiness Review |
 
-Fifteen Contract Syncs and three Integration Hardening sprints. The cadence is deliberate: `G0`–`G4` are close together because that is where the session and caching contracts are decided and where drift is cheapest to fix.
+There are fifteen Contract Syncs and three Integration Hardening sprints. `G0`–`G4` have shorter intervals because they set session and caching contracts.
 
 ---
 
-## 6. The Frontend Lane's Reserve
+## 6. Frontend reserve
 
-The frontend lane carries **452 points against 660 sprint-capacity points** — roughly 4–6 points of reserve in most sprints, and considerably more between S24 and S29. This is visible in every sprint table above as a `Lane reserve` row rather than being padded out of sight.
+The frontend lane has **452 points against 660 sprint-capacity points**. Most sprints have 4–6 reserve points; S24–S29 have more. Use reserve in this order:
 
-It is an asset and it has a defined order of use:
+1. Integrate mocked frontend work when a backend story slips.
+2. Prepare the next increment against the mock (§3.2).
+3. Extend the design system beyond the 38 `EN-FE-DS` points ([`UI Design System.md`](../SA-docs/03-frontend/UI%20Design%20System.md)).
+4. Run manual screen-reader tests required by [`ADR-0026`](../SA-docs/01-system/ADR/ADR-0026-motion-and-accessibility-baseline.md).
 
-1. **Absorb backend slip.** The backend lane is the critical path. When a backend story misses its sprint, the frontend slice of that story is already built against the mock and simply integrates at the next gate instead of this one. Nothing stalls.
-2. **Prepare the next increment against the mock.** The table in §3.2 is this reserve already spent — every "sprints ahead" entry is reserve converted into schedule risk removed.
-3. **Deepen the design system.** [`UI Design System.md`](../SA-docs/03-frontend/UI%20Design%20System.md) specifies a *Ma*-inspired system whose quality is not achievable in the 38 points `EN-FE-DS` budgets. The reserve is where the remainder goes.
-4. **Manual accessibility work.** [`ADR-0026`](../SA-docs/01-system/ADR/ADR-0026-motion-and-accessibility-baseline.md) is explicit that automated `axe` coverage is *"a floor, not all of them"*. Periodic screen-reader testing has no other home.
-
-**What the reserve is not for.** It is not spare capacity for the frontend developer to implement backend stories. The module allow-lists, the ArchUnit rules, and the `NFR-REL-01`/`-03` suites make `ecp-api` work that rewards continuity, and splitting it across two people who each hold half the context is how the Partnership boundary of [`Module Dependency Diagram.md`](../SA-docs/02-backend/Module%20Dependency%20Diagram.md) §8 gets eroded.
+The frontend developer does not use reserve for backend stories. The module allow-lists, ArchUnit rules, `NFR-REL-01`/`-03` suites, and Partnership boundary require backend ownership ([`Module Dependency Diagram.md`](../SA-docs/02-backend/Module%20Dependency%20Diagram.md) §8).
 
 ---
 
-## 7. Risks to the Schedule
+## 7. Schedule risks
 
 | # | Risk | Effect | Response |
 |---|---|---|---|
-| R1 | **S08 is a single 21-point enabler with nothing else in the sprint.** The outbox and relay are assumed by every sprint after it | A slip here slips everything downstream | It is scheduled alone on purpose so it cannot be quietly descoped by competing story work. If it slips, IH-1 absorbs the overflow before the search projection starts |
-| R2 | **S18 — order placement — is the single largest story in the backlog at 13 points** and spans three modules in one transaction | The plan's highest-variance item | The three ports it needs exist from S11, S14 and S16. Fault injection is in the same sprint, not deferred to IH-2, so the failure modes surface while the code is fresh |
-| R3 | **The two-person team has no dedicated Scrum Master and no separate QA.** Testing Strategy §6.7's suites are written by the same people who write the code | Quality gates get negotiated away under delivery pressure | The gates are build-failing rather than review-failing, per [`ADR-0018`](../SA-docs/01-system/ADR/ADR-0018-architecture-governance-ci-gate.md). A build-failing gate cannot be negotiated with, which is the entire reason it is build-failing |
-| R4 | **Velocity of 20 points/lane/sprint is an assumption**, not an observation. Nobody has completed a sprint on this codebase | Every date in this document derives from it | Re-baseline after S03 against actuals (§8). The sprint *order* does not change under re-baselining; only the dates do |
-| R5 | **Several architecture decisions are still `Proposed`** — the event-type placement rule, the contract-test tool, the CI provider, k6 | A late reversal invalidates completed work | Each is scheduled to be settled before the sprint that depends on it: the contract tool before S16, the CI provider before S27, k6 before S23 |
-| R6 | **External provider stubs stand in for payment and carrier throughout.** No developer holds a live credential ([`Deployment Diagram.md`](../SA-docs/01-system/Deployment%20Diagram.md) §7) | Real provider behaviour is unverified until staging | The ports make swapping a configuration change, not a code change. IH-2 verifies the stub's *failure* modes, which is the half usually skipped |
-| R7 | **The load rig is deferred**, so `NFR-SCAL-01`–`06`, `NFR-PERF-05`, `AC-05` and `AC-06` stay unverified | The release cannot claim its scalability targets | This is a decision, not an omission — Testing Strategy §7.9 lists five dated triggers that end the deferral. §32's readiness review states it as unverified rather than passing |
+| R1 | S08 is one 21-point outbox enabler required by later sprints | A slip delays downstream work | Schedule it alone; IH-1 absorbs overflow before search projection starts |
+| R2 | S18 order placement is a 13-point story across three modules | Highest estimate variance | Build its ports in S11, S14, and S16; run fault injection in S18 |
+| R3 | The team has no dedicated Scrum Master or QA | Delivery pressure may weaken gates | Make gates build-failing under [`ADR-0018`](../SA-docs/01-system/ADR/ADR-0018-architecture-governance-ci-gate.md) |
+| R4 | 20 points/lane/sprint is assumed, not measured | Every date depends on it | Re-baseline after S03 (§8); keep sprint order |
+| R5 | Event placement, contract-test tool, CI provider, and k6 remain `Proposed` | Late changes may invalidate work | Decide before S16, S27, and S23 as applicable |
+| R6 | Payment and carrier use stubs; developers have no live credentials ([`Deployment Diagram.md`](../SA-docs/01-system/Deployment%20Diagram.md) §7) | Real provider behavior stays unverified until staging | Keep provider ports; test stub failure modes in IH-2 |
+| R7 | The load rig is deferred | `NFR-SCAL-01`–`06`, `NFR-PERF-05`, `AC-05`, and `AC-06` stay unverified | Use the five triggers in Testing Strategy §7.9; keep the claims unverified at S32 |
 
 ---
 
 ## 8. Re-baselining
 
-**After Sprint 03**, replace the assumed velocity with the measured one and reissue this document. Sprint 03 is the first sprint containing real user stories rather than enablers, so it is the first honest measurement.
+**After Sprint 03**, replace assumed velocity with measured velocity and reissue this document. Apply two rules:
 
-Two rules keep the re-baseline meaningful:
-
-- **The sprint order does not change.** It is derived from the module graph and the layer model, neither of which is affected by how fast the team turns out to be. Only the dates move.
-- **The `Must` cut line moves with the dates, not through them.** If velocity is 15 rather than 20, Release 2 ends later — it does not end with fewer `Must` stories. Cutting scope is a Product Owner decision taken explicitly, not a consequence absorbed silently by the schedule.
+- Keep the sprint order. It follows the module graph and layer model; only dates move.
+- Keep all `Must` stories. A lower velocity moves the Release 2 date. Only the Product Owner can cut scope.

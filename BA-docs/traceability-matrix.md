@@ -8,25 +8,21 @@
 
 ---
 
-## 1. Purpose of This Document
+## 1. Purpose
 
-This document carries the middle of the `P → FR/NFR/BR → UC` chain and functions as a
-**coverage check** (§6). A requirement that cannot be traced backward to a problem is scope that
-entered without justification, and is a candidate for removal rather than delivery.
-
-The three gaps it looks for each mean something specific:
+This matrix checks the `P → FR/NFR/BR → UC` chain. It reports three gap types:
 
 | Gap | What it means |
 |---|---|
 | A business problem with no requirement | The problem was catalogued and then not addressed |
-| A requirement with no use case | Nobody has worked out how the requirement is exercised, so nobody can test it |
-| A use case with no requirement | Behaviour was specified that no stated requirement asked for |
+| A requirement with no use case | The requirement has no defined or testable behaviour |
+| A use case with no requirement | The behaviour has no stated requirement |
 
 ---
 
 ## 2. Business Problem → Requirement
 
-Each of the seventeen problems in [`general-approach.md`](./general-approach.md) maps to the requirements that address it. The **Primary vehicle** column names where the weight of the answer sits, since a problem is rarely answered by functional requirements alone — several of these are answered almost entirely by non-functional requirements and constraints, which is exactly why those sections of the SRS carry the emphasis they do.
+Each problem in [`general-approach.md`](./general-approach.md) maps to its requirements. **Primary vehicle** shows the main requirement type.
 
 | Problem | Requirements | Primary vehicle |
 |---|---|---|
@@ -48,33 +44,33 @@ Each of the seventeen problems in [`general-approach.md`](./general-approach.md)
 | **P16** Unauthorised access to sensitive operations | `FR-AUD-05`, `FR-AUD-06`, `FR-AUD-07`, `FR-AUD-08`; `NFR-SEC-01`–`NFR-SEC-07`; `BR-AUD-02`, `BR-AUD-03`, `BR-SCH-01` | Security |
 | **P17** Inability to trace significant actions | `FR-AUD-01`–`FR-AUD-04`; `NFR-OBS-01`, `NFR-OBS-02`; `BR-AUD-01`, `BR-INV-03`, `FR-DAT-05` | Audit |
 
-**Note on P5.** It maps to *all* of [`srs.md`](./srs.md) §4 rather than to a list, and this is deliberate. P5 is not a problem solved by particular rules; it is a problem about **where** every rule is enforced. Each rule in §4 therefore names an enforcement point, and each is inside the platform rather than in a client.
+**P5** maps to all of [`srs.md`](./srs.md) §4 because it concerns the enforcement point of every business rule. Each rule is enforced in the platform, not in a client.
 
 ---
 
 ## 3. Requirement → Use Case
 
-Not tabulated here. [`srs.md`](./srs.md) §3 carries a **UC** column on every functional requirement, so the mapping already exists at the point the requirement is defined — and a second copy could only be an abridgement of it. Read §3 of the SRS for requirement → use case; this document covers what that column cannot show: whether anything is *missing* (§6).
+[`srs.md`](./srs.md) §3 defines the `FR → UC` mapping in its **UC** column. It is not copied here. Section 6 reports missing links.
 
 Non-functional requirements are cross-cutting and are traced in §2 and §5 instead.
 
 ### 3.1 Use Case → User Story
 
-Every use case in [`use-cases/`](./use-cases/README.md) has exactly one corresponding entry in [`user-stories/`](./user-stories/README.md), numbered identically: `US-<DOMAIN>-<nn>` realises `UC-<DOMAIN>-<nn>`, with no exceptions and no gaps across all 87. Because the numbering is the mapping, no separate `UC → US` table is carried here — one repeated for 87 rows would drift from the source the moment either document changed. A story's acceptance criteria derive from its use case's main scenario, alternate flows, and exception flows; where the two disagree, the use case is normative.
+Each of the 87 use cases has one user story with the same domain and number: `US-<DOMAIN>-<nn>` realises `UC-<DOMAIN>-<nn>`. The numbering is the mapping, so no duplicate table is kept here. If a story conflicts with its use case, the use case is normative.
 
 ---
 
 ## 4. Business Rule → Use Case
 
-Not tabulated here either. [`srs.md`](./srs.md) §4 now carries an **Enforced in (UC)** column beside each rule's enforcement point, which is where a reader asking "where is this decided?" is already looking.
+[`srs.md`](./srs.md) §4 defines the `BR → UC` mapping in **Enforced in (UC)**. It is not copied here.
 
 ## 5. Acceptance Criterion → Requirement → Verification
 
-Not tabulated here. [`srs.md`](./srs.md) §9 states each of `AC-01`–`AC-06` with the requirements that must hold, the use cases that exercise it, and how it is judged. An acceptance criterion is met only when every requirement it names is met.
+[`srs.md`](./srs.md) §9 maps `AC-01`–`AC-06` to requirements, use cases, and verification. An acceptance criterion passes only when every linked requirement passes.
 
 ## 6. Coverage Summary
 
-Checked mechanically against [`srs.md`](./srs.md) §3 and the fourteen use case files.
+Mechanically checked against [`srs.md`](./srs.md) §3 and the fourteen use case files.
 
 | Check | Result |
 |---|---|
@@ -90,23 +86,22 @@ Checked mechanically against [`srs.md`](./srs.md) §3 and the fourteen use case 
 | `FR → UC` references pointing at a use case that does not exist | **0** |
 | Acceptance criteria with at least one requirement | **6 / 6** |
 
-**No coverage gaps.** Every catalogued business problem reaches at least one requirement, every functional requirement is exercised by at least one use case, and no use case specifies behaviour that no requirement asked for.
+**Result: no coverage gaps.**
 
-### Notes on the shape of the coverage
+### Coverage notes
 
-- **`P1`, `P14`, and `P15` map to no functional requirement at all**, and this is correct rather than a gap. They concern how the platform is structured and how that structure holds over time, which is why the SRS states them as `NFR-MAINT-*` and `CON-*`. It also makes them the easiest requirements to quietly drop under delivery pressure and the most expensive to reinstate — `P15` is precisely the prediction that this happens.
-- **`P5` is the most widely distributed problem in the chain.** It reaches every business rule in §4, because it is a claim about enforcement location rather than about any particular rule.
-- **`P7` and `P8` concentrate in exception flows rather than requirements.** `FR-ORD-08` states atomicity in one line; what makes it testable is the ten exception flows of `UC-ORD-05` and the five of `UC-INV-01`.
-- **The `AUD` domain is cited by nearly every use case in the specification.** `UC-AUD-03` is included by every use case with a human actor and `UC-AUD-01` by every use case that changes something of consequence. Their eight requirements carry disproportionate weight, and a shortfall there is a shortfall everywhere.
+- `P1`, `P14`, and `P15` map only to `NFR-MAINT-*` and `CON-*`; this is expected.
+- `P5` reaches every business rule in §4 because it concerns enforcement location.
+- `P7` and `P8` depend on exception flows: ten in `UC-ORD-05` and five in `UC-INV-01`.
+- `UC-AUD-03` applies to every use case with a human actor. `UC-AUD-01` applies to every significant state change.
 
 ---
 
 ## 7. Open Items Carried Forward
 
-All thirteen assumptions in [`srs.md`](./srs.md) §2.5 stand unconfirmed. They are not re-listed here: §2.5 carries each one with the requirements that depend on it and what turns on confirming it. Several are load-bearing — `A-03` and `A-04` size the architecture, `A-12` determines the resilience investment — and confirming or correcting them is a Product Owner action, not a specification one.
+All thirteen assumptions in [`srs.md`](./srs.md) §2.5 remain unconfirmed. `A-03` and `A-04` size the architecture; `A-12` sets the resilience investment. The Product Owner must confirm or correct them.
 
-Two further items are **not** assumptions but genuine gaps in the source requirements, and cannot be closed by this specification:
+Two source requirement gaps remain:
 
-- **Review content policy.** `UC-REV-05` specifies how moderation works but R1 defines no policy to moderate against. Moderation cannot be consistent without one.
-- **Role granularity.** The role authority table in [`srs.md`](./srs.md) §2.3 is this specification's interpretation of R1 §9's five roles. Whether finer-grained permissions are required within a role is unsettled, and `P16` turns on getting it right.
-
+- **Review content policy:** `UC-REV-05` defines moderation, but R1 provides no content policy.
+- **Role granularity:** [`srs.md`](./srs.md) §2.3 interprets the five roles in R1 §9. Finer permissions remain undecided and affect `P16`.

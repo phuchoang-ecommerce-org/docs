@@ -5,13 +5,9 @@
 **Audience:** Backend Engineering, Frontend Engineering, Architecture Review, QA
 **Related documents:** [Domain Model](../Domain%20Model.md) · [Module Dependency Diagram](../Module%20Dependency%20Diagram.md) · [Solution Architecture](../../01-system/Solution%20Architecture.md) · [Integration Contract](../../04-shared/Integration%20Contract.md) · [Use Cases](../../../BA-docs/use-cases/README.md)
 
----
+## 1. Scope
 
-## 1. Why This Folder Exists
-
-`SA-docs/` documents the platform from every angle except **behaviour over time**. There are use-case diagrams, a context map, a module dependency graph, a deployment topology, an OpenAPI contract, and thirty ADRs — and none of them shows a single request travelling through the layers they describe.
-
-That gap is load-bearing. The platform's three most expensive problems are all temporal:
+These 56 diagrams specify message order and transaction boundaries across 14 domains. They make three failure-sensitive decisions visible:
 
 | Problem | Decided by | Diagram |
 |---|---|---|
@@ -19,13 +15,9 @@ That gap is load-bearing. The platform's three most expensive problems are all t
 | **P8** — overselling under concentrated demand | The interleaving of two concurrent optimistic-lock updates | [`01-Ordering.md`](./01-Ordering.md) §7 |
 | **P6** — a committed fact no downstream process hears about | The outbox row committing inside the business transaction | [`00-Overview.md`](./00-Overview.md) §3 |
 
-Each is a claim about *ordering*, and prose is a poor medium for ordering. `Solution Architecture.md` §4 asserts that a provider timeout "is not a decline"; `ADR-0012` asserts that the outbox row and the business update share one transaction. These diagrams are where those assertions become checkable.
+The diagrams show the order behind these claims. They do not replace the normative use cases or contracts.
 
-[`SA-docs/README.md`](../../README.md#folder-layout) §1.1 reserved `02-backend/Sequence/` for exactly this, and [`SA-docs/README.md`](../../README.md) recorded it as omitted "until there is something to put in it."
-
----
-
-## 2. The Documents
+## 2. Documents
 
 | Document | Diagrams | Covers |
 |---|---|---|
@@ -38,13 +30,11 @@ Each is a claim about *ordering*, and prose is a poor medium for ordering. `Solu
 | [`06-Fulfilment.md`](./06-Fulfilment.md) | 7 | Shipment creation, carrier tracking, delivery — and promotion redemption and flash-sale launch |
 | [`07-Supporting.md`](./07-Supporting.md) | 10 | Review, notification, administration, reporting, audit |
 
-**Reading order.** [`00-Overview.md`](./00-Overview.md) first — it establishes the map and the two mechanisms every other diagram leans on. Then [`01-Ordering.md`](./01-Ordering.md), which is where the architecture is actually decided. Everything after that can be read on demand.
+Read [`00-Overview.md`](./00-Overview.md) first, then [`01-Ordering.md`](./01-Ordering.md). Read the remaining files by domain.
 
----
+## 3. Participant vocabulary
 
-## 3. The Participant Vocabulary
-
-**Every diagram draws the same actor from the same set of lifelines, named identically.** A reader who learns the vocabulary once can read all fifty-six. Names are taken from the documents that own them, never invented:
+All diagrams use the same lifeline names. Names come from their owning documents:
 
 | Tier | Lifelines | Named by |
 |---|---|---|
@@ -58,11 +48,11 @@ Each is a claim about *ordering*, and prose is a poor medium for ordering. `Solu
 | Infrastructure | `PostgreSQL`, `OutboxRepository`, `Outbox relay`, `Kafka`, `Redis`, `Elasticsearch`, `MongoDB` | [`deployment.puml`](../../diagrams/deployment.puml) |
 | Projectors | `SearchProjector`, `AvailabilityProjector`, `ReportingProjector`, `AuditListener`, `NotificationListener` | [ADR-0013](../../01-system/ADR/ADR-0013-mongodb-scoped-to-read-models.md), [ADR-0014](../../01-system/ADR/ADR-0014-elasticsearch-search-read-model.md), [Domain Model §5.2](../Domain%20Model.md) |
 
-A near-duplicate — `OrderService` alongside `PlaceOrderService` — means the vocabulary has drifted and is a defect, not a stylistic choice.
+Near-duplicate names such as `OrderService` and `PlaceOrderService` are vocabulary drift.
 
-### 3.1 Arrow vocabulary
+### 3.1 Arrows
 
-The transport of every message is visible in its arrow, because [`ADR-0012`](../../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §4 fixes transport by rule rather than by preference, and confusing the three is what makes an architecture look atomic when it is not:
+Each arrow identifies its transport under [`ADR-0012`](../../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §4:
 
 | Arrow | Transport | Creates a module dependency? |
 |---|---|---|
@@ -73,38 +63,28 @@ The transport of every message is visible in its arrow, because [`ADR-0012`](../
 
 ### 3.2 Transaction frames
 
-A tinted `rect` with a `Note over` header encloses **exactly** the messages inside one PostgreSQL transaction. This is the single most important visual element in the folder: it is what makes `BR-ORD-02` and the outbox rule visible instead of merely asserted. Everything drawn after a `COMMIT` divider is, by construction, unable to undo what the frame committed.
+A tinted `rect` with a `Note over` header contains the messages in one PostgreSQL transaction. Messages after a `COMMIT` divider cannot undo that transaction. This notation shows `BR-ORD-02` and the outbox rule.
 
-### 3.3 Layered, with three module-level exceptions
+### 3.3 Layers
 
-The three diagrams in [`00-Overview.md`](./00-Overview.md) use module-level lifelines — `Ordering`, `Inventory`, `Payment` — and exist to give the map. **Every other diagram is layered**: `Customer → Next.js server → nginx → Controller → Application Service → Aggregate → Port → Adapter → PostgreSQL / Kafka / provider`. The [ADR-0005](../../01-system/ADR/ADR-0005-clean-architecture-ports-and-adapters.md) port boundary and the transaction boundary are precisely what every failure mode turns on, so collapsing them would hide the subject.
+The three diagrams in [`00-Overview.md`](./00-Overview.md) use module-level lifelines. All other diagrams show the full path: `Customer → Next.js server → nginx → Controller → Application Service → Aggregate → Port → Adapter → PostgreSQL / Kafka / provider`.
 
-The request pipeline is drawn once, in [`00-Overview.md`](./00-Overview.md) §2. Every other diagram collapses it to a one-line note. Without that, fifty-five diagrams each open with the same six messages.
-
----
+The request pipeline appears once in [`00-Overview.md`](./00-Overview.md) §2. Other diagrams replace it with a note.
 
 ## 4. Format
 
-Every document in this folder assumes §3 — the participant vocabulary and the arrow and frame conventions of §3.1–§3.2 — without restating it.
-
-Mermaid, embedded directly in these Markdown files, per the convention [`SA-docs/README.md`](../../README.md) §1 already sets: PlantUML `.puml` for standalone diagrams in [`diagrams/`](../../diagrams), Mermaid for diagrams that live inside a document. `util/toHtml.js` renders them, following the reader's light or dark theme, with click-to-zoom and drag-to-pan.
+The diagrams use Mermaid embedded in Markdown. Standalone diagrams in [`diagrams/`](../../diagrams) use PlantUML. The Astro documentation reader renders Mermaid diagrams directly.
 
 ```bash
-cd util && npm run docs:html      # every *.md -> a styled, gitignored *.html sibling
+cd util && npm run dev            # browse the Markdown documentation and Mermaid diagrams locally
 ```
 
-There is nothing to compile and no generated image to keep in step with its source — the diagram *is* the document, which is the point of choosing Mermaid over a committed SVG for this material.
+Do not use HTML entities with semicolons inside labels; the semicolon ends the Mermaid statement. Use `«guillemets»` where needed. Mermaid has no reference box, so cross-diagram references use notes.
 
-Two constraints the syntax imposes, worth knowing before editing: a semicolon inside a label ends the statement, so HTML entities such as `&lt;` break the parser (`«guillemets»` are used instead), and Mermaid has no reference-box element, so cross-diagram pointers are written as notes.
+## 5. Limits
 
----
-
-## 5. What These Diagrams Do Not Claim
-
-Stated plainly, in the register this repository already uses for its own gaps ([Integration Contract §8.4](../../04-shared/Integration%20Contract.md), [Testing and Benchmark Strategy](../../01-system/Testing%20and%20Benchmark%20Strategy.md)):
-
-- **Nothing here is verified against code, because there is no code.** `ecommerce-backend-spring` is a Spring Boot scaffold and `ecommerce-frontend-next` is a starter page. These diagrams are specification — the same status as [`Database.md`](../Database.md) and the OpenAPI contract, which also describe a system not yet built. They are what an implementation should be checked *against*.
-- **The class and method names on these lifelines will become stale assertions** once controllers and services exist, and the [ADR-0018](../../01-system/ADR/ADR-0018-architecture-governance-ci-gate.md) CI gate cannot catch it. The only mitigation is that §3's naming is derived from artefacts the gate *does* check — the module graph and the OpenAPI contract — rather than invented here.
-- **Timing is ordinal, never quantitative.** No diagram asserts a latency. The `NFR-PERF-*` targets belong to [`Testing and Benchmark Strategy.md`](../../01-system/Testing%20and%20Benchmark%20Strategy.md).
-- **Retry bounds, backoff curves, hold windows, and relay poll intervals are configuration**, per [ADR-0011](../../01-system/ADR/ADR-0011-optimistic-locking-reservation-model.md) §5. A diagram shows *that* a bounded retry happens, never how many times.
-- **Failure diagrams are not exhaustive.** They cover the exception flows whose cost is high enough to have shaped an architecture decision. The full set lives in the [use-case specifications](../../../BA-docs/use-cases/README.md), which remain normative for behaviour.
+- The diagrams are specifications and are not verified against implementation code. The backend and frontend are still scaffolds.
+- Lifeline class and method names can drift after implementation. Naming is derived from the module graph and OpenAPI contract, but the [ADR-0018](../../01-system/ADR/ADR-0018-architecture-governance-ci-gate.md) gate does not verify these diagrams.
+- Timing is ordinal. [`Testing and Benchmark Strategy.md`](../../01-system/Testing%20and%20Benchmark%20Strategy.md) owns `NFR-PERF-*` latency targets.
+- Retry counts, backoff, hold windows, and relay intervals are configuration under [ADR-0011](../../01-system/ADR/ADR-0011-optimistic-locking-reservation-model.md) §5.
+- Failure diagrams cover architecture-shaping cases only. The [use cases](../../../BA-docs/use-cases/README.md) remain normative for behavior.
