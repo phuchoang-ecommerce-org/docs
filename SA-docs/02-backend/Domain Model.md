@@ -192,11 +192,21 @@ Terms that shift meaning across contexts, or that are easy to conflate:
 ## 7. Tactical Design Rules
 
 - Only aggregate roots are referenced outside an aggregate. Repositories exist per aggregate root, never per entity.
-- Application Services load or save multiple aggregate instances, open transactions, and cross module APIs. Domain Services are pure and perform no repository or cross-module I/O. `PromotionStackingPolicy` is a Domain Service; the §5.1 partnership is an Application Service.
+- Application Services load or save multiple aggregate instances, open transactions, and call cross-module APIs. A Domain Service is introduced only for domain behaviour that does not naturally belong to one aggregate, entity, or value object; a context may therefore own zero, one, or several. The §5.1 partnership remains an Application Service.
 - Cross-context calls use ports. `StockReservationPort` and `PromotionRedemptionPort` have in-process adapters now and saga-capable adapters after extraction.
-- Database constraints enforce `BR-CAT-01`, `BR-CUS-01`, `BR-CAT-03`, `BR-REV-02`, and `BR-AUD-03`. Repository pre-checks provide feedback but are not authoritative.
+- Repository pre-checks provide feedback but are not authoritative under concurrency. Global invariants use the database unique/check/foreign-key constraints or an explicit locking/optimistic-concurrency strategy named by the owning context.
 - `Product`, `StockItem`, and `Order` reserve an unused `ownerId` or `sellerId` for the multi-vendor path in SA §10.
 - Sections 8.1–8.8 define full tactical models. Review, Notification, Audit, and Reporting use the lighter treatment set by §2.
+
+### 7.1 Domain Service Contract
+
+When a bounded context in §8 names a Domain Service, it places that logic beside the context's aggregates, invariants, events, and repository. A service is not created merely to give a context one, to collect stateless methods, or to hide repeated Application Service plumbing. This keeps ownership and rule traceability explicit without producing an anemic domain model.
+
+All of those services follow the same boundary: they receive immutable domain objects or snapshots already loaded by an Application Service, return a decision, plan, or draft, and have no repository, port, clock, transaction, framework, or cross-module dependency. Evaluation time and external facts are inputs, so the same inputs always produce the same result. Application Services remain responsible for authorisation, I/O, transaction control, cross-context orchestration, and applying a returned decision to aggregates.
+
+In the backend implementation, policies and their domain-owned input/decision types live below the owning module's `internal.domain.policy` package and carry no Spring annotation. Application-layer commands, errors, ports, transaction annotations, and API DTOs do not cross into that package.
+
+The services below refine rules already defined by the SRS and use cases. They do not create new business requirements. Where those documents leave a policy open, the service requires an explicit configuration value or returns an unresolved decision rather than silently choosing a rule.
 
 ---
 
@@ -212,11 +222,19 @@ Terms that shift meaning across contexts, or that are easy to conflate:
 |---|---|---|
 | Email identifies at most one account | `BR-CUS-01` | DB unique constraint (§7 global-constraint pattern) |
 | Unverified accounts can browse/cart but not order or review | `BR-CUS-02` | Cross-context check — Ordering's and Review's *application services* query `Account.verificationStatus` via this context's public API before proceeding, not a domain-layer dependency |
-| Verification/reset/refresh tokens are single-use, expiring | `BR-CUS-03` | `Account` aggregate method over its `IdentityToken` entities; conditional storage updates preserve the race guarantee |
+| Verification/reset/refresh tokens are single-use, expiring | `BR-CUS-03` | `IdentityToken` lifecycle rules plus conditional storage updates; the database update preserves the race guarantee |
 | Authentication failure reveals nothing about which credential was wrong | `BR-CUS-04` | Application service (constant-shape response regardless of failure reason) |
-| At most one default shipping address | `BR-CUS-05` | `Account` aggregate invariant over its `Address` entities |
-| A user may not self-grant a role they lack, nor revoke the last Administrator | `BR-AUD-03` | DB check constraint / count query (§7 global-constraint pattern) |
-| Authorization decision is a platform property, identical regardless of entry point | `BR-AUD-02` | `AuthorizationService` — Open Host Service, called synchronously in-process by every other context's application layer |
+| A non-empty address book has exactly one default shipping address; an empty address book has none | `BR-CUS-05`, `UC-CUS-09` | `AddressBookPolicy` plan plus the partial unique database index |
+| A user may not self-grant a role they lack, nor revoke the last Administrator | `BR-AUD-03` | `AccessControlPolicy` pre-check + DB constraint / count query (§7 global-constraint pattern) |
+| Authorization decision is a platform property, identical regardless of entry point | `BR-AUD-02` | `AccessControlPolicy`, exposed through the `AuthorizationService` Open Host Service |
+
+**Domain Service — `AccessControlPolicy`.** `authorize(AccessContext) -> AuthorizationDecision` evaluates the actor's roles against the operation, resource ownership, and the normative [Permission Matrix](../04-shared/Permission%20Matrix.md). `evaluateRoleChange(RoleChangeContext) -> RoleChangeDecision` also rejects self-grant of an unheld role and revocation of the last Administrator. The Application Service supplies the actor, target, active-Administrator count, and resource facts; the policy performs no account lookup. The persistence-side lock/count/constraint strategy remains authoritative under concurrent role changes.
+
+**Domain Service — `AddressBookPolicy`.** `plan(AddressBookContext, AddressBookChange) -> AddressBookPlan` decides the default-address transition across the account's address entities. The first address becomes default shipping; nominating a new default clears the previous nomination; removing the current default while other addresses remain returns `REPLACEMENT_DEFAULT_REQUIRED`; removing the only address is allowed and leaves no default. The plan identifies the target flags and which existing nomination must be cleared. The Application Service loads only the account-scoped facts needed by the policy and applies the plan atomically through the address persistence port; the partial unique index remains the concurrent-write authority. Billing-default behaviour is not inferred from `BR-CUS-05` and remains a separate, explicitly configured rule.
+
+**Existing Domain Policy — `PasswordPolicy`.** `evaluate(CandidatePassword, PasswordRules) -> PasswordDecision` owns password-strength evaluation because the rule is meaningful without HTTP, hashing, or persistence and is reused by registration, password change, and password reset. `PasswordRules` is explicit configuration: `UC-CUS-01` records the concrete strength policy as an open Product Owner decision, so the domain model must not silently make the current implementation's minimum length and character classes normative. `PasswordEncoder` remains an Application port and raw passwords never enter an aggregate or event.
+
+**Internal-code alignment.** The current `PermissionMatrixPermissionChecker` should remain the Application adapter that converts an `AuthorizationDecision` into the module's error contract, while role/ownership evaluation moves to `AccessControlPolicy`. The default-selection branches currently repeated by address add/replace flow through `AddressBookPolicy`; `AddressStore` still owns bulk updates and database interaction. Verification, reset, and refresh token managers remain Application Services because they generate/hash secrets, call `TokenStore`, and control transaction/concurrency behaviour; the `IdentityToken` entity retains expiry/consumption semantics. None of those I/O workflows belongs in a Domain Service.
 
 **Domain Events:** `AccountRegistered`, `AccountVerified`, `AccountRoleChanged`, `AccountSuspended`.
 **Repository:** `AccountRepository`.
@@ -232,7 +250,11 @@ Terms that shift meaning across contexts, or that are easy to conflate:
 |---|---|---|
 | A SKU identifies at most one purchasable unit across the entire catalog | `BR-CAT-01` | DB unique constraint (§7 global-constraint pattern) |
 | An unpublished product is excluded from browse/search/cart but remains visible on orders that already contain it | `BR-CAT-02` | `Product.publicationStatus`, checked by Catalog's own query handlers; Ordering never re-queries Catalog for an existing order's lines (`BR-ORD-06`) |
-| A category may not be its own ancestor; a non-empty category may not be deleted until reassigned | `BR-CAT-03` | Domain-service pre-check + DB constraint (§7 global-constraint pattern) |
+| A category may not be its own ancestor; a non-empty category may not be deleted until reassigned | `BR-CAT-03` | `Category` local guard + `CategoryHierarchyPolicy` multi-node/occupancy decision + persistence constraints |
+
+**Domain Service — `CategoryHierarchyPolicy`.** The service owns only decisions that need facts beyond one `Category`; it does not absorb `Category.create`, `Category.change`, `Category.mayMoveBelow`, or slug generation. `planMove(CategoryMoveContext, CategorySubtreeSnapshot) -> CategoryMoveDecision` validates the target against the proposed parent and subtree, then returns the new root path/depth and the descendant rebase plan. `validateDeletion(CategoryOccupancy) -> CategoryChangeDecision` rejects deletion while child categories or assigned products remain. Decisions use stable reasons (`SELF_PARENT`, `DESCENDANT_PARENT`, `HAS_CHILDREN`, `HAS_PRODUCTS`). The Catalog Application Service loads the immutable snapshots and applies the accepted plan in one transaction. The persistence adapter owns materialised-path SQL; direct self-parent checks, foreign keys, and concurrency control remain persistence safeguards rather than Domain Service responsibilities (`BR-CAT-03`, `UC-ADM-02`).
+
+**Internal-code alignment.** `UpdateCategoryService` remains responsible for authorisation, loading the category/parent/subtree, the transaction, persistence, and event publication; it translates a rejected decision into the Application error contract. `DeleteCategoryService` replaces its inline product/child count branch with a `CategoryOccupancy` decision but still performs both count queries and the delete. The repeated Catalog pattern `authorize → load → mutate → save → publish` is Application-layer orchestration: if consolidated, it must be an application-local workflow helper and must preserve each use case's transaction and idempotency semantics. It must not become a `ProductDomainService`; product field changes, variant/image ownership, price changes, and publication transitions naturally remain behaviour on the `Product` aggregate.
 
 `Product` carries a reserved, currently-unused `ownerId` field (§7 multi-vendor forward-compatibility).
 
@@ -259,6 +281,8 @@ An order line across warehouses uses independent `StockReservation` parts (`UC-I
 | A reservation resolves exactly once — committed or released, never both/neither | `BR-INV-02` | `StockReservation` entity's own terminal state machine |
 | A stock adjustment requires a reason, records the actor, and is audited | `BR-INV-03` | Application service, publishes an event Audit consumes |
 
+**Domain Service — `StockAllocationPolicy`.** `allocate(AllocationRequest, StockAvailabilitySnapshot, AllocationStrategy) -> StockAllocationPlan` assigns each requested SKU quantity across one or more warehouses without allocating more than the supplied available quantity. It returns either a complete plan or the exact shortage per line; it never performs a partial reservation. The strategy is mandatory configuration because `UC-INV-01` explicitly leaves nearest/cheapest/most-stock selection open. If several warehouses are possible and no strategy is configured, the policy returns `ALLOCATION_POLICY_REQUIRED` rather than inventing a preference. The Inventory Application Service loads `StockItem` aggregates, invokes the policy, then asks each selected aggregate to reserve inside the §5.1 transaction; optimistic locking remains the concurrency authority.
+
 **Domain Events:** `StockReserved`, `StockReservationCommitted`, `StockReservationReleased`, `StockReservationExpired` (Scheduler-driven sweep), `StockAdjusted`.
 **Repository:** `StockItemRepository`.
 **Participates in:** the Order-Placement Partnership (§5.1) via `StockReservationPort`.
@@ -274,8 +298,10 @@ An order line across warehouses uses independent `StockReservation` parts (`UC-I
 |---|---|---|
 | Cart expiry is a configurable inactivity window, may differ for guest vs. authenticated | `BR-CRT-01` | Scheduler-driven expiry, application service |
 | A line's quantity may not exceed *advisory* available stock at add/amend time | `BR-CRT-02` | Application service queries Catalog's OHS (which is itself fed by Inventory's events, §5.2) — non-authoritative; the authoritative check is the Order-Placement Partnership at placement |
-| Merging a guest cart into a customer cart never silently discards a line | `BR-CRT-03` | `Cart` aggregate merge method |
+| Merging a guest cart into a customer cart never silently discards a line | `BR-CRT-03` | `CartMergePolicy` produces a plan; `Cart` applies it |
 | A cart holds no price of its own | `BR-CRT-04` | `CartLine` stores no `Money` field at all — price is looked up live from Catalog every time the cart is displayed |
+
+**Domain Service — `CartMergePolicy`.** `merge(GuestCartSnapshot, CustomerCartSnapshot, AvailabilitySnapshot) -> CartMergePlan` returns the union of both carts, combines quantities for the same variant, and reports every adjustment. A combined quantity above advisory availability is capped and reported; an unpublished variant is omitted with a reason; a fully out-of-stock line is retained and marked unpurchasable, exactly as `UC-CRT-05` requires. The policy does not delete either cart. The Application Service applies the plan to the customer `Cart`, saves it, and discards the guest cart only after the save succeeds.
 
 **Domain Events:** `CartLineAdded`, `CartExpired`, `CartCheckedOut`.
 **Repository:** `CartRepository`, `WishlistRepository`.
@@ -321,6 +347,8 @@ stateDiagram-v2
 | A return may only be requested from Delivered, within the configured window | `BR-ORD-05` | `Order.transition()` guard |
 | Once Paid, line items/prices/discounts/fee/total are fixed; later change is refund or return, never amendment | `BR-ORD-06` | `Order`'s mutating methods reject any change to `OrderLine`/`Money` fields once `OrderStatus ≥ Paid` |
 
+**Domain Service — `OrderPricingPolicy`.** `price(OrderPricingContext) -> OrderPriceBreakdown` calculates line totals from the supplied unit-price snapshots, then applies the accepted itemised discounts and shipping fee at the precision required by `FR-DAT-01`. It returns subtotal, per-promotion contributions, shipping fee, and total payable, rejecting a negative or internally inconsistent result. It never queries Catalog, Promotion, or Shipping. The Application Service supplies their accepted snapshots before placement; `Order` freezes the returned breakdown, and after Paid its own invariant prevents repricing (`BR-ORD-06`, `UC-ORD-04`).
+
 **Domain Events:** `OrderCreated`, `OrderPaid`, `OrderProcessing`, `OrderPacked`, `OrderShipped`, `OrderDelivered`, `OrderCompleted`, `OrderCancelled`, `OrderPaymentFailed`, `OrderRefunded`, `OrderReturned`.
 **Repository:** `OrderRepository`.
 **Participates in:** the Order-Placement Partnership (§5.1), as the initiator.
@@ -337,7 +365,9 @@ Payment uses idempotency-keyed state transitions and a concurrency-safe running 
 |---|---|---|
 | A provider result is applied at most once per attempt | `BR-PAY-01` | `PaymentAttempt`'s own terminal state (Pending→Succeeded/Failed), deduplicated by `IdempotencyKey` |
 | Cumulative refunded amount never exceeds captured amount | `BR-PAY-02` | `Payment` aggregate invariant: `sum(Refund.amount) ≤ sum(PaymentAttempt.capturedAmount)`, checked in `Payment.refund()` |
-| Cash On Delivery offered only where destination and order value satisfy configured eligibility | `BR-PAY-03` | Application service, checked at payment-method selection |
+| Cash On Delivery offered only where destination and order value satisfy configured eligibility | `BR-PAY-03` | `PaymentMethodEligibilityPolicy`, checked again at placement |
+
+**Domain Service — `PaymentMethodEligibilityPolicy`.** `evaluate(PaymentSelectionContext, PaymentMethodRules) -> EligiblePaymentMethods` evaluates Cash On Delivery, credit card, digital wallet, and bank transfer against the configured destination, order-value, currency, fee, delay, and provider-availability facts. Each rejected method carries a reason suitable for `UC-PAY-01`; an empty result makes the order unplaceable. Provider availability is supplied by the Application Service—the policy never calls a gateway—and the selected method is re-evaluated when the method or order changes and again at placement (`BR-PAY-03`).
 
 **Domain Events:** `PaymentCaptured`, `PaymentFailed`, `PaymentRefunded`.
 **Repository:** `PaymentRepository`.
@@ -351,8 +381,10 @@ Payment uses idempotency-keyed state transitions and a concurrency-safe running 
 
 | Invariant | Rule | Enforced by |
 |---|---|---|
-| The fee charged is recalculated whenever destination/contents/provider change, and the fee at confirmation is the fee charged | `BR-SHP-01` | Application service at quote/confirm time, not a `Shipment` invariant (fee belongs to the order, not the shipment) |
+| The fee charged is recalculated whenever destination/contents/provider change, and the fee at confirmation is the fee charged | `BR-SHP-01` | `ShippingOptionPolicy` over current quote snapshots; the fee is recorded on the order |
 | An out-of-order carrier update never moves the shipment backwards | `BR-SHP-02` | `Shipment.applyTrackingUpdate()` — compares the incoming update's carrier timestamp/status rank against the latest recorded `TrackingEvent` before applying |
+
+**Domain Service — `ShippingOptionPolicy`.** `evaluate(ShippingQuoteContext, QuoteSnapshots, ShippingRules) -> ShippingOptionDecision` filters providers that do not serve the destination or contents, calculates multi-warehouse shipment totals, applies configured threshold/default-rate rules, and validates the selected option. It returns the fee, delivery estimate, provider, shipment split, quote fingerprint, and rejection reasons. The Application Service obtains carrier quotes through `ShippingProvider`; the Domain Service performs no provider I/O and never estimates a missing fee unless a configured fallback rate exists (`UC-SHP-01`). A change to destination, contents, warehouse split, or provider invalidates the fingerprint and requires a new decision (`BR-SHP-01`).
 
 **Domain Events:** `ShipmentCreated`, `ShipmentDispatched`, `ShipmentDelivered`.
 **Repository:** `ShipmentRepository`.
@@ -369,8 +401,12 @@ Payment uses idempotency-keyed state transitions and a concurrency-safe running 
 | Invariant | Rule | Enforced by |
 |---|---|---|
 | A promotion applies only when every condition holds, evaluated at apply-time and again at placement | `BR-PRM-01` | `Promotion` aggregate method, called twice: once (non-binding) from Cart's preview, once (binding) inside the Partnership |
-| Total discount never exceeds the discountable value; order total never negative | `BR-PRM-02` | `Promotion` aggregate invariant |
-| Deterministic stacking policy when multiple promotions are eligible | `BR-PRM-03` | `PromotionStackingPolicy` — a genuine Domain Service (§7): pure function over already-loaded `Promotion` value objects, no I/O |
+| Total discount never exceeds the discountable value; order total never negative | `BR-PRM-02` | `PromotionStackingPolicy`; each `DiscountRule` also caps its own proposal |
+| Deterministic stacking policy when multiple promotions are eligible | `BR-PRM-03` | `PromotionStackingPolicy` Domain Service |
+
+**Domain Service — `PromotionStackingPolicy`.** `resolve(PromotionEvaluationContext, PromotionCandidates) -> PromotionPlan` receives candidates that their loaded `Promotion` aggregates have already found eligible under `BR-PRM-01`. It builds only combinations permitted by every candidate's stacking configuration, applies compatible candidates in configured priority order, and uses `PromotionId` as the final tie-break so database iteration order cannot affect price. Each contribution is calculated against its remaining line, goods, or shipping base, rounded at the `FR-DAT-01` precision, and capped so the payable total cannot be negative. If conflicting promotions have no configured precedence, it selects the most favourable singleton plan, then breaks an equal benefit by configured priority and `PromotionId`, as required by `UC-PRM-03` E2.
+
+`PromotionPlan` contains the ordered applied promotions, each contribution, granted-item requests, goods/shipping discounts, total discount, and rejection reasons. The same pure function runs for advisory checkout preview and binding placement. At placement the Application Service reloads and re-evaluates promotions, invokes this policy, reserves granted stock through `StockReservationPort`, claims redemption slots, records the plan on `Order`, and saves inside the §5.1 transaction. None of that orchestration or I/O belongs to the Domain Service.
 
 **Domain Events:** `PromotionActivated`, `PromotionRedeemed`, `PromotionExpired`.
 **Repository:** `PromotionRepository`.
@@ -380,12 +416,16 @@ Payment uses idempotency-keyed state transitions and a concurrency-safe running 
 
 `Review` aggregate: rating, text, images, moderation status; references `ProductId` and `CustomerId` by identity only, never by object reference. `BR-REV-01` (only a verified buyer — a customer with a Delivered/Completed order containing the product — may review) is checked against Review's own local projection built from Ordering's `OrderDelivered`/`OrderCompleted` events (§5.2), not a synchronous call. `BR-REV-02` (at most one review per customer per product) follows the §7 global-constraint pattern (DB unique constraint). `BR-REV-03` (author-editable within a window, moderator-only after) and `BR-REV-04` (image format/size limits) are `Review` aggregate methods.
 
+**Domain Service — `ReviewEligibilityPolicy`.** `evaluate(ReviewEligibilityContext) -> ReviewEligibilityDecision` accepts account-verification status, the local delivered/completed-order evidence, product identity, existing-review fact, actor identity/roles, submission time, and configured edit window. It permits submission only for a verified buyer, permits one review per customer/product, and decides whether an edit is still author-controlled or requires moderation (`BR-REV-01`–`BR-REV-03`, `[A-09]`). The Review Application Service reads the local projection and repository, passes snapshots to the policy, and relies on the DB unique constraint for the concurrent duplicate-review race.
+
 **Domain Events:** `ReviewSubmitted`, `ReviewPublished`, `ReviewModerated`.
 **Repository:** `ReviewRepository`.
 
 ### 8.10 Notification (light)
 
 `NotificationRequest` stores recipient, channel, triggering event, and outcome. The dispatcher enforces `BR-NTF-01` and `BR-NTF-02`; they are not aggregate invariants.
+
+**Domain Service — `NotificationDeliveryPolicy`.** `decide(NotificationContext, PreferenceSnapshot, RetryPolicy) -> NotificationDeliveryDecision` classifies the message as transactional or promotional, applies channel preferences, and returns `SEND`, `SUPPRESS_PROMOTIONAL`, `RETRY_AT`, or `MARK_UNDELIVERABLE` with a reason. Transactional order/payment/shipment/refund notifications ignore promotional opt-outs; promotional messages honour them (`BR-NTF-02`). Retry limits and spacing are configuration because `UC-NTF-01` leaves them open. The dispatcher persists `NotificationRequest` before delivery and performs provider I/O; the policy only decides the next action and therefore cannot silently drop a notification (`BR-NTF-01`).
 
 **External integration:** `NotificationSender` port (Anticorruption Layer to the Email Service Provider).
 **Repository:** `NotificationRequestRepository`.
@@ -394,11 +434,15 @@ Payment uses idempotency-keyed state transitions and a concurrency-safe running 
 
 `AuditEntry` stores actor, action, entity, before/after values, timestamp, and reason. The repository and application service expose no update or delete operation (`BR-AUD-01`). Audit consumes events from the other 11 contexts.
 
+**Domain Service — `AuditCapturePolicy`.** `createDraft(AuditableActionSnapshot) -> AuditEntryDraft` classifies whether an action is significant under `FR-AUD-02`, requires actor/target/before/after/time and any mandatory reason, distinguishes human, system, provider, and on-behalf-of attribution, and removes credentials, tokens, and payment-instrument details (`NFR-SEC-07`). An invalid significant-action snapshot is rejected rather than producing an incomplete entry. The Application Service supplies the unambiguous timestamp, appends the accepted draft, and exposes no update/delete path; failure handling follows the reversible-versus-irreversible distinction in `UC-AUD-01`.
+
 **Repository:** `AuditEntryRepository` (append-only interface — no `update`/`delete` methods exist).
 
 ### 8.12 Reporting & Analytics (light)
 
 Reporting is a CQRS read side with no aggregate. It projects events from the other 11 contexts into MongoDB or Elasticsearch (`P13`). `BR-RPT-01` is a projection rule. Reporting has no upstream influence.
+
+**Domain Service — `ReportingMetricPolicy`.** `project(ReportingEventSnapshot) -> MetricDelta` converts an immutable event into deterministic revenue, product, customer, inventory, order, or conversion deltas. For revenue it adds an order only when it reaches Paid or beyond, uses the frozen order-line prices, and subtracts refunds/returns in the period in which they occur (`BR-RPT-01`, `FR-DAT-03`). Duplicate-event rejection and projection persistence remain infrastructure/application concerns. The service neither queries transaction tables nor influences an upstream context, preserving `P13`; the projection records the event time and as-at time required by `NFR-PERF-06`.
 
 ---
 
@@ -416,44 +460,44 @@ Every `BR-*` from [`srs.md`](../../BA-docs/srs.md) §4 maps to its enforcement p
 |---|---|---|---|
 | `BR-CUS-01` | Identity & Access | `Account`, DB unique constraint | §8.1 |
 | `BR-CUS-02` | Identity & Access → Ordering, Review | Cross-context verification-status check | §8.1 |
-| `BR-CUS-03` | Identity & Access | `Account` aggregate method | §8.1 |
+| `BR-CUS-03` | Identity & Access | `IdentityToken` lifecycle + conditional storage update | §8.1 |
 | `BR-CUS-04` | Identity & Access | Application service | §8.1 |
-| `BR-CUS-05` | Identity & Access | `Account` aggregate invariant | §8.1 |
+| `BR-CUS-05` | Identity & Access | `AddressBookPolicy` plan + partial unique index | §8.1 |
 | `BR-CAT-01` | Catalog | `Product`/`Variant`, DB unique constraint | §8.2 |
 | `BR-CAT-02` | Catalog | `Product.publicationStatus` | §8.2 |
-| `BR-CAT-03` | Catalog | `Category`, DB constraint | §8.2 |
+| `BR-CAT-03` | Catalog | `Category` guard + `CategoryHierarchyPolicy` + persistence constraints | §8.2 |
 | `BR-SCH-01` | Catalog (read side) | Query-scoping in the search/recommendation read model | §8.2 |
-| `BR-INV-01` | Inventory | `StockItem` single-aggregate invariant | §8.3 |
+| `BR-INV-01` | Inventory | `StockAllocationPolicy` plan + `StockItem` invariant | §8.3 |
 | `BR-INV-02` | Inventory | `StockReservation` terminal state machine | §8.3 |
 | `BR-INV-03` | Inventory | Application service + Audit event | §8.3 |
 | `BR-CRT-01` | Cart & Wishlist | Scheduler-driven expiry | §8.4 |
 | `BR-CRT-02` | Cart & Wishlist | Advisory check via Catalog OHS | §8.4 |
-| `BR-CRT-03` | Cart & Wishlist | `Cart` aggregate merge method | §8.4 |
+| `BR-CRT-03` | Cart & Wishlist | `CartMergePolicy` plan + `Cart` aggregate | §8.4 |
 | `BR-CRT-04` | Cart & Wishlist | `CartLine` has no `Money` field | §8.4 |
 | `BR-ORD-01` | Ordering | `Order.transition()` | §8.5 |
 | `BR-ORD-02` | Ordering + Inventory + Promotion | The Order-Placement Partnership | §5.1, §8.5 |
 | `BR-ORD-03` | Ordering | Idempotency key, checked pre-Partnership | §8.5 |
 | `BR-ORD-04` | Ordering | State diagram edge set | §8.5 |
 | `BR-ORD-05` | Ordering | `Order.transition()` guard | §8.5 |
-| `BR-ORD-06` | Ordering | `Order` mutator guards on `OrderStatus ≥ Paid` | §8.5 |
+| `BR-ORD-06` | Ordering | `OrderPricingPolicy` snapshot + `Order` mutator guards on `OrderStatus ≥ Paid` | §8.5 |
 | `BR-PAY-01` | Payment | `PaymentAttempt`, idempotency key | §8.6 |
 | `BR-PAY-02` | Payment | `Payment` aggregate invariant | §8.6 |
-| `BR-PAY-03` | Payment | Application service | §8.6 |
-| `BR-SHP-01` | Shipping (application layer) | Fee recalculation at quote/confirm | §8.7 |
+| `BR-PAY-03` | Payment | `PaymentMethodEligibilityPolicy` | §8.6 |
+| `BR-SHP-01` | Shipping | `ShippingOptionPolicy` over current quote snapshots | §8.7 |
 | `BR-SHP-02` | Shipping | `Shipment.applyTrackingUpdate()` | §8.7 |
 | `BR-PRM-01` | Promotion | `Promotion` aggregate method | §8.8 |
-| `BR-PRM-02` | Promotion | `Promotion` aggregate invariant | §8.8 |
+| `BR-PRM-02` | Promotion | `DiscountRule` proposal cap + `PromotionStackingPolicy` plan cap | §8.8 |
 | `BR-PRM-03` | Promotion | `PromotionStackingPolicy` Domain Service | §8.8 |
-| `BR-REV-01` | Review → Ordering | Local projection of `OrderDelivered`/`OrderCompleted` | §8.9 |
-| `BR-REV-02` | Review | DB unique constraint | §8.9 |
-| `BR-REV-03` | Review | `Review` aggregate method | §8.9 |
+| `BR-REV-01` | Review → Ordering | `ReviewEligibilityPolicy` over local order projection | §8.9 |
+| `BR-REV-02` | Review | `ReviewEligibilityPolicy` + DB unique constraint | §8.9 |
+| `BR-REV-03` | Review | `ReviewEligibilityPolicy` + `Review` aggregate method | §8.9 |
 | `BR-REV-04` | Review | `Review` aggregate method | §8.9 |
-| `BR-NTF-01` | Notification | Dispatcher delivery guarantee | §8.10 |
-| `BR-NTF-02` | Notification | Dispatcher preference check | §8.10 |
-| `BR-RPT-01` | Reporting & Analytics | Projection-computation rule | §8.12 |
-| `BR-AUD-01` | Audit | No mutation API surface exists | §8.11 |
-| `BR-AUD-02` | Identity & Access | `AuthorizationService` OHS | §8.1 |
-| `BR-AUD-03` | Identity & Access | DB check constraint / count query | §8.1 |
+| `BR-NTF-01` | Notification | `NotificationDeliveryPolicy` + dispatcher guarantee | §8.10 |
+| `BR-NTF-02` | Notification | `NotificationDeliveryPolicy` | §8.10 |
+| `BR-RPT-01` | Reporting & Analytics | `ReportingMetricPolicy` | §8.12 |
+| `BR-AUD-01` | Audit | `AuditCapturePolicy` + append-only API surface | §8.11 |
+| `BR-AUD-02` | Identity & Access | `AccessControlPolicy` through `AuthorizationService` OHS | §8.1 |
+| `BR-AUD-03` | Identity & Access | `AccessControlPolicy` + DB constraint / count query | §8.1 |
 
 ---
 
@@ -462,8 +506,8 @@ Every `BR-*` from [`srs.md`](../../BA-docs/srs.md) §4 maps to its enforcement p
 ```mermaid
 flowchart TB
     BA["14 Business Domains (BA-docs)"] --> Strategic["Strategic Design — 12 Bounded Contexts, 1 Context Map"]
-    Strategic --> Tactical["Tactical Design — Aggregates, Entities, Value Objects, Domain Events per context"]
+    Strategic --> Tactical["Tactical Design — Aggregates, Entities, Value Objects,<br/>necessary Domain Services and Domain Events per context"]
     Tactical --> Next["Backend Architecture.md — Clean Architecture layering<br/>Spring Modulith module scaffold<br/>ArchUnit rules<br/>04-shared/ API & event contracts"]
 ```
 
-The model defines 12 bounded contexts, the three-way Order-Placement Partnership, tactical models, and enforcement points for every `BR-*`. [Backend Architecture](./Backend%20Architecture.md) defines their package structure, module scaffold, and ArchUnit rules. [`Integration Contract.md`](../04-shared/Integration%20Contract.md) defines the API and event contracts.
+The model defines 12 bounded contexts, the three-way Order-Placement Partnership, context-owned Domain Services only where behaviour spans natural aggregate ownership, and enforcement points for every `BR-*`. [Backend Architecture](./Backend%20Architecture.md) defines their package structure, module scaffold, and ArchUnit rules. [`Integration Contract.md`](../04-shared/Integration%20Contract.md) defines the API and event contracts.
