@@ -1,3 +1,4 @@
+
 # Markdown documentation reader
 
 This Astro app turns the Markdown files in its parent directory into a static documentation site. It has no project-specific content or folder list: moving `util/` beside a different documentation repository is enough to reuse it.
@@ -5,23 +6,44 @@ This Astro app turns the Markdown files in its parent directory into a static do
 ## Requirements
 
 - Node.js 20.19 or later (or 22.12 or later)
-- npm
-- Optional: PlantUML and Graphviz, only when using `npm run diagrams:build`
+- `npm` and `make`
+- Optional: PlantUML and Graphviz, only when using `make diagrams`
+
+### Install platform dependencies
+
+On macOS, install the required tools with Homebrew:
+
+```sh
+brew install node make
+# Only needed to render .puml files:
+brew install plantuml graphviz
+```
+
+On Debian or Ubuntu Linux, install Node.js 20 and Make, then add the optional diagram tools when needed:
+
+```sh
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs make
+# Only needed to render .puml files:
+sudo apt-get install -y default-jre-headless plantuml graphviz
+```
+
+For other Linux distributions, install a supported Node.js version, `npm`, and `make` using the distribution's package manager. PlantUML requires a Java runtime.
 
 ## Setup
 
 1. Place `util/` directly inside the documentation repository.
 2. Add a root `README.md`. Its first level-one heading becomes the site title, homepage heading, reader header, and browser title.
 3. Create one top-level directory for each documentation field. Give each field a `README.md`; its first level-one heading appears in **Start with the spine** on the homepage.
-4. Run the following commands:
+4. Install dependencies and start the development server:
 
    ```sh
    cd util
-   npm install
-   npm run dev
+   make install
+   make preview
    ```
 
-Open the local URL printed by Astro. For production output, run `npm run build`; the static site is written to `util/dist/`.
+Open the local URL printed by Astro. For production output, run `make build`; the static site is written to `util/dist/`. Run `make preview` to build and serve that output, `make test` to verify a production build, and `make diagrams` to render PlantUML files. `make run` remains an alias for `make preview`.
 
 If you must run the commands from another working directory, set `DOCS_ROOT` to the absolute path of the documentation repository.
 
@@ -36,8 +58,9 @@ If you must run the commands from another working directory, set `DOCS_ROOT` to 
 
 ## Optional diagrams
 
-`npm run diagrams:build` finds every `.puml` file outside hidden directories and `node_modules/`, then writes a sibling SVG. Install PlantUML and Graphviz first, for example with `brew install plantuml graphviz` on macOS.
+`make diagrams` finds every `.puml` file outside hidden directories and `node_modules/`, then writes a sibling SVG. Install PlantUML, Graphviz, and Java first using the platform instructions above.
 
 ## Customizing the interface
 
 The visual copy and styles live under `src/`. They are intentionally generic; the project name, homepage title, field titles, and reader branding derive from Markdown rather than a hard-coded list. Change the root README heading and field README headings to rename the site without editing application code.
+
