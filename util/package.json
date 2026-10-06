@@ -1,8 +1,7 @@
 {
-  "name": "ecommerce",
+  "name": "markdown-documentation-reader",
   "version": "1.0.0",
-  "description": "A quiet, focused reader for the Enterprise Commerce Platform documentation.",
-  "main": "index.js",
+  "description": "A focused Astro reader for Markdown documentation in a repository.",
   "directories": {
     "doc": "docs"
   },
@@ -12,22 +11,12 @@
     "build": "npm run copy:assets && astro build",
     "preview": "astro preview",
     "test": "npm run build",
-    "diagrams:build": "node toSvg.js",
-    "docs:openapi:lint": "npx -y @redocly/cli@2 lint --config ../SA-docs/04-shared/OpenAPI/redocly.yaml",
-    "docs:openapi:bundle": "npx -y @redocly/cli@2 bundle ecp@v1 --config ../SA-docs/04-shared/OpenAPI/redocly.yaml -o ../SA-docs/04-shared/OpenAPI/dist/openapi.bundled.yaml"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/phuchoang-ecommerce-org/doc.git"
+    "diagrams:build": "node toSvg.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/phuchoang-ecommerce-org/docs/issues"
-  },
-  "homepage": "https://github.com/phuchoang-ecommerce-org/docs#readme",
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.3.5",

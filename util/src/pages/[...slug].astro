@@ -2,7 +2,7 @@
 import { marked } from 'marked';
 import { posix } from 'node:path';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { getDocument, getDocuments } from '../lib/docs';
+import { getDocument, getDocuments, getRootReadme } from '../lib/docs';
 
 export async function getStaticPaths() {
   const documents = await getDocuments();
@@ -46,14 +46,17 @@ renderer.code = (code, infostring, escaped) => {
 };
 const html = await marked.parse(document.source, { gfm: true, breaks: false, renderer });
 const breadcrumbs = document.path.split('/');
+const rootReadme = getRootReadme(await getDocuments());
+const siteTitle = rootReadme?.title ?? 'Documentation';
+const siteInitial = siteTitle.trim().charAt(0).toUpperCase() || 'D';
 ---
 
-<BaseLayout title={`${document.title} / ECP`}>
+<BaseLayout title={`${document.title} / ${siteTitle}`}>
   <div class="mx-auto min-h-screen max-w-7xl px-5 py-5 sm:px-8 sm:py-8 lg:px-12">
     <header class="flex items-center justify-between border-b border-line pb-5">
       <a href="/" class="group inline-flex items-center gap-3 text-sm font-semibold tracking-[0.18em] text-ink uppercase">
-        <span class="grid size-8 place-items-center rounded-full border border-moss text-[0.68rem] text-moss transition-colors group-hover:bg-moss group-hover:text-paper">E</span>
-        ECP / util
+        <span class="grid size-8 place-items-center rounded-full border border-moss text-[0.68rem] text-moss transition-colors group-hover:bg-moss group-hover:text-paper">{siteInitial}</span>
+        {siteTitle}
       </a>
       <a href="/#library" class="text-sm text-stone underline decoration-line underline-offset-4 hover:text-moss hover:decoration-moss">Library</a>
     </header>
@@ -68,7 +71,7 @@ const breadcrumbs = document.path.split('/');
       </aside>
       <article class="reader min-w-0" aria-label={document.title} set:html={html} />
     </main>
-    <footer class="border-t border-line py-7 text-xs text-stone">ECP documentation · {document.path}</footer>
+    <footer class="border-t border-line py-7 text-xs text-stone">{siteTitle} · {document.path}</footer>
   </div>
   <dialog id="diagram-dialog" class="diagram-dialog" aria-labelledby="diagram-dialog-title">
     <div class="diagram-dialog__header">

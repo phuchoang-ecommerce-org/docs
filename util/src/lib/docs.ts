@@ -1,5 +1,5 @@
 import { readdir, readFile } from 'node:fs/promises';
-import { join, relative, sep } from 'node:path';
+import { basename, join, relative, resolve, sep } from 'node:path';
 
 export type Document = {
   path: string;
@@ -15,12 +15,27 @@ export type FolderNode = {
   document?: Document;
 };
 
+export function getFieldReadmes(documents: Document[]): Document[] {
+  return documents.filter(({ path }) => /^[^/]+\/README\.md$/i.test(path));
+}
+
+export function getRootReadme(documents: Document[]): Document | undefined {
+  return documents.find(({ path }) => path.toLowerCase() === 'readme.md');
+}
+
+const libraryIgnoredFileNames = new Set(['readme.md', 'claude.md', 'agents.md']);
+
+export function getLibraryDocuments(documents: Document[]): Document[] {
+  return documents.filter(({ path }) => !libraryIgnoredFileNames.has(basename(path).toLowerCase()));
+}
+
 export function countDocuments(node: FolderNode): number {
   return node.document ? 1 : node.children.reduce((total, child) => total + countDocuments(child), 0);
 }
 
-const root = new URL('../../../../', import.meta.url).pathname;
-const ignored = new Set(['.git', '.github', 'node_modules', 'util', 'dist']);
+const root = process.env.DOCS_ROOT ? resolve(process.env.DOCS_ROOT) : resolve(process.cwd(), '..');
+const utilityDirectory = basename(process.cwd());
+const ignored = new Set(['node_modules', utilityDirectory]);
 
 async function markdownFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -70,7 +85,7 @@ export async function getDocument(path: string): Promise<(Document & { source: s
 }
 
 export function buildFolderTree(documents: Document[]): FolderNode {
-  const rootNode: FolderNode = { name: 'docs-extract', path: '', children: [] };
+  const rootNode: FolderNode = { name: basename(root), path: '', children: [] };
 
   for (const document of documents) {
     const parts = document.path.split('/');

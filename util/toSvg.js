@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Compiles every PlantUML file in the repo to an SVG sitting right next to its
- * source (e.g. docs/BA-docs/diagrams/uc-customer-identity.puml
- * -> docs/BA-docs/diagrams/uc-customer-identity.svg).
+ * source (e.g. documentation/diagrams/system-context.puml
+ * -> documentation/diagrams/system-context.svg).
  *
  * Requires the `plantuml` CLI on PATH (macOS: `brew install plantuml graphviz`).
  *

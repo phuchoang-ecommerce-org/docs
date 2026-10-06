@@ -1,20 +1,22 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import FolderTree from '../components/FolderTree.astro';
-import { buildFolderTree, countDocuments, getDocuments } from '../lib/docs';
+import { buildFolderTree, countDocuments, getDocuments, getFieldReadmes, getLibraryDocuments, getRootReadme } from '../lib/docs';
 
 const documents = await getDocuments();
-const tree = buildFolderTree(documents);
-const highlightedPaths = ['README.md', 'BA-docs/README.md', 'SA-docs/README.md', 'PM-docs/README.md', 'SA-docs/01-system/Solution Architecture.md'];
-const highlighted = highlightedPaths.flatMap((path) => documents.filter((document) => document.path === path));
+const tree = buildFolderTree(getLibraryDocuments(documents));
+const highlighted = getFieldReadmes(documents);
+const rootReadme = getRootReadme(documents);
+const siteTitle = rootReadme?.title ?? 'Documentation';
+const siteInitial = siteTitle.trim().charAt(0).toUpperCase() || 'D';
 ---
 
-<BaseLayout title="ECP / documentation utility">
+<BaseLayout title={siteTitle}>
   <div class="mx-auto min-h-screen max-w-[92rem] px-5 py-5 sm:px-8 sm:py-8 lg:px-12">
     <header class="flex items-center justify-between border-b border-line pb-5" aria-label="Utility header">
       <a href="/" class="group inline-flex items-center gap-3 text-sm font-semibold tracking-[0.18em] text-ink uppercase">
-        <span class="grid size-8 place-items-center rounded-full border border-moss text-[0.68rem] text-moss transition-colors group-hover:bg-moss group-hover:text-paper">E</span>
-        ECP / util
+        <span class="grid size-8 place-items-center rounded-full border border-moss text-[0.68rem] text-moss transition-colors group-hover:bg-moss group-hover:text-paper">{siteInitial}</span>
+        {siteTitle}
       </a>
       <p class="hidden text-sm text-stone sm:block">Documentation, without the noise.</p>
     </header>
@@ -22,12 +24,11 @@ const highlighted = highlightedPaths.flatMap((path) => documents.filter((documen
     <main id="main" class="grid gap-14 py-14 lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-20 lg:py-20">
       <div>
         <p class="mb-5 text-xs font-semibold tracking-[0.2em] text-moss uppercase">Documentation workspace</p>
-        <h1 class="max-w-3xl font-serif text-5xl leading-[1.02] tracking-[-0.035em] text-ink sm:text-6xl lg:text-7xl">Everything important. Nothing competing for attention.</h1>
-        <p class="mt-7 max-w-xl text-lg leading-8 text-stone">A quiet index for the Enterprise Commerce Platform: strategy, architecture, and delivery decisions in one deliberate reading space.</p>
+        <h1 class="max-w-3xl font-serif text-5xl leading-[1.02] tracking-[-0.035em] text-ink sm:text-6xl lg:text-7xl">{siteTitle}</h1>
+        <p class="mt-7 max-w-xl text-lg leading-8 text-stone">{rootReadme?.summary ?? 'A focused index of the Markdown documentation in this repository.'}</p>
 
         <div class="mt-10 flex flex-wrap gap-3" aria-label="Documentation actions">
           <a href="#library" class="rounded-sm bg-moss px-5 py-3 text-sm font-semibold text-paper transition-colors hover:bg-ink">Browse the library</a>
-          <a href="https://github.com/phuchoang-ecommerce-org/docs" class="rounded-sm border border-line px-5 py-3 text-sm font-semibold text-ink transition-colors hover:border-moss hover:bg-sage">View repository <span aria-hidden="true">↗</span></a>
         </div>
 
         <section class="mt-20" aria-labelledby="continue-reading">
@@ -59,7 +60,7 @@ const highlighted = highlightedPaths.flatMap((path) => documents.filter((documen
         <dl class="mt-9 grid grid-cols-3 gap-3 lg:grid-cols-1 lg:gap-0">
           {tree.children.filter((node) => node.children.length > 0).map((node) => (
             <div class="border-t border-line py-3 lg:flex lg:items-baseline lg:justify-between">
-              <dt class="text-sm capitalize text-stone">{node.name.replace(/-docs$/, '').replaceAll('-', ' ')}</dt>
+              <dt class="text-sm text-stone">{node.name}</dt>
               <dd class="font-serif text-xl text-moss">{countDocuments(node)}</dd>
             </div>
           ))}
@@ -95,7 +96,7 @@ const highlighted = highlightedPaths.flatMap((path) => documents.filter((documen
     </section>
 
     <footer class="border-t border-line py-7 text-xs leading-5 text-stone">
-      Source-first documentation for the Enterprise Commerce Platform.
+      Source-first documentation.
     </footer>
   </div>
 

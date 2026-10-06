@@ -9,7 +9,7 @@ interface Props {
 
 const { node, depth = 0 } = Astro.props;
 const isFolder = node.children.length > 0;
-const label = node.document?.title ?? node.name.replace(/-docs$/, '').replaceAll('-', ' ');
+const label = node.document?.title ?? node.name;
 ---
 
 <li data-folder={isFolder ? '' : undefined} class:list={{ 'mt-1': depth > 0 }}>
@@ -20,7 +20,7 @@ const label = node.document?.title ?? node.name.replace(/-docs$/, '').replaceAll
           <span class="grid size-4 shrink-0 place-items-center text-moss" aria-hidden="true">
             <span class="group-open:hidden">+</span><span class="hidden group-open:inline">−</span>
           </span>
-          <span class="truncate capitalize">{label}</span>
+          <span class="truncate">{label}</span>
         </span>
         <span class="shrink-0 font-mono text-xs font-normal text-stone">{countDocuments(node)}</span>
       </summary>
