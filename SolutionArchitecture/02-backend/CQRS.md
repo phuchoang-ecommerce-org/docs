@@ -79,6 +79,8 @@ Three properties of that picture are the whole of this document, and each is a r
 - **The query path reads any store and writes none** — with exactly one exception, Redis cache population on a miss, which §6.2 separates from projection on purpose.
 - **The two paths meet only at PostgreSQL and only through Kafka.** There is no in-memory handoff, no shared service, and no type shared between a command and a view.
 
+**Inventory aggregate-write rule.** `StockItem` is the only Inventory aggregate root and `StockItemRepository` is the only Inventory command-side write repository. A `StockAdjustment` is an immutable child produced by a `StockItem` transition and is inserted with the changed root in that repository's transaction. It has no standalone write port. The `inventory_stock_adjustment` table is still read directly by the Inventory JDBC query adapter for history views; that read model is observational and cannot decide a command.
+
 ### 2.1 The classification of every read
 
 [ADR-0008](../01-system/ADR/ADR-0008-cqrs-command-query-separation.md) §4's table, with the consistency class named so the rest of this document can refer to it, and with the store that actually answers the query:

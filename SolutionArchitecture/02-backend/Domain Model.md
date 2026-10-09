@@ -267,9 +267,11 @@ The services below refine rules already defined by the SRS and use cases. They d
 
 | Aggregate | Root | Entities | Key Value Objects |
 |---|---|---|---|
-| `StockItem` | `StockItem` (identity: `Sku` + `WarehouseId`) | `StockReservation` (child, not a separate aggregate) | `Quantity`, `ReservationStatus` (Held / Committed / Released) |
+| `StockItem` | `StockItem` (identity: `Sku` + `WarehouseId`) | `StockReservation`; `StockAdjustment` (children, not separate aggregates) | `Quantity`, `ReservationStatus` (Held / Committed / Released) |
 
-`StockItem` is the consistency boundary. It stores `quantityOnHand` and `quantityReserved`; `availableQuantity` is derived. `StockReservation` is a child because its transition and counter update are atomic (`UC-INV-03` step 3).
+`StockItem` is the consistency boundary. It stores `quantityOnHand` and `quantityReserved`; `availableQuantity` is derived. `StockReservation` is a child because its transition and counter update are atomic (`UC-INV-03` step 3). `StockAdjustment` is one immutable lifecycle: a validated proposed movement becomes a recorded child only through `StockItem.adjust(...)`. The changed counters and accountable physical-movement fact must either commit together or not at all (`UC-INV-04`, `BR-INV-01`, `BR-INV-03`).
+
+`StockItemRepository` is Inventory's only command-side write repository. It persists a root transition and any root-owned children in the same transaction; `StockReservation` and `StockAdjustment` have no standalone write repository or store. This does not put database APIs in the aggregate: the Infrastructure adapter implements the root-owned persistence boundary. Adjustment-history listing remains a read-side query and must not be used to authorise a command.
 
 An order line across warehouses uses independent `StockReservation` parts (`UC-INV-02` A3, `UC-INV-03` A1/A2). `Order` stores their `(StockItemId, StockReservationId)` references; there is no cross-warehouse aggregate.
 
@@ -279,7 +281,7 @@ An order line across warehouses uses independent `StockReservation` parts (`UC-I
 |---|---|---|
 | Available stock never negative; no concurrent sequence over-reserves | `BR-INV-01` | `StockItem` aggregate, optimistic-locked version, single-aggregate invariant |
 | A reservation resolves exactly once — committed or released, never both/neither | `BR-INV-02` | `StockReservation` entity's own terminal state machine |
-| A stock adjustment requires a reason, records the actor, and is audited | `BR-INV-03` | Application service, publishes an event Audit consumes |
+| A stock adjustment requires a reason, records the actor, and is audited | `BR-INV-03` | `StockItem.adjust(...)` creates the immutable `StockAdjustment`; the application transaction records Audit atomically |
 
 **Domain Service — `StockAllocationPolicy`.** `allocate(AllocationRequest, StockAvailabilitySnapshot, AllocationStrategy) -> StockAllocationPlan` assigns each requested SKU quantity across one or more warehouses without allocating more than the supplied available quantity. It returns either a complete plan or the exact shortage per line; it never performs a partial reservation. The strategy is mandatory configuration because `UC-INV-01` explicitly leaves nearest/cheapest/most-stock selection open. If several warehouses are possible and no strategy is configured, the policy returns `ALLOCATION_POLICY_REQUIRED` rather than inventing a preference. The Inventory Application Service loads `StockItem` aggregates, invokes the policy, then asks each selected aggregate to reserve inside the §5.1 transaction; optimistic locking remains the concurrency authority.
 
