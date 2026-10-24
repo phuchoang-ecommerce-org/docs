@@ -20,7 +20,7 @@ There is a second, larger gap. §14 lists an accessibility baseline — WCAG AA 
 - §14 — accessibility as a baseline, verified rather than assumed.
 - §15 — motion must never make the interface feel playful or noisy.
 - `P15` / `NFR-MAINT-05` — a rule that depends on memory erodes; the useful form is one a tool checks.
-- [ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) — Radix already supplies focus management, keyboard navigation, and ARIA semantics, so most of §14 is inherited rather than built.
+- [ADR-0040](./ADR-0040-radix-tailwind-component-system.md) — Radix already supplies focus management, keyboard navigation, and ARIA semantics, so most of §14 is inherited rather than built.
 
 ## 3. Considered Options
 
@@ -70,7 +70,7 @@ Rules: **no spring physics** — every transition is duration-based; nothing out
 |---|---|---|
 | WCAG AA contrast | Token-level pairs with measured ratios ([ADR-0022](./ADR-0022-ma-design-tokens.md)) | Contrast assertions in the token test |
 | Visible keyboard focus | A focus-ring token applied by every interactive component; **focus outlines are never removed** | Lint rule against `outline: none`; component tests |
-| Keyboard navigability | Inherited from Radix primitives ([ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md)) | Keyboard interaction tests on composite components |
+| Keyboard navigability | Inherited from Radix primitives ([ADR-0040](./ADR-0040-radix-tailwind-component-system.md)) | Keyboard interaction tests on composite components |
 | Semantic HTML | Radix renders correct elements and roles; application markup uses landmarks and headings in order | Automated accessibility linting in CI |
 | Screen-reader compatibility | ARIA from Radix; author-supplied names for icon-only controls | Automated checks plus periodic manual testing |
 | 44×44px minimum touch target | A minimum-size rule on interactive components; button height 40–44px per §6, with padding making the **hit area** ≥ 44px even where the visual control is 40px | Component tests |
@@ -103,4 +103,4 @@ Rules: **no spring physics** — every transition is duration-based; nothing out
 
 ## 6. Related Decisions
 
-[ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) · [ADR-0022](./ADR-0022-ma-design-tokens.md) · [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) · [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md)
+[ADR-0040](./ADR-0040-radix-tailwind-component-system.md) · [ADR-0022](./ADR-0022-ma-design-tokens.md) · [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) · [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md)

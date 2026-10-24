@@ -65,7 +65,7 @@ Each ADR contains its full `Traces to` list. Use the [traceability matrix](../..
 |---|---|---|
 | [0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) | Next.js App Router, RSC, rendering strategy per route class | Accepted (Next.js) · **Proposed** (App Router, RSC, route classification) |
 | [0020](./ADR-0020-typescript-strict-mode.md) | TypeScript strict mode, API types generated from OpenAPI | **Proposed** |
-| [0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) | Tailwind + shadcn/ui on Radix as the single styling system | Accepted |
+| [0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) | Earlier Tailwind + shadcn/ui decision | Superseded by 0040 |
 | [0022](./ADR-0022-ma-design-tokens.md) | The Ma design system expressed as tokens | Accepted |
 | [0023](./ADR-0023-server-first-data-fetching.md) | Server-first data fetching; client cache only where the browser owns state | **Proposed** |
 | [0024](./ADR-0024-frontend-state-management.md) | State management: server cache, URL state, minimal client store | **Proposed** |
@@ -76,6 +76,7 @@ Each ADR contains its full `Traces to` list. Use the [traceability matrix](../..
 | [0037](./ADR-0037-url-search-param-encoding-contract.md) | The URL search-param encoding as a stability contract | **Proposed** |
 | [0038](./ADR-0038-event-driven-catalog-revalidation.md) | Event-driven tag revalidation for static catalog routes | **Proposed** |
 | [0039](./ADR-0039-frontend-performance-budgets-ci-gate.md) | Per-route-class performance budgets as a build-failing CI gate | **Proposed** |
+| [0040](./ADR-0040-radix-tailwind-component-system.md) | Project-owned Radix UI components with TailwindCSS styling | Accepted |
 
 ---
 

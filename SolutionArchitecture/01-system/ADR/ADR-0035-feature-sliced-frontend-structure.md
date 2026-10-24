@@ -55,7 +55,7 @@ The frontend, in the same repository, ships one bundle in which every file can i
       ↓
   lib/          the fetch client · session custody · observability   ('server-only')
       ↓
-  components/   ui/ (shadcn source) · layout/ — no data access, ever
+  components/   ui/ (project-owned controls) · layout/ — no data access, ever
 ```
 
 | Commitment | Detail |

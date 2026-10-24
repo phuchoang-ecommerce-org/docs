@@ -85,4 +85,4 @@ The reason it matters here specifically is that frontend performance regresses b
 
 ## 6. Related Decisions
 
-[ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) · [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md) · [ADR-0020](./ADR-0020-typescript-strict-mode.md) · [ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) · [ADR-0035](./ADR-0035-feature-sliced-frontend-structure.md) · [ADR-0036](./ADR-0036-nextjs-server-sole-api-caller.md)
+[ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md) · [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md) · [ADR-0020](./ADR-0020-typescript-strict-mode.md) · [ADR-0040](./ADR-0040-radix-tailwind-component-system.md) · [ADR-0035](./ADR-0035-feature-sliced-frontend-structure.md) · [ADR-0036](./ADR-0036-nextjs-server-sole-api-caller.md)

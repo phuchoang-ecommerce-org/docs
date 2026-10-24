@@ -12,7 +12,7 @@
 
 It is prose. Prose specifications are followed until someone is in a hurry, and *Ma* is unusually easy to lose that way — an interface does not stop being calm in one commit, it stops in forty. §11's instruction — *"Avoid arbitrary spacing values that disrupt consistency"* — is precisely the kind of rule that decays silently. Nothing in a codebase prevents `padding: 25px`.
 
-[ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) established Tailwind as the single styling engine and its theme as the single token source. This record decides what goes in that theme, and resolves the two open choices the specification deliberately left as candidate lists: §4 offers four typefaces, and §7 offers three icon libraries, each requiring one to be picked and used consistently.
+[ADR-0040](./ADR-0040-radix-tailwind-component-system.md) keeps Tailwind as the single styling engine and its theme as the single token source. This record decides what goes in that theme, and resolves the two open choices the specification deliberately left as candidate lists: §4 offers four typefaces, and §7 offers three icon libraries, each requiring one to be picked and used consistently.
 
 ## 2. Decision Drivers
 
@@ -76,11 +76,11 @@ Plus a neutral grey ramp for text hierarchy. **Every foreground/background pair 
 
 **Typography** — §4. **Inter** is chosen from the four candidates: it has the widest weight and optical-size support of the four, excellent tabular figures for the price and order-total displays this platform is full of, and a variable-font build that carries all three permitted weights in one file. Weights are limited to **400, 500, 600** — the theme defines no others, so §4's prohibition on Black and ExtraBold is structural. Line height: 1.5–1.7 body, 1.2–1.3 headings. Three type levels only (§3).
 
-**Icons** — §7. **Lucide** is chosen: a single consistent outline set, tree-shakeable, and the set shadcn/ui's own examples use, so the component layer stays visually coherent without reconciliation. No second icon set is added.
+**Icons** — §7. **Lucide** is chosen as the single outline icon set for the project-owned components. No second icon set is added.
 
 **Components** — §6, §12. Card radius 12px, 1px border, minimal or no shadow. Button height 40–44px, radius 10px, solid fill, hover changing background brightness / border / subtle shadow only, and **no scaling animation**. Inputs: neutral 1px border, clear focus ring, no animated borders. Table rows 48–56px with 16–20px horizontal padding, minimal borders, hover highlight only.
 
-**Enforcement.** Arbitrary-value utilities (`p-[25px]`, `text-[#123456]`) fail lint ([ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md)). A raw hex code in component source is a lint error. Contrast ratios are asserted in the token test rather than checked by eye.
+**Enforcement.** Arbitrary-value utilities (`p-[25px]`, `text-[#123456]`) fail lint ([ADR-0040](./ADR-0040-radix-tailwind-component-system.md)). A raw hex code in component source is a lint error. Contrast ratios are asserted in the token test rather than checked by eye.
 
 ## 5. Consequences
 
@@ -105,4 +105,4 @@ Plus a neutral grey ramp for text hierarchy. **Every foreground/background pair 
 
 ## 6. Related Decisions
 
-[ADR-0021](./ADR-0021-tailwind-shadcn-radix-styling-system.md) · [ADR-0026](./ADR-0026-motion-and-accessibility-baseline.md) · [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md)
+[ADR-0040](./ADR-0040-radix-tailwind-component-system.md) · [ADR-0026](./ADR-0026-motion-and-accessibility-baseline.md) · [ADR-0019](./ADR-0019-nextjs-app-router-rendering-strategy.md)

@@ -105,7 +105,7 @@ Exit: all fourteen backend subprojects and the empty `app` compile.
 
 | Frontend lane | Pts |
 |---|---:|
-| `EN-FE-TOOL-1` Tailwind + Ma tokens, shadcn/ui vendored, strict `tsc`, ESLint (boundaries + dependency-cruiser), Prettier, Vitest + Testing Library + axe, Playwright skeleton | 14 |
+| `EN-FE-TOOL-1` Tailwind + Ma tokens, project-owned Radix UI controls, strict `tsc`, ESLint (boundaries + dependency-cruiser), Prettier, Vitest + Testing Library + axe, Playwright skeleton | 14 |
 | *Lane reserve — see §6* | *4* |
 | **Total** | **14** |
 

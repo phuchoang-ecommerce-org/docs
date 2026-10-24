@@ -295,7 +295,7 @@ Enablers cover the "No" rows in [`Testing and Benchmark Strategy.md`](../SA-docs
 | Epic | ID | Item | Pts | Sprint |
 |---|---|---|---:|---|
 | `EN-CI` | `EN-CI-3` | Frontend CI stages: type check, lint, boundary + cycle check, codegen drift | 8 | S24 |
-| `EN-FE-TOOL` | `EN-FE-TOOL-1` | Tailwind + Ma tokens, shadcn/ui vendored, strict `tsc`, ESLint (boundaries + dependency-cruiser), Prettier, Vitest + Testing Library + axe, Playwright skeleton | 14 | S00 |
+| `EN-FE-TOOL` | `EN-FE-TOOL-1` | Tailwind + Ma tokens, project-owned Radix UI controls, strict `tsc`, ESLint (boundaries + dependency-cruiser), Prettier, Vitest + Testing Library + axe, Playwright skeleton | 14 | S00 |
 | `EN-FE-API` | `EN-FE-API-1` | The one fetch client; `openapi-typescript` codegen + build-failing diff; Zod boundary parsing; error-code→screen map; cursor pagination | 14 | S01 |
 | `EN-FE-API` | `EN-FE-API-2` | Session custody: `ecp_session` cookie, `/api/csrf` signed double-submit, serialised refresh, `/api/auth/*` | 10 | S04 |
 | `EN-FE-API` | `EN-FE-API-3` | `/api/internal/revalidate` signed callback; event-driven ISR invalidation | 8 | S09 |
