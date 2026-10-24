@@ -41,9 +41,10 @@ flowchart TB
     subgraph Command["COMMAND PATH — authoritative, strongly consistent"]
         direction LR
         Ctl["api/<br/>«X»Controller"] --> Cmd["application/<br/>«Verb»«Noun»Command"]
-        Cmd --> AppSvc["application/<br/>@ApplicationService"]
-        AppSvc --> Agg["domain/<br/>@AggregateRoot"]
-        Agg --> Repo["infrastructure/<br/>@PersistenceAdapter (JPA)"]
+        Cmd --> AppSvc["application/<br/>focused use case"]
+        AppSvc --> DomainSvc["domain/<br/>Domain Service"]
+        DomainSvc --> Agg["domain/<br/>@AggregateRoot"]
+        Agg --> Repo["domain repository port<br/>→ infrastructure JPA adapter"]
         Repo --> PG[("PostgreSQL<br/>write model")]
         AppSvc --> Ob["infrastructure/<br/>outbox write — same transaction"]
         Ob --> PG
@@ -126,14 +127,14 @@ One command, from the wire to the outbox row. The gates before the controller ar
 |---|---|---|---|
 | 1 | Validate the request body against the OpenAPI contract | `api` | Shape validation only. A business rule checked here would be checked twice and drift ([ADR-0031](../01-system/ADR/ADR-0031-contract-first-openapi.md)) |
 | 2 | Map the request DTO to a command | `api` | MapStruct. The controller's last act; it holds no business logic |
-| 3 | Open the transaction | `application` | `@ApplicationService` is the **only** transaction owner ([ADR-0007](../01-system/ADR/ADR-0007-jmolecules-tactical-ddd.md)) |
+| 3 | Open the transaction | `application` | The focused command use case owns the transaction ([ADR-0007](../01-system/ADR/ADR-0007-jmolecules-tactical-ddd.md)) |
 | 4 | Authorise | `application` | `AuthorizationService.authorise(actor, operation, ownership)` — first call in every command method, enforced by the CI gate ([ADR-0018](../01-system/ADR/ADR-0018-architecture-governance-ci-gate.md) §4) |
 | 5 | Claim the idempotency key where the endpoint requires one | `application` | `INSERT` into `<module>_idempotency_key`; **the insert is the check** (§3.5) |
-| 6 | Load aggregates through their repositories | `application` → `infrastructure` | One repository per aggregate root; eager within the boundary, never lazy across it ([ADR-0010](../01-system/ADR/ADR-0010-jpa-write-model-jdbc-read-models.md)) |
-| 7 | Execute the business change on the aggregate | `domain` | The invariant lives here. No Spring, no JPA, no port, no transaction |
+| 6 | Load the aggregate through its domain service | `application` → `domain` | The application service never names a domain repository. One repository exists per aggregate root and is coordinated by the domain service. |
+| 7 | Execute and persist the complete business change through the aggregate | `domain` | The domain service invokes the root; the root owns its complete repository operation. The invariant lives here. No Spring, no JPA, no transaction. |
 | 8 | Call ports where the use case spans aggregates | `application` → `infrastructure` | The Order-Placement Partnership only ([`Module Dependency Diagram.md`](./Module%20Dependency%20Diagram.md) §8) |
 | 9 | Save, and write the outbox row for every Kafka-transported event | `infrastructure` | Same transaction ([ADR-0012](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md)); `Database.md` §5.1 is the row |
-| 10 | Commit, then return a command result | `application` → `api` | §3.4 fixes what the result may contain |
+| 10 | Commit, then return a command result | `application` → `api` | The API FacadeAdapter maps it to the public contract; §3.4 fixes what the result may contain |
 
 **Nothing in steps 1–10 touches a projected store.** The projection happens after the relay publishes, in an `@EventHandler`, and the command is already complete and acknowledged by then.
 

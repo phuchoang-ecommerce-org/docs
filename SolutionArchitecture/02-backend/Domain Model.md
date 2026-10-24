@@ -168,7 +168,7 @@ The Shared Kernel contains only `Money`, typed identity wrappers, and `Address`.
 Two governance rules:
 
 1. **Zero outbound dependencies.** The kernel depends on none of the 12 contexts — it must sit structurally beneath all of them, or Spring Modulith's module-boundary check has nothing meaningful to verify.
-2. **Physical home is not `04-shared`.** [`SA-docs/README.md`](../README.md#folder-layout) §1.1 reserves it for contract artifacts. Backend Architecture places the kernel in its own `shared-kernel` module.
+2. **Physical home follows semantic ownership, not `04-shared`.** [`SA-docs/README.md`](../README.md#folder-layout) §1.1 reserves it for contract artifacts. There is no backend `shared-kernel`: an Address Book value belongs to Identity, while an immutable checkout/order address snapshot belongs to Ordering and is mapped at the boundary.
 
 ---
 

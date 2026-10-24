@@ -13,7 +13,7 @@
 
 This document draws the **module dependency graph**: which Gradle subproject's code may reference which other's, in which direction, through which package. That is a structural statement about the build — and unlike the context map, it is a claim the compiler and the CI gate can falsify.
 
-The two are not the same picture, and the difference is the whole point. A context map edge such as *"Ordering → Payment, Customer/Supplier, async events"* is a real business relationship that produces **no dependency edge at all** once §5's rule is applied. Conversely, `shared-kernel` appears nowhere in the context map but is depended on by all thirteen other modules.
+The two are not the same picture, and the difference is the whole point. A context map edge such as *"Ordering → Payment, Customer/Supplier, async events"* is a real business relationship that produces **no dependency edge at all** once §5's rule is applied. A matching record shape likewise creates no dependency edge: each context keeps its own semantic value.
 
 Three questions [`ADR-0006`](../01-system/ADR/ADR-0006-spring-modulith-module-boundaries.md) leaves open are settled here:
 
@@ -25,11 +25,10 @@ Three questions [`ADR-0006`](../01-system/ADR/ADR-0006-spring-modulith-module-bo
 
 ## 2. The Module Set
 
-Fourteen Gradle subprojects under root project `ecp` ([ADR-0027](../01-system/ADR/ADR-0027-java-21-spring-boot-4-gradle.md)): thirteen library modules plus `app`, the only subproject that applies `org.springframework.boot` and produces the `bootJar`.
+Thirteen Gradle subprojects under root project `ecp` ([ADR-0027](../01-system/ADR/ADR-0027-java-21-spring-boot-4-gradle.md)): twelve bounded-context libraries plus `app`, the only subproject that applies `org.springframework.boot` and produces the `bootJar`.
 
 | Subproject | Bounded context | Subdomain | DB table prefix (`ADR-0009`) |
 |---|---|---|---|
-| `shared-kernel` | — (not a context) | — | — |
 | `identity` | Identity & Access | Supporting | `identity_` |
 | `catalog` | Catalog | Supporting | `catalog_` |
 | `inventory` | Inventory | **Core** | `inventory_` |
@@ -44,7 +43,7 @@ Fourteen Gradle subprojects under root project `ecp` ([ADR-0027](../01-system/AD
 | `reporting` | Reporting & Analytics | Generic | `reporting_` |
 | `app` | — (composition root) | — | — |
 
-`shared-kernel` and `app` are the two subprojects that are not bounded contexts. The kernel sits structurally *beneath* every context; `app` sits *above* every context and contains no business logic — only wiring, configuration, and the Spring Boot entry point. Everything in between is a context, one for one, as [`Domain Model.md`](./Domain%20Model.md) §3 resolves them.
+`app` is the one subproject that is not a bounded context. It sits above the context libraries and contains no business logic — only wiring, configuration, and the Spring Boot entry point. Everything else is a context, one for one, as [`Domain Model.md`](./Domain%20Model.md) §3 resolves them.
 
 Every module has the same internal shape ([ADR-0006](../01-system/ADR/ADR-0006-spring-modulith-module-boundaries.md) §4):
 
@@ -64,9 +63,26 @@ limits the graph to packages carrying `@ApplicationModule`, so the composition r
 configuration, and relay packages are not accidentally treated as bounded contexts. Everything
 below `internal/` remains inaccessible to another module.
 
-`shared-kernel` is the deliberate exception to closed-module semantics: it is open because its
-behaviour-only `api` types are consumed by both bounded contexts and the composition root. It has
-no implementation types today; any future implementation code belongs below `sharedkernel.internal`.
+### 2.1 API Facade and focused use cases
+
+Each published module API is a small `*Facade` interface implemented by a Spring
+`*FacadeAdapter`. The adapter owns API-to-application and application-to-API MapStruct mappings;
+no internal package may call or implement its own API. Application code is grouped as
+`application/<use-case>/<command|query>/`, rather than a module-wide service package. Commands
+authorize and call a Spring-wired domain service; the domain service loads the aggregate and
+invokes its transition, and the aggregate persists its complete state through its repository.
+Queries are observational application ports with persistence adapters and purpose-built read
+records, so they do not construct an aggregate merely for symmetry.
+
+Persistence uses local MapStruct mappers for aggregate/domain-value ↔ JPA entity conversion and
+for JPA row → application query DTO conversion. Repository adapters delegate to those mappers;
+they do not hand-copy persistence fields. Persistence-backed Spring bean registration belongs in
+`internal/infrastructure/configuration/`, alongside rather than inside domain code.
+
+There is no Java `shared-kernel` module. A record belongs beside the bounded context and layer
+that own its meaning. For example, Identity owns the mutable address-book `Address`; Ordering
+owns the immutable `CheckoutAddress` snapshot. Matching fields are mapped at an API/application
+boundary and never create a dependency merely for reuse.
 
 ---
 
@@ -102,9 +118,6 @@ flowchart TB
     Purchase ==>|"OHS: AuthorizationService"| identity["identity"]
     Autonomous ==>|"OHS: AuthorizationService"| identity
 
-    identity ==> kernel["shared-kernel<br/>Money · typed IDs · Address"]
-    Purchase ==> kernel
-    Autonomous ==> kernel
 ```
 
 The thick edges are drawn once from each group rather than as twenty-four separate arrows; they are twenty-four real Gradle declarations.
@@ -126,11 +139,10 @@ The thick edges are drawn once from each group rather than as twenty-four separa
 | Edge | Why every module has it |
 |---|---|
 | every context → `identity` | The synchronous, in-process `AuthorizationService` call made from every context's **application** layer before executing a command or serving a role-scoped query. This is what makes `BR-AUD-02` ("same decision regardless of entry point") hold by construction (Domain Model §5.2). It applies to `audit` and `reporting` too: neither has a command surface, but both serve role-scoped reads — SRS §2.3 grants the audit trail to Support and Admin only, and reporting to Staff, Warehouse, and Admin on different scopes. |
-| every module → `shared-kernel` | `Money`, typed identity wrappers, and `Address` (Domain Model §5.3). The kernel has **zero outbound dependencies**, which is what lets it sit beneath everything without creating a cycle. |
 
 ### 3.3 The graph is acyclic — and §5 is why
 
-Reading the graph as a topological order, top to bottom: `ordering` → {`cart`, `inventory`, `promotion`} → {`catalog`} → `identity` → `shared-kernel`, with `payment`, `shipping`, `review`, `notification`, `audit`, and `reporting` sitting alongside as leaves that depend on nothing but `identity` and the kernel.
+Reading the graph as a topological order, top to bottom: `ordering` → {`cart`, `inventory`, `promotion`} → {`catalog`} → `identity`, with `payment`, `shipping`, `review`, `notification`, `audit`, and `reporting` sitting alongside as leaves that depend on no context other than `identity` where authorization is needed.
 
 That acyclicity is not luck. The context map contains at least three relationships that look like cycles:
 
@@ -192,7 +204,7 @@ The dashed future consumers are `P2` and `AC-03` working as intended: loyalty su
 
 **Status: `Proposed`.** No existing document states this, so per [ADR/README](../01-system/ADR/README.md) §2 it is recorded here as a first-time decision awaiting ratification, not presented as settled.
 
-The gap is narrow and load-bearing. [`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §4 sends event *schemas* to `04-shared/Event Contract` — a documentation artefact. [`Domain Model.md`](./Domain%20Model.md) §5.3 bars events from `shared-kernel`, which is value objects only. Neither says where the Java `record` lives, and the answer decides whether consuming an event couples you to its publisher.
+The gap is narrow and load-bearing. [`ADR-0012`](../01-system/ADR/ADR-0012-transactional-outbox-and-kafka.md) §4 sends event *schemas* to `04-shared/Event Contract` — a documentation artefact. Neither that contract nor a shared Java record decides where a context-owned Java `record` lives; the semantic owner does, and that answer decides whether consuming an event couples you to its publisher.
 
 **The rule, by transport:**
 
@@ -221,12 +233,11 @@ flowchart LR
     App --> Domain["domain/<br/>aggregates · VOs · domain services"]
     Infra["infrastructure/<br/>JPA · JDBC · providers · listeners"] --> App
     Infra --> Domain
-    Domain --> Kernel["shared-kernel"]
 ```
 
 | Layer | May depend on | May **not** depend on |
 |---|---|---|
-| `domain` | the shared kernel only | application, infrastructure, api, Spring, JPA, Jackson, any provider SDK |
+| `domain` | its own value objects and repository ports | application, infrastructure, api, Spring, JPA, Jackson, any provider SDK |
 | `application` | domain, ports | infrastructure, api, concrete adapters |
 | `infrastructure` | domain, application, ports | api |
 | `api` | application | domain internals, infrastructure |
@@ -278,8 +289,7 @@ Everything the graph must not contain, with the mechanism that catches it. Each 
 |---|---|---|
 | Any cycle between modules | Makes independent reasoning, testing, and future extraction impossible; `NFR-MAINT-02` becomes untestable | `ApplicationModules.verify()` |
 | Reaching into another module's `application`, `domain`, or `infrastructure` | The module's deliberate surface is `api`; anything else is an internal detail its owner may change freely (`NFR-MAINT-01`) | Modulith module-boundary check |
-| Any outbound dependency from `shared-kernel` | The kernel must sit structurally beneath all thirteen modules, or the boundary check has nothing meaningful to verify (Domain Model §5.3) | ArchUnit dependency test |
-| An aggregate, repository, or service in `shared-kernel` | Behaviour-only value objects; growth is the coupling trap the kernel invites | ArchUnit rule forbidding `@AggregateRoot` / `@Repository` stereotypes in the kernel package |
+| A record moved to a neutral module only because another record has matching fields | Structural similarity is not semantic ownership; map the values at the context boundary instead | ArchUnit module/dependency test + code review |
 | A `domain` package naming `identity`, or any other module | Authorisation and cross-context coordination are application concerns (§6) | ArchUnit layer rule |
 | A direct call from `ordering` to Inventory's or Promotion's application service, bypassing the ports | Defeats the swap-in that keeps future extraction cheap; Modulith reports it as a violation and the temptation is to relax the rule rather than the code (ADR-0006 §5) | ArchUnit rule + code review |
 | A foreign key across module table prefixes | `ordering_order` must not reference `catalog_product`; a shared schema is not a shared model ([ADR-0009](../01-system/ADR/ADR-0009-postgresql-source-of-truth.md)) | Schema migration review + integration test |
@@ -309,7 +319,7 @@ The diagram in §3 is not documentation of intent; it is a specification the bui
 |---|---|
 | `ApplicationModules.of(EcpApplication.class).verify()` | No cycles; no module reaches another module's internals; every declared dependency is real |
 | `@ApplicationModule(allowedDependencies = {...})` on each module's `package-info.java` | The **allow-list** — a module may declare only the edges §3.1 and §3.2 grant it. A new edge is a deliberate, reviewable change to this annotation, not something a developer adds by writing an import. |
-| ArchUnit rules | The layer table in §6, the `shared-kernel` rules in §7, and the stereotype rules from [ADR-0007](../01-system/ADR/ADR-0007-jmolecules-tactical-ddd.md) |
+| ArchUnit rules | The layer table in §6, the local semantic-ownership rules in §7, and the stereotype rules from [ADR-0007](../01-system/ADR/ADR-0007-jmolecules-tactical-ddd.md) |
 
 The allow-list is the load-bearing one. Without it, Modulith verifies only that the graph is *acyclic and boundary-respecting* — it would happily accept `review → payment` if someone wrote it. With it, §3 becomes the single source of truth, and adding an edge requires saying so out loud.
 
@@ -330,7 +340,6 @@ The allow-list is the load-bearing one. Without it, Modulith verifies only that 
 | `identity` | Inbound from all twelve | **Moderate but pervasive.** Twelve synchronous authorisation calls become network calls on every command path. Latency budget, caching, and fail-closed behaviour all become live design problems. |
 | `inventory` | `StockReservationPort` — inside the placement transaction | **Highest.** `BR-ORD-02`'s atomicity is currently a local rollback; across a service boundary it becomes a saga with compensating actions on the platform's most business-critical path. |
 | `promotion` | `PromotionRedemptionPort` — inside the placement transaction | **Highest**, for the same reason. `UC-PRM-02` E7's over-redemption guarantee has the same shape as the oversell guarantee. |
-| `shared-kernel` | — | Not extractable. It becomes a published library every service depends on, with the versioning problem that implies. |
 
 The ranking is the useful output: the three Generic contexts could leave tomorrow, and the two Core Partnership participants are where the real work is — which is exactly what [`ADR-0002`](../01-system/ADR/ADR-0002-modular-monolith-deployment-unit.md) §5 predicts when it calls the Partnership "the single largest item of work in any future extraction."
 
