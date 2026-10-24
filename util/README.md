@@ -40,6 +40,8 @@ For other Linux distributions, install a supported Node.js version, `npm`, and `
    ```sh
    cd util
    make install
+   make diagrams # for this first time when clone repository
+   make build
    make preview
    ```
 

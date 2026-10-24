@@ -1,4 +1,3 @@
-
 .PHONY: install dev build preview test diagrams run
 
 install:

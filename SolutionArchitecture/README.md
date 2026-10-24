@@ -23,13 +23,6 @@ This folder defines the architecture that implements the [business requirements]
 | [`02-backend/Sequence/`](./02-backend/Sequence) | [`README.md`](./02-backend/Sequence/README.md) | Sequence diagrams — index, the normative participant vocabulary and arrow conventions, and what the diagrams deliberately do not claim |
 | [`02-backend/Sequence/`](./02-backend/Sequence) | `00-Overview.md`–`07-Supporting.md` | 56 sequence diagrams across 14 domains, including `P6`, `P7`, and `P8` failures |
 | [`02-backend/`](./02-backend) | [`Database.md`](./02-backend/Database.md) | Data model, PostgreSQL DDL, indexes, outbox, read stores, and migrations |
-| [`03-frontend/`](./03-frontend) | [`Frontend Architecture.md`](./03-frontend/Frontend%20Architecture.md) | Runtime, layers, Server/Client boundary, session custody, CSP, and toolchain |
-| [`03-frontend/`](./03-frontend) | [`Routing.md`](./03-frontend/Routing.md) | Routes, rendering classes, boundaries, handlers, and coverage of 155 operations |
-| [`03-frontend/`](./03-frontend) | [`Feature Structure.md`](./03-frontend/Feature%20Structure.md) | Feature layout, dependency order, import rules, and domain mapping |
-| [`03-frontend/`](./03-frontend) | [`Data Fetching.md`](./03-frontend/Data%20Fetching.md) | Fetch client, parsing, caching, actions, revalidation, pagination, and errors |
-| [`03-frontend/`](./03-frontend) | [`State Management.md`](./03-frontend/State%20Management.md) | Server, URL, local, and shared client state rules |
-| [`03-frontend/`](./03-frontend) | [`Performance.md`](./03-frontend/Performance.md) | Route budgets, assets, streaming, CSP trade-offs, measurement, and CI gates |
-| [`03-frontend/`](./03-frontend) | [`UI Design System.md`](./03-frontend/UI%20Design%20System.md) | Layout, spacing, type, color, components, motion, and accessibility |
 | [`04-shared/`](./04-shared) | [`Integration Contract.md`](./04-shared/Integration%20Contract.md) | REST, pagination, errors, events, schema evolution, and permissions |
 | [`04-shared/OpenAPI/`](./04-shared/OpenAPI) | [`README.md`](./04-shared/OpenAPI/README.md) + `openapi.yaml` | Normative OpenAPI 3.1 contract: 121 paths and 155 operations across 14 domains |
 | [`04-shared/Event Contract/`](./04-shared/Event%20Contract) | [`README.md`](./04-shared/Event%20Contract/README.md) + JSON Schemas | Versioned event schemas and the private web-revalidation callback |
