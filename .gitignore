@@ -5,3 +5,4 @@ util/dist/
 util/public/docs/
 util/node_modules/
 util/.astro/
+*.svg
