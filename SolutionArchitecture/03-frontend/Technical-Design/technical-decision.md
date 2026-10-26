@@ -6,8 +6,8 @@ Scope for this phase: identity, catalog, cart, inventory, ordering, shipping, an
 | --- | --- | --- |
 | React and TypeScript | Now | Build typed components and use strict TypeScript checks. |
 | Next.js | Now | Use App Router, Server Components for page reads, and Server Actions for writes. The Next.js server is the only caller of the backend API. |
-| Radix UI Primitives | Now | Build project-owned interactive components with Radix behavior for focus, keyboard use, and open/close state. See [radix-ui-behavior.md](../Component-Design/radix-ui-behavior.md). |
-| TailwindCSS | Now | Style those components with one Tailwind theme and the approved tokens in [Design-System.md](../UI-UX/Design-System.md). |
+| Radix UI Primitives + shadcn/ui | Now | Build project-owned interactive components with Radix behavior for focus, keyboard use, and open/close state. See [radix-ui-behavior.md](../Component-Design/radix-ui-behavior.md). |
+| TailwindCSS | Now | |
 | Zod | Only when useful | Validate forms with rules that depend on more than one field. Simple fields can use native checks and server validation. |
 | Inter and Lucide | Now | Use the chosen font and one outline icon set. |
 | Framer Motion | Later | Consider it for the approved motion presets when CSS is not enough. It is not needed for the first UI build. |

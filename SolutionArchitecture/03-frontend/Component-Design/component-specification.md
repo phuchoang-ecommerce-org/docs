@@ -1,7 +1,5 @@
 # Shared Component Specification
 
-These components are shared by pages or features. Build each project-owned component from Radix primitives or native HTML, then style it with Tailwind. Each has one implementation and receives its data through props.
-
 ## `components/ui`
 
 | Component | Shared job |

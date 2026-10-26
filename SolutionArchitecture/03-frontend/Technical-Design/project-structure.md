@@ -42,7 +42,7 @@ src/
       staff/orders/[orderId]/page.tsx
     api/                          # only needed route handlers
   components/
-    ui/                           # project-owned Radix and native controls
+    ui/                           # stable wrappers over project-owned shadcn/ui Radix source
     layout/                       # PageShell, headers, menus, navigation
   features/
     identity/                     # includes dev-only sign-in panel and action

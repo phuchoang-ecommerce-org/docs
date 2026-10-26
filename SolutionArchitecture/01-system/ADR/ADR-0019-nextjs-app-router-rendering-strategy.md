@@ -80,7 +80,7 @@ Two questions are open:
 
 - **The Server/Client boundary is the main source of frontend defects in this model.** A misplaced `"use client"` silently pulls a subtree into the browser bundle and undoes the benefit; there is no error, only a slower page.
 - **Static catalog pages need reliable invalidation.** They are revalidated on catalog events, which means the frontend now consumes a backend concern, and a missed invalidation shows a stale price. The mechanism is decided in [ADR-0038](./ADR-0038-event-driven-catalog-revalidation.md), which also finds that it does not work across `ecp-web` replicas without a shared cache. `BR-ORD-06` protects the customer at placement, but the displayed price was still wrong.
-- **Radix and Framer Motion are client-side**, so every interactive component is a client component. The design system's component layer ([ADR-0040](./ADR-0040-radix-tailwind-component-system.md)) will be largely client-side even where its content is not.
+- **Radix and Framer Motion are client-side**, so every interactive component is a client component. The design system's component layer ([ADR-0041](./ADR-0041-shadcn-owned-component-source.md)) will be largely client-side even where its content is not.
 - **App Router caching semantics have changed across versions.** The Next.js major version must be pinned and upgrades treated as behavioural changes, not patches.
 
 ### Neutral / follow-on
@@ -90,4 +90,4 @@ Two questions are open:
 
 ## 6. Related Decisions
 
-[ADR-0020](./ADR-0020-typescript-strict-mode.md) · [ADR-0040](./ADR-0040-radix-tailwind-component-system.md) · [ADR-0023](./ADR-0023-server-first-data-fetching.md) · [ADR-0025](./ADR-0025-httponly-cookie-session.md) · [ADR-0003](./ADR-0003-rest-api-style.md)
+[ADR-0020](./ADR-0020-typescript-strict-mode.md) · [ADR-0041](./ADR-0041-shadcn-owned-component-source.md) · [ADR-0023](./ADR-0023-server-first-data-fetching.md) · [ADR-0025](./ADR-0025-httponly-cookie-session.md) · [ADR-0003](./ADR-0003-rest-api-style.md)

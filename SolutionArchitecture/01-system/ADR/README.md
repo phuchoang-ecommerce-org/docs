@@ -76,17 +76,18 @@ Each ADR contains its full `Traces to` list. Use the [traceability matrix](../..
 | [0037](./ADR-0037-url-search-param-encoding-contract.md) | The URL search-param encoding as a stability contract | **Proposed** |
 | [0038](./ADR-0038-event-driven-catalog-revalidation.md) | Event-driven tag revalidation for static catalog routes | **Proposed** |
 | [0039](./ADR-0039-frontend-performance-budgets-ci-gate.md) | Per-route-class performance budgets as a build-failing CI gate | **Proposed** |
-| [0040](./ADR-0040-radix-tailwind-component-system.md) | Project-owned Radix UI components with TailwindCSS styling | Accepted |
+| [0040](./ADR-0040-radix-tailwind-component-system.md) | Project-owned Radix UI components with TailwindCSS styling | Superseded by 0041 |
+| [0041](./ADR-0041-shadcn-owned-component-source.md) | shadcn/ui source with Radix, Tailwind, Ma tokens, and stable wrappers | Accepted |
 
 ---
 
 ## 4. Reading order
 
-Read `0001`, then `0002`, `0003`, and `0028`. For backend work, read `0027`, `0005`–`0018`, `0029`–`0030`, and `0032`–`0034`. For frontend work, read `0019`–`0026` and `0035`–`0039`. Start with [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md) and [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md) when time is limited.
+Read `0001`, then `0002`, `0003`, and `0028`. For backend work, read `0027`, `0005`–`0018`, `0029`–`0030`, and `0032`–`0034`. For frontend work, read `0019`–`0026`, `0035`–`0039`, and `0041`. Start with [ADR-0011](./ADR-0011-optimistic-locking-reservation-model.md) and [ADR-0018](./ADR-0018-architecture-governance-ci-gate.md) when time is limited.
 
 ## 5. Add a record
 
-1. Use the next number, currently `ADR-0040`. Never reuse a number.
+1. Use the next number, currently `ADR-0042`. Never reuse a number.
 2. Name the file `ADR-00NN-<kebab-case-title>.md`.
 3. Copy an existing record. Keep only `Status`, `Date`, and `Traces to` in the metadata block.
 4. Include at least one rejected option with its real trade-offs.

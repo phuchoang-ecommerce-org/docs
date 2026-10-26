@@ -1,6 +1,6 @@
 # ADR-0040 — Radix UI and Tailwind CSS Component System
 
-**Status:** Accepted
+**Status:** Superseded by ADR-0041
 
 **Date:** 2026-10-24
 
