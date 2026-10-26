@@ -9,7 +9,7 @@ dev:
 build:
 	npm run build
 
-preview: build
+preview:
 	npm run preview
 
 test:
