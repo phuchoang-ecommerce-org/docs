@@ -4,3 +4,5 @@ I want this project to use mainly Next.js, RadixUI, TailwindCSS, Framer Motion, 
 > Note that in this progress, I need you to focus on using Next.js, RadixUI and TailwindCSS for building UI. Zustand for (Shared Client state), TanStack Query (Server Data state) and Framer Motion will be considered as extend strategy in later optimization update.
 
 You can track progress of backend project at [Link](~/Local-Document/ecommerce/backend/)
+
+You can track progress of frontend project at [Link](~/Local-Document/ecommerce/frontend/)

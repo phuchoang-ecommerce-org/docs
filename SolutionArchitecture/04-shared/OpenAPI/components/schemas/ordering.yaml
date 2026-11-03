@@ -231,9 +231,12 @@ VoucherApplication:
 
 PlaceOrderRequest:
   type: object
-  required: [confirmationToken]
+  required: [checkoutId, confirmationToken]
   additionalProperties: false
   properties:
+    checkoutId:
+      $ref: './common.yaml#/Id'
+      description: The Draft checkout being confirmed. The backend checks that it belongs to the caller.
     confirmationToken:
       type: string
       description: The token from the order summary the customer confirmed.

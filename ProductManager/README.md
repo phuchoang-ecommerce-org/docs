@@ -16,6 +16,7 @@ This folder defines delivery order, ownership, integration gates, and completion
 | [`definition-of-done.md`](./definition-of-done.md) | Ready, lane, story, and release quality gates. |
 | `sprint-backlogs/` | Planned task backlogs for Sprints 00–32 and IH-1–IH-3. This directory is not present in the current repo. |
 | [`ih-1-hardening-findings.md`](./ih-1-hardening-findings.md) | Current IH-1 results, pending re-verification, blocked work, and unverified work. |
+| [`frontend-rolling-sprint-plan.md`](./frontend-rolling-sprint-plan.md) | Current frontend baseline and rolling plan through IH-2, ending with a successful mock payment. |
 
 ## 2. Reading order
 
